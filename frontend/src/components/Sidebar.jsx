@@ -39,6 +39,17 @@ export function Sidebar() {
             </span>
             <span className="sidebar-arrow" aria-hidden="true">›</span>
           </NavLink>
+          <NavLink
+            className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+            to="/admin/horarios-medicos"
+          >
+            <span className="sidebar-item-icon" aria-hidden="true">H</span>
+            <span>
+              <strong>Horarios Médicos</strong>
+              <small>Disponibilidad semanal</small>
+            </span>
+            <span className="sidebar-arrow" aria-hidden="true">›</span>
+          </NavLink>
         </nav>
       )}
 

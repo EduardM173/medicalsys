@@ -150,7 +150,8 @@
 }
 
 .app-content .dashboard-page,
-.app-content .users-page {
+.app-content .users-page,
+.app-content .schedules-page {
   min-height: 100vh;
 }
 

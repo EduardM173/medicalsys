@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
+import { SchedulesPage } from './pages/SchedulesPage';
 import { UsersPage } from './pages/UsersPage';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route element={<AdminRoute />}>
                 <Route path="/admin/usuarios" element={<UsersPage />} />
+                <Route path="/admin/horarios-medicos" element={<SchedulesPage />} />
               </Route>
             </Route>
           </Route>
