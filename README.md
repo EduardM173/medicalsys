@@ -54,10 +54,11 @@ Con la base existente configurada en `backend/.env`, los comandos son:
 cd backend
 npm run prisma:pull
 npm run prisma:generate
+npm run prisma:baseline
 npm run prisma:seed
 ```
 
-No ejecutes `prisma migrate reset` ni `prisma db push` sobre la base existente. La migración inicial se registrará como baseline sin volver a crear las tablas.
+No ejecutes `prisma migrate reset` ni `prisma db push` sobre la base existente. La migración `20260824_init_medicalsys` se registra como baseline sin volver a crear las tablas.
 
 ## Endpoint de verificación
 

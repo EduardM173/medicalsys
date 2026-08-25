@@ -9,6 +9,7 @@
     "start": "node src/server.js",
     "prisma:generate": "prisma generate",
     "prisma:pull": "prisma db pull",
+    "prisma:baseline": "prisma migrate resolve --applied 20260824_init_medicalsys",
     "prisma:seed": "prisma db seed"
   },
   "prisma": {

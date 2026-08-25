@@ -1,3 +1,5 @@
+import React from 'react';
+
 export function HealthStatus({ health, error }) {
   if (health) {
     return <p className="status success">API y base de datos disponibles.</p>;
