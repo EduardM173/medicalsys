@@ -1,8 +1,13 @@
 import React from 'react';
 
-export function Button({ children, disabled = false, type = 'button' }) {
+export function Button({ children, className = '', disabled = false, onClick, type = 'button', variant = 'primary' }) {
   return (
-    <button className="button button-primary" disabled={disabled} type={type}>
+    <button
+      className={`button button-${variant} ${className}`.trim()}
+      disabled={disabled}
+      onClick={onClick}
+      type={type}
+    >
       {children}
     </button>
   );
