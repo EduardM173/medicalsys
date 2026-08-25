@@ -72,3 +72,25 @@ export function updateUser(id, user) {
 export function deactivateUser(id) {
   return request(`/users/${id}`, { method: 'DELETE' });
 }
+
+export function getDoctors() {
+  return request('/doctors');
+}
+
+export function getDoctorSchedules(doctorId, { activeOnly = false } = {}) {
+  return request(`/doctors/${doctorId}/schedules${activeOnly ? '/active' : ''}`);
+}
+
+export function createSchedule(doctorId, schedule) {
+  return request(`/doctors/${doctorId}/schedules`, {
+    method: 'POST',
+    body: JSON.stringify(schedule)
+  });
+}
+
+export function updateSchedule(scheduleId, schedule) {
+  return request(`/schedules/${scheduleId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(schedule)
+  });
+}
