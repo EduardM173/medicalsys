@@ -80,3 +80,17 @@ GET  http://localhost:3000/api/auth/me
 ```
 
 La pantalla de acceso está disponible en `http://localhost:5173/login` y la ruta protegida mínima en `http://localhost:5173/dashboard`.
+
+## Gestión de usuarios
+
+Los endpoints administrativos requieren una sesión con rol `ADMINISTRADOR`. La eliminación es lógica y cambia el estado del usuario a `INACTIVO`.
+
+```text
+POST   http://localhost:3000/api/users
+GET    http://localhost:3000/api/users
+GET    http://localhost:3000/api/users/:id
+PATCH  http://localhost:3000/api/users/:id
+DELETE http://localhost:3000/api/users/:id
+```
+
+La pantalla administrativa está disponible en `http://localhost:5173/admin/usuarios`.

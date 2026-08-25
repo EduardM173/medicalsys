@@ -46,3 +46,25 @@ export function loginRequest(credentials) {
 export function getMe() {
   return request('/auth/me');
 }
+
+export function getUsers() {
+  return request('/users');
+}
+
+export function createUser(user) {
+  return request('/users', {
+    method: 'POST',
+    body: JSON.stringify(user)
+  });
+}
+
+export function updateUser(id, user) {
+  return request(`/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(user)
+  });
+}
+
+export function deactivateUser(id) {
+  return request(`/users/${id}`, { method: 'DELETE' });
+}
