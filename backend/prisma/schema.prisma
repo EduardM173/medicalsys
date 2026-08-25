@@ -1,0 +1,11 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Los modelos se generarán mediante `npm run prisma:pull` después de
+// confirmar la conexión con la base de datos existente.
