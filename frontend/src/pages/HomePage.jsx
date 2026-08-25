@@ -11,8 +11,8 @@ export function HomePage() {
   }, []);
 
   return (
-    <main>
-      <section>
+    <main className="app-main">
+      <section className="welcome-card">
         <h1>MedicalSys</h1>
         <p>Base técnica del MVP</p>
         <p>Frontend preparado para Sprint 2</p>

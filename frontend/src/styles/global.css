@@ -1,0 +1,94 @@
+@import "./variables.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-family);
+  color: var(--color-text-primary);
+  background: var(--color-background);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-regular);
+  line-height: 1.5;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  font-weight: var(--font-weight-semibold);
+}
+
+input,
+textarea,
+select {
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+input,
+select {
+  min-height: var(--input-height);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.app-main {
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  place-items: center;
+}
+
+.welcome-card {
+  width: min(100%, 520px);
+  padding: 40px;
+  text-align: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+}
+
+.welcome-card h1 {
+  margin: 0 0 8px;
+  color: var(--color-navy);
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-bold);
+}
+
+.welcome-card p {
+  margin: 4px 0;
+  color: var(--color-text-secondary);
+}
+
+.status {
+  margin-top: 24px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-caption);
+}
+
+.status.success {
+  color: var(--color-success);
+}
