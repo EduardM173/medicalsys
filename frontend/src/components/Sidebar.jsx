@@ -1,9 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export function Sidebar() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const [logoutError, setLogoutError] = useState('');
+
+  async function handleLogout() {
+    setLogoutError('');
+    try {
+      await logout();
+    } catch (_error) {
+      setLogoutError('No fue posible cerrar sesión.');
+    }
+  }
 
   return (
     <aside className="app-sidebar">
@@ -31,6 +41,14 @@ export function Sidebar() {
           </NavLink>
         </nav>
       )}
+
+      <div className="sidebar-footer">
+        {logoutError && <p className="sidebar-error" role="alert">{logoutError}</p>}
+        <button className="sidebar-logout" onClick={handleLogout} type="button">
+          <span className="sidebar-item-icon" aria-hidden="true">↪</span>
+          <span>Cerrar sesión</span>
+        </button>
+      </div>
     </aside>
   );
 }

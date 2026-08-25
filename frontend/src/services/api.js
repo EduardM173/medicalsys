@@ -47,6 +47,10 @@ export function getMe() {
   return request('/auth/me');
 }
 
+export function logoutRequest() {
+  return request('/auth/logout', { method: 'POST' });
+}
+
 export function getUsers() {
   return request('/users');
 }
