@@ -1,0 +1,6 @@
+{
+  "name": "MedicalSys",
+  "description": "Sistema SaaS de administración médica con gestión de historial clínico, agenda de quirófanos, gestión documental con firma digital, facturación electrónica SIN Bolivia y notificaciones de WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
