@@ -28,7 +28,7 @@ Copy-Item backend/.env.example backend/.env
 Copy-Item frontend/.env.example frontend/.env
 ```
 
-`backend/.env` requiere `DATABASE_URL` y `PORT`; `frontend/.env` permite configurar `VITE_API_URL`.
+`backend/.env` requiere `DATABASE_URL`, `PORT`, `FRONTEND_URL`, `JWT_SECRET` y `JWT_EXPIRES_IN`; `frontend/.env` permite configurar `VITE_API_URL`.
 
 ## Frontend
 
@@ -69,3 +69,14 @@ GET http://localhost:3000/api/health
 ```
 
 La respuesta correcta confirma que la API y PostgreSQL están disponibles.
+
+## Autenticación
+
+El inicio de sesión utiliza JWT almacenado en una cookie HttpOnly. El navegador debe incluir credenciales en las solicitudes a la API.
+
+```text
+POST http://localhost:3000/api/auth/login
+GET  http://localhost:3000/api/auth/me
+```
+
+La pantalla de acceso está disponible en `http://localhost:5173/login` y la ruta protegida mínima en `http://localhost:5173/dashboard`.
