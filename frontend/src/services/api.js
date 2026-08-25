@@ -1,11 +1,48 @@
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-export async function getHealth() {
-  const response = await fetch(`${apiUrl}/health`);
+export class ApiError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
 
-  if (!response.ok) {
-    throw new Error('La API no está disponible.');
+async function request(path, options = {}) {
+  let response;
+
+  try {
+    response = await fetch(`${apiUrl}${path}`, {
+      credentials: 'include',
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    });
+  } catch (_error) {
+    throw new ApiError(0, 'No fue posible conectar con el servidor.');
   }
 
-  return response.json();
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new ApiError(response.status, data.message || 'No fue posible procesar la solicitud.');
+  }
+
+  return data;
+}
+
+export function getHealth() {
+  return request('/health');
+}
+
+export function loginRequest(credentials) {
+  return request('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(credentials)
+  });
+}
+
+export function getMe() {
+  return request('/auth/me');
 }
