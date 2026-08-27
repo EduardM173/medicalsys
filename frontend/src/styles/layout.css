@@ -152,7 +152,8 @@
 .app-content .dashboard-page,
 .app-content .users-page,
 .app-content .schedules-page,
-.app-content .patients-page {
+.app-content .patients-page,
+.app-content .doctors-page {
   min-height: 100vh;
 }
 
