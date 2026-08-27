@@ -139,6 +139,7 @@ Después de ejecutar `npm run prisma:seed`, utilice estas credenciales de desarr
 | Rol | Correo | Contraseña | Uso |
 |---|---|---|---|
 | Administrador | `admin@medicalsys.test` | `MedicalSys2026!` | Gestionar usuarios y horarios médicos. |
+| Recepcionista | `recepcionista@medicalsys.test` | `MedicalSys2026!` | Registrar, consultar y editar pacientes. |
 | Médico | `medico@medicalsys.test` | `MedicalSys2026!` | Verificar que no puede acceder a operaciones administrativas. |
 
 Estas credenciales son solo para desarrollo local. No deben usarse en un sistema real.
@@ -160,6 +161,7 @@ Inicie sesión como administrador y pruebe:
 | Panel | `/dashboard` | Confirmar que existe una sesión autenticada. |
 | Gestión de usuarios | `/admin/usuarios` | Crear, editar o desactivar usuarios. |
 | Horarios médicos | `/admin/horarios-medicos` | Seleccionar médico, agregar horarios, editar y habilitar/deshabilitar disponibilidad. |
+| Gestión de pacientes | `/pacientes` | Buscar, registrar, consultar y editar pacientes. |
 
 El botón **Cerrar sesión** se encuentra en la parte inferior de la barra lateral.
 
@@ -183,6 +185,11 @@ GET   /api/doctors/:doctorId/schedules
 GET   /api/doctors/:doctorId/schedules/active
 POST  /api/doctors/:doctorId/schedules
 PATCH /api/schedules/:scheduleId
+
+GET   /api/patients?search=texto
+POST  /api/patients
+GET   /api/patients/:id
+PATCH /api/patients/:id
 ```
 
 Los endpoints de usuarios, médicos y horarios requieren sesión con rol `ADMINISTRADOR`. Sin sesión responden `401`; un médico autenticado recibe `403` en esas operaciones administrativas.

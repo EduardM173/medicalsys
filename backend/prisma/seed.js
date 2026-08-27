@@ -87,9 +87,16 @@ async function main() {
     idRol: rolesByCode.MEDICO.id_rol,
     passwordHash
   });
+  const receptionist = await upsertUser({
+    email: 'recepcionista@medicalsys.test',
+    nombres: 'Recepcionista',
+    apellidos: 'MedicalSys',
+    idRol: rolesByCode.RECEPCIONISTA.id_rol,
+    passwordHash
+  });
   const doctorProfile = await upsertDoctorProfile(doctor.id_usuario);
 
-  console.log(`Seed listo: administrador ${admin.email}, médico ${doctor.email}, perfil ${doctorProfile.id_medico}.`);
+  console.log(`Seed listo: administrador ${admin.email}, médico ${doctor.email}, recepcionista ${receptionist.email}, perfil ${doctorProfile.id_medico}.`);
 }
 
 main()

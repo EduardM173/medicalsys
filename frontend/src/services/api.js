@@ -94,3 +94,20 @@ export function updateSchedule(scheduleId, schedule) {
     body: JSON.stringify(schedule)
   });
 }
+
+export function getPatients(search = '') {
+  const query = search ? `?search=${encodeURIComponent(search)}` : '';
+  return request(`/patients${query}`);
+}
+
+export function getPatient(id) {
+  return request(`/patients/${id}`);
+}
+
+export function createPatient(patient) {
+  return request('/patients', { method: 'POST', body: JSON.stringify(patient) });
+}
+
+export function updatePatient(id, patient) {
+  return request(`/patients/${id}`, { method: 'PATCH', body: JSON.stringify(patient) });
+}
