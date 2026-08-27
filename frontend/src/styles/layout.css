@@ -151,7 +151,8 @@
 
 .app-content .dashboard-page,
 .app-content .users-page,
-.app-content .schedules-page {
+.app-content .schedules-page,
+.app-content .patients-page {
   min-height: 100vh;
 }
 
