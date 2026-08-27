@@ -160,6 +160,7 @@ Inicie sesión como administrador y pruebe:
 |---|---|---|
 | Panel | `/dashboard` | Confirmar que existe una sesión autenticada. |
 | Gestión de usuarios | `/admin/usuarios` | Crear, editar o desactivar usuarios. |
+| Gestión de médicos | `/admin/medicos` | Registrar, consultar y editar perfiles profesionales. |
 | Horarios médicos | `/admin/horarios-medicos` | Seleccionar médico, agregar horarios, editar y habilitar/deshabilitar disponibilidad. |
 | Gestión de pacientes | `/pacientes` | Buscar, registrar, consultar y editar pacientes. |
 
@@ -181,6 +182,9 @@ PATCH  /api/users/:id
 DELETE /api/users/:id
 
 GET   /api/doctors
+POST  /api/doctors
+GET   /api/doctors/:id
+PATCH /api/doctors/:id
 GET   /api/doctors/:doctorId/schedules
 GET   /api/doctors/:doctorId/schedules/active
 POST  /api/doctors/:doctorId/schedules

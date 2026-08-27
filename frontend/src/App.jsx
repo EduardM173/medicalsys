@@ -5,6 +5,7 @@ import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { DashboardPage } from './pages/DashboardPage';
+import { DoctorsPage } from './pages/DoctorsPage';
 import { LoginPage } from './pages/LoginPage';
 import { PatientsPage } from './pages/PatientsPage';
 import { SchedulesPage } from './pages/SchedulesPage';
@@ -23,6 +24,7 @@ function App() {
                 <Route path="/pacientes" element={<PatientsPage />} />
               </Route>
               <Route element={<AdminRoute />}>
+                <Route path="/admin/medicos" element={<DoctorsPage />} />
                 <Route path="/admin/usuarios" element={<UsersPage />} />
                 <Route path="/admin/horarios-medicos" element={<SchedulesPage />} />
               </Route>
