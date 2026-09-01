@@ -129,6 +129,10 @@ export function getMedicalHistory(patientId) {
   return request(`/patients/${patientId}/medical-history`);
 }
 
+export function getMyAgenda(date) {
+  return request(`/agenda/me?date=${encodeURIComponent(date)}`);
+}
+
 export function getClinicalDocuments(patientId) {
   return request(`/patients/${patientId}/documents`);
 }

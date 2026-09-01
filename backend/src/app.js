@@ -1,6 +1,7 @@
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const express = require('express');
+const agendaRoutes = require('./routes/agenda.routes');
 const authRoutes = require('./routes/auth.routes');
 const doctorRoutes = require('./routes/doctor.routes');
 const documentRoutes = require('./routes/document.routes');
@@ -21,6 +22,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/agenda', agendaRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api', documentRoutes);
 app.use('/api/patients', medicalHistoryRoutes);

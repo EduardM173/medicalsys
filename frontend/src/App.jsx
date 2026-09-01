@@ -4,6 +4,7 @@ import { AdminRoute, AuthorizedRoute } from './components/AdminRoute';
 import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
+import { AgendaPage } from './pages/AgendaPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DoctorsPage } from './pages/DoctorsPage';
 import { DocumentsPage } from './pages/DocumentsPage';
@@ -26,6 +27,7 @@ function App() {
                 <Route path="/pacientes" element={<PatientsPage />} />
               </Route>
               <Route element={<AuthorizedRoute allowedRoles={['MEDICO']} />}>
+                <Route path="/agenda" element={<AgendaPage />} />
                 <Route path="/historial-clinico/:patientId" element={<MedicalHistoryPage />} />
                 <Route path="/pacientes/:patientId/documentos" element={<DocumentsPage />} />
               </Route>

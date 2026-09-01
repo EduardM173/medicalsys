@@ -43,20 +43,20 @@ async function upsertUser({ email, nombres, apellidos, idRol, passwordHash }) {
   });
 }
 
-async function upsertDoctorProfile(userId) {
+async function upsertDoctorProfile({ userId, license, specialty }) {
   const existingProfile = await prisma.medico.findFirst({
     where: {
       OR: [
         { id_usuario: userId },
-        { matricula_profesional: 'MED-DEV-001' }
+        { matricula_profesional: license }
       ]
     }
   });
 
   const data = {
     id_usuario: userId,
-    matricula_profesional: 'MED-DEV-001',
-    especialidad: 'Medicina General',
+    matricula_profesional: license,
+    especialidad: specialty,
     activo: true
   };
 
@@ -286,6 +286,128 @@ async function seedClinicalDocuments(clinicalData, uploaderId) {
   return { documents, secondPatient };
 }
 
+async function upsertMedicalService() {
+  return prisma.servicio_medico.upsert({
+    where: { codigo: 'CONS-GEN-DEV' },
+    update: {
+      nombre: 'Consulta de Medicina General',
+      descripcion: 'Servicio de prueba para la agenda médica.',
+      tipo: 'CONSULTA',
+      duracion_minutos: 30,
+      precio_base: '120.00',
+      activo: true,
+      fecha_actualizacion: new Date()
+    },
+    create: {
+      codigo: 'CONS-GEN-DEV',
+      nombre: 'Consulta de Medicina General',
+      descripcion: 'Servicio de prueba para la agenda médica.',
+      tipo: 'CONSULTA',
+      duracion_minutos: 30,
+      precio_base: '120.00',
+      activo: true
+    }
+  });
+}
+
+async function upsertTestAppointment({
+  doctorId,
+  patientId,
+  serviceId,
+  createdBy,
+  startTime,
+  endTime,
+  reason,
+  status
+}) {
+  const existingAppointment = await prisma.cita.findFirst({
+    where: {
+      id_medico: doctorId,
+      id_paciente: patientId,
+      id_servicio: serviceId,
+      fecha_hora_inicio: startTime
+    }
+  });
+  const data = {
+    id_paciente: patientId,
+    id_medico: doctorId,
+    id_servicio: serviceId,
+    creado_por: createdBy,
+    fecha_hora_inicio: startTime,
+    fecha_hora_fin: endTime,
+    motivo: reason,
+    estado: status,
+    fecha_actualizacion: new Date()
+  };
+
+  if (existingAppointment) {
+    return prisma.cita.update({
+      where: { id_cita: existingAppointment.id_cita },
+      data
+    });
+  }
+
+  return prisma.cita.create({ data });
+}
+
+async function seedMedicalAgenda({ doctorAId, doctorBId, createdBy, patientAId, patientBId }) {
+  const service = await upsertMedicalService();
+  const appointments = await Promise.all([
+    upsertTestAppointment({
+      doctorId: doctorAId,
+      patientId: patientAId,
+      serviceId: service.id_servicio,
+      createdBy,
+      startTime: new Date('2030-01-15T08:00:00-04:00'),
+      endTime: new Date('2030-01-15T08:30:00-04:00'),
+      reason: 'Control médico general',
+      status: 'CONFIRMADA'
+    }),
+    upsertTestAppointment({
+      doctorId: doctorAId,
+      patientId: patientBId,
+      serviceId: service.id_servicio,
+      createdBy,
+      startTime: new Date('2030-01-15T09:30:00-04:00'),
+      endTime: new Date('2030-01-15T10:00:00-04:00'),
+      reason: 'Consulta de seguimiento',
+      status: 'PROGRAMADA'
+    }),
+    upsertTestAppointment({
+      doctorId: doctorAId,
+      patientId: patientAId,
+      serviceId: service.id_servicio,
+      createdBy,
+      startTime: new Date('2030-01-15T11:00:00-04:00'),
+      endTime: new Date('2030-01-15T11:30:00-04:00'),
+      reason: 'Consulta cancelada de demostración',
+      status: 'CANCELADA'
+    }),
+    upsertTestAppointment({
+      doctorId: doctorBId,
+      patientId: patientBId,
+      serviceId: service.id_servicio,
+      createdBy,
+      startTime: new Date('2030-01-15T08:30:00-04:00'),
+      endTime: new Date('2030-01-15T09:00:00-04:00'),
+      reason: 'Cita exclusiva del segundo médico',
+      status: 'PROGRAMADA'
+    }),
+    upsertTestAppointment({
+      doctorId: doctorAId,
+      patientId: patientBId,
+      serviceId: service.id_servicio,
+      createdBy,
+      startTime: new Date('2030-01-16T10:00:00-04:00'),
+      endTime: new Date('2030-01-16T10:30:00-04:00'),
+      reason: 'Control en fecha diferente',
+      status: 'PROGRAMADA'
+    })
+  ]);
+
+  return { appointments, service };
+}
+
 async function main() {
   const rolesByCode = {};
   for (const [codigo, nombre, descripcion] of roles) {
@@ -307,6 +429,13 @@ async function main() {
     idRol: rolesByCode.MEDICO.id_rol,
     passwordHash
   });
+  const secondDoctor = await upsertUser({
+    email: 'medico.b@medicalsys.test',
+    nombres: 'Elena',
+    apellidos: 'Vargas',
+    idRol: rolesByCode.MEDICO.id_rol,
+    passwordHash
+  });
   const receptionist = await upsertUser({
     email: 'recepcionista@medicalsys.test',
     nombres: 'Recepcionista',
@@ -314,18 +443,35 @@ async function main() {
     idRol: rolesByCode.RECEPCIONISTA.id_rol,
     passwordHash
   });
-  const doctorProfile = await upsertDoctorProfile(doctor.id_usuario);
+  const doctorProfile = await upsertDoctorProfile({
+    userId: doctor.id_usuario,
+    license: 'MED-DEV-001',
+    specialty: 'Medicina General'
+  });
+  const secondDoctorProfile = await upsertDoctorProfile({
+    userId: secondDoctor.id_usuario,
+    license: 'MED-DEV-002',
+    specialty: 'Medicina Interna'
+  });
   const clinicalData = await seedMedicalHistory(doctorProfile.id_medico);
   const documentData = await seedClinicalDocuments(
     clinicalData,
     doctor.id_usuario
   );
+  const agendaData = await seedMedicalAgenda({
+    doctorAId: doctorProfile.id_medico,
+    doctorBId: secondDoctorProfile.id_medico,
+    createdBy: receptionist.id_usuario,
+    patientAId: clinicalData.patientWithHistory.id_paciente,
+    patientBId: documentData.secondPatient.id_paciente
+  });
 
   console.log(
     `Seed listo: administrador ${admin.email}, médico ${doctor.email}, recepcionista ${receptionist.email}, `
       + `paciente con historial ${clinicalData.patientWithHistory.documento_identidad}, `
       + `paciente sin historial ${clinicalData.patientWithoutHistory.documento_identidad}, `
-      + `documentos clínicos ${documentData.documents.length}.`
+      + `documentos clínicos ${documentData.documents.length}, `
+      + `citas de agenda ${agendaData.appointments.length}.`
   );
 }
 
