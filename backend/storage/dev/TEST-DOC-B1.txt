@@ -1,0 +1,7 @@
+MEDICALSYS - DOCUMENTO CLÍNICO FICTICIO
+
+Paciente de demostración: Lucía Fernández Rojas
+Tipo: Informe radiológico de demostración
+Referencia: TEST-DOC-B1
+
+Fixture ficticio para comprobar el aislamiento de documentos entre pacientes en HU-13.

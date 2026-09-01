@@ -1,0 +1,7 @@
+MEDICALSYS - DOCUMENTO CLÍNICO FICTICIO
+
+Paciente de demostración: Alejandro Morales Quiroga
+Tipo: Resultado de laboratorio
+Referencia: TEST-DOC-A1
+
+Este archivo contiene datos completamente ficticios y existe únicamente para pruebas de desarrollo de HU-13.

@@ -168,9 +168,12 @@ export function PatientsPage() {
                 {selectedPatient.telefonoEmergencia && <div><dt>Teléfono de emergencia</dt><dd>{selectedPatient.telefonoEmergencia}</dd></div>}
               </dl>
               <div className="patient-detail-actions">
-                {isDoctor
-                  ? <Button onClick={() => navigate(`/historial-clinico/${selectedPatient.id}`)}>Ver historial clínico</Button>
-                  : <Button onClick={() => openEditForm(selectedPatient.id)}>Editar paciente</Button>}
+                {isDoctor ? (
+                  <>
+                    <Button onClick={() => navigate(`/pacientes/${selectedPatient.id}/documentos`)}>Documentos clínicos</Button>
+                    <Button onClick={() => navigate(`/historial-clinico/${selectedPatient.id}`)}>Ver historial clínico</Button>
+                  </>
+                ) : <Button onClick={() => openEditForm(selectedPatient.id)}>Editar paciente</Button>}
               </div>
             </>
           )}
@@ -205,7 +208,10 @@ export function PatientsPage() {
                 <div className="patient-row-actions">
                   <button className="text-action" onClick={() => fetchPatient(patient.id)} type="button">Ver</button>
                   {isDoctor ? (
-                    <button className="text-action" onClick={() => navigate(`/historial-clinico/${patient.id}`)} type="button">Historial</button>
+                    <>
+                      <button className="text-action" onClick={() => navigate(`/historial-clinico/${patient.id}`)} type="button">Historial</button>
+                      <button className="text-action" onClick={() => navigate(`/pacientes/${patient.id}/documentos`)} type="button">Documentos</button>
+                    </>
                   ) : (
                     <button className="text-action" onClick={() => openEditForm(patient.id)} type="button">Editar</button>
                   )}
