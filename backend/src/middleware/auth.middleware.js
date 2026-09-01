@@ -9,7 +9,11 @@ function requireAuth(request, response, next) {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    request.user = { id: payload.sub, rol: payload.rol };
+    request.user = {
+      id: payload.sub,
+      idUsuario: payload.sub,
+      rol: payload.rol
+    };
     return next();
   } catch (_error) {
     return response.status(401).json({ message: 'Autenticación requerida.' });
