@@ -6,7 +6,9 @@ const requireRole = require('../middleware/role.middleware');
 const router = Router();
 const requireClinicalAccess = requireRole.withMessage(
   'No tiene permisos para consultar documentos clínicos.',
-  'MEDICO'
+  'MEDICO',
+  'ADMINISTRADOR',
+  'RECEPCIONISTA'
 );
 
 router.get(
@@ -15,6 +17,7 @@ router.get(
   requireClinicalAccess,
   documentController.listPatientDocuments
 );
+
 router.get(
   '/documents/:documentId/file',
   requireAuth,

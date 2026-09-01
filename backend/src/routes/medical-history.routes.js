@@ -8,7 +8,11 @@ const router = Router();
 router.get(
   '/:patientId/medical-history',
   requireAuth,
-  requireRole.withMessage('No tiene permisos para consultar información clínica.', 'MEDICO'),
+  requireRole.withMessage(
+    'No tiene permisos para consultar información clínica.',
+    'MEDICO',
+    'ADMINISTRADOR'
+  ),
   medicalHistoryController.getMedicalHistory
 );
 

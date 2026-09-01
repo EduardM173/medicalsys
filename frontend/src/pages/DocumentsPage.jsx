@@ -1,15 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/Button';
-import { getClinicalDocumentFile, getClinicalDocuments } from '../services/api';
+import { DocumentUploadModal } from '../components/DocumentUploadModal';
+import { useAuth } from '../contexts/AuthContext';
+import { deleteClinicalDocument, getClinicalDocumentFile, getClinicalDocuments } from '../services/api';
 import '../styles/documents.css';
 
 const typeLabels = {
-  EXAMEN: 'Examen',
-  RADIOGRAFIA: 'Radiografía',
+  EXAMEN: 'Examen de Laboratorio',
+  RADIOGRAFIA: 'Radiografía / Imagen',
   CONSENTIMIENTO: 'Consentimiento',
   RECETA: 'Receta',
-  INFORME: 'Informe',
+  INFORME: 'Informe Clínico',
   OTRO: 'Otro'
 };
 
@@ -32,40 +34,38 @@ function documentLabel(patient) {
 
 export function DocumentsPage() {
   const { patientId } = useParams();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [openingId, setOpeningId] = useState(null);
   const [error, setError] = useState('');
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+
+  const isDoctorOrAdmin = user?.rol === 'MEDICO' || user?.rol === 'ADMINISTRADOR';
+
+  const loadDocuments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await getClinicalDocuments(patientId);
+      setData(response);
+      setError('');
+    } catch (requestError) {
+      if (requestError.status === 403) {
+        setError('No tiene permisos para consultar documentos clínicos.');
+      } else if (requestError.status === 404) {
+        setError('Paciente no encontrado.');
+      } else {
+        setError('No fue posible cargar los documentos clínicos.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [patientId]);
 
   useEffect(() => {
-    let active = true;
-
-    async function loadDocuments() {
-      setLoading(true);
-      try {
-        const response = await getClinicalDocuments(patientId);
-        if (active) {
-          setData(response);
-          setError('');
-        }
-      } catch (requestError) {
-        if (!active) return;
-        if (requestError.status === 403) {
-          setError('No tiene permisos para consultar documentos clínicos.');
-        } else if (requestError.status === 404) {
-          setError('Paciente no encontrado.');
-        } else {
-          setError('No fue posible cargar los documentos clínicos.');
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
     loadDocuments();
-    return () => { active = false; };
-  }, [patientId]);
+  }, [loadDocuments]);
 
   async function openDocument(document) {
     setOpeningId(document.id);
@@ -98,7 +98,19 @@ export function DocumentsPage() {
     }
   }
 
-  if (loading) {
+  async function handleDelete(documentId, documentTitle) {
+    if (!window.confirm(`¿Está seguro de eliminar el documento "${documentTitle}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    try {
+      await deleteClinicalDocument(documentId);
+      loadDocuments();
+    } catch (err) {
+      setError(err.message || 'No fue posible eliminar el documento clínico.');
+    }
+  }
+
+  if (loading && !data) {
     return <main className="documents-page"><p className="documents-state">Cargando documentos clínicos...</p></main>;
   }
 
@@ -123,9 +135,18 @@ export function DocumentsPage() {
           <h1>Documentos Clínicos</h1>
           <p>Exámenes e informes asociados al paciente</p>
         </div>
-        <div className="documents-header-actions">
-          <Button onClick={() => navigate(`/historial-clinico/${patientId}`)}>Historial clínico</Button>
-          <Button onClick={() => navigate('/pacientes')}>← Volver</Button>
+        <div className="documents-header-actions" style={{ display: 'flex', gap: '10px' }}>
+          {isDoctorOrAdmin && (
+            <Button onClick={() => setIsUploadOpen(true)}>
+              + Adjuntar Documento
+            </Button>
+          )}
+          <Button variant="secondary" onClick={() => navigate(`/historial-clinico/${patientId}`)}>
+            Historial clínico
+          </Button>
+          <Button variant="secondary" onClick={() => navigate('/pacientes')}>
+            ← Volver
+          </Button>
         </div>
       </header>
 
@@ -142,11 +163,16 @@ export function DocumentsPage() {
       {error && <p className="notice error-notice documents-notice" role="alert">{error}</p>}
 
       <section className="documents-list-card" aria-labelledby="documents-list-title">
-        <div className="documents-section-heading">
+        <div className="documents-section-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <span className="login-kicker">Archivo clínico</span>
             <h2 id="documents-list-title">Documentos registrados</h2>
           </div>
+          {isDoctorOrAdmin && (
+            <Button onClick={() => setIsUploadOpen(true)}>
+              + Adjuntar Documento
+            </Button>
+          )}
         </div>
 
         {documents.length === 0 ? (
@@ -171,18 +197,37 @@ export function DocumentsPage() {
                     <small>Atención: {document.atencion.motivoConsulta} · {formatDate(document.atencion.fechaAtencion)}</small>
                   )}
                 </div>
-                <Button
-                  className="document-open-button"
-                  disabled={openingId === document.id}
-                  onClick={() => openDocument(document)}
-                >
-                  {openingId === document.id ? 'Abriendo...' : 'Abrir'}
-                </Button>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <Button
+                    className="document-open-button"
+                    disabled={openingId === document.id}
+                    onClick={() => openDocument(document)}
+                  >
+                    {openingId === document.id ? 'Abriendo...' : 'Abrir / Descargar'}
+                  </Button>
+                  {isDoctorOrAdmin && (
+                    <button
+                      type="button"
+                      className="text-action"
+                      style={{ color: 'var(--color-danger, #ef4444)', fontWeight: '500', padding: '6px 10px' }}
+                      onClick={() => handleDelete(document.id, document.titulo)}
+                    >
+                      Eliminar
+                    </button>
+                  )}
+                </div>
               </article>
             ))}
           </div>
         )}
       </section>
+
+      <DocumentUploadModal
+        isOpen={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        patientId={patientId}
+        onDocumentUploaded={loadDocuments}
+      />
     </main>
   );
 }

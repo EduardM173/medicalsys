@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const developmentStorageRoot = path.resolve(__dirname, '../../storage/dev');
+const devStorageRoot = path.resolve(__dirname, '../../storage/dev');
+const uploadsStorageRoot = path.resolve(__dirname, '../../uploads/clinical-documents');
 
 class StorageError extends Error {
   constructor(message) {
@@ -15,11 +16,21 @@ function resolveLocalPath(storageKey) {
     throw new StorageError('El archivo asociado al documento no está disponible.');
   }
 
-  const filePath = path.resolve(developmentStorageRoot, storageKey);
-  if (!filePath.startsWith(`${developmentStorageRoot}${path.sep}`)) {
-    throw new StorageError('El archivo asociado al documento no está disponible.');
+  const cleanKey = path.basename(storageKey);
+
+  // 1. Revisar en uploads/clinical-documents (subidos en tiempo de ejecución por HU-18)
+  const uploadPath = path.resolve(uploadsStorageRoot, cleanKey);
+  if (fs.existsSync(uploadPath)) {
+    return uploadPath;
   }
-  return filePath;
+
+  // 2. Revisar en storage/dev (archivos iniciales de prueba HU-13)
+  const devPath = path.resolve(devStorageRoot, cleanKey);
+  if (fs.existsSync(devPath)) {
+    return devPath;
+  }
+
+  throw new StorageError('El archivo asociado al documento no está disponible.');
 }
 
 async function openFile(storageProvider, storageKey) {
@@ -31,10 +42,7 @@ async function openFile(storageProvider, storageKey) {
   let stats;
   try {
     stats = await fs.promises.stat(filePath);
-  } catch (error) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.error(`Archivo clínico local no disponible para la referencia ${storageKey}.`);
-    }
+  } catch (_error) {
     throw new StorageError('El archivo asociado al documento no está disponible.');
   }
 
