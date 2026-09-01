@@ -151,6 +151,13 @@ export function getConsent(id) {
   return request(`/consents/${id}`);
 }
 
+export function signConsent(consentId, signatureData) {
+  return request(`/consents/${consentId}/sign`, {
+    method: 'POST',
+    body: JSON.stringify({ signatureData })
+  });
+}
+
 export function getServices() {
   return request('/services');
 }

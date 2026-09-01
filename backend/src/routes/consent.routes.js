@@ -13,5 +13,7 @@ router.use(requireAuth, requireConsentAccess);
 router.get('/options', consentController.getConsentOptions);
 router.post('/', consentController.createConsent);
 router.get('/:consentId', consentController.getConsent);
+router.post('/:consentId/sign', consentController.signConsent);
 
 module.exports = router;
+

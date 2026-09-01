@@ -30,4 +30,18 @@ async function getConsent(request, response, next) {
   }
 }
 
-module.exports = { createConsent, getConsent, getConsentOptions };
+async function signConsent(request, response, next) {
+  try {
+    const consent = await consentService.signConsent(
+      request.user.id,
+      request.params.consentId,
+      request.body.signatureData
+    );
+    response.status(200).json({ consent });
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { createConsent, getConsent, getConsentOptions, signConsent };
+
