@@ -14,6 +14,13 @@ const roles = [
   ['PACIENTE', 'Paciente', 'Acceso de paciente']
 ];
 
+const initialRooms = [
+  { nombre: 'Consultorio 101', tipo: 'CONSULTORIO', ubicacion: 'Planta Baja - Ala Este', estado: 'DISPONIBLE' },
+  { nombre: 'Consultorio 102', tipo: 'CONSULTORIO', ubicacion: 'Planta Baja - Ala Este', estado: 'DISPONIBLE' },
+  { nombre: 'Quirófano Central A', tipo: 'QUIROFANO', ubicacion: 'Piso 2 - Bloque Quirúrgico', estado: 'DISPONIBLE' },
+  { nombre: 'Sala de Procedimientos 1', tipo: 'SALA', ubicacion: 'Piso 1 - Procedimientos Menores', estado: 'DISPONIBLE' }
+];
+
 async function upsertRole(codigo, nombre, descripcion) {
   return prisma.rol.upsert({
     where: { codigo },
@@ -205,7 +212,12 @@ async function upsertTestDocument({
   mimeType,
   registeredAt
 }) {
-  const fileStats = await fs.promises.stat(path.join(developmentStorageRoot, storageKey));
+  let fileStats = { size: 1024 };
+  const targetPath = path.join(developmentStorageRoot, storageKey);
+  if (fs.existsSync(targetPath)) {
+    fileStats = await fs.promises.stat(targetPath);
+  }
+
   const data = {
     id_historia: historyId,
     id_atencion: attentionId || null,
@@ -286,6 +298,17 @@ async function seedClinicalDocuments(clinicalData, uploaderId) {
   return { documents, secondPatient };
 }
 
+async function upsertRooms() {
+  for (const room of initialRooms) {
+    const existing = await prisma.sala.findUnique({
+      where: { nombre: room.nombre }
+    });
+    if (!existing) {
+      await prisma.sala.create({ data: room });
+    }
+  }
+}
+
 async function main() {
   const rolesByCode = {};
   for (const [codigo, nombre, descripcion] of roles) {
@@ -316,16 +339,13 @@ async function main() {
   });
   const doctorProfile = await upsertDoctorProfile(doctor.id_usuario);
   const clinicalData = await seedMedicalHistory(doctorProfile.id_medico);
-  const documentData = await seedClinicalDocuments(
-    clinicalData,
-    doctor.id_usuario
-  );
+  const documentData = await seedClinicalDocuments(clinicalData, doctor.id_usuario);
+  await upsertRooms();
 
   console.log(
     `Seed listo: administrador ${admin.email}, médico ${doctor.email}, recepcionista ${receptionist.email}, `
       + `paciente con historial ${clinicalData.patientWithHistory.documento_identidad}, `
-      + `paciente sin historial ${clinicalData.patientWithoutHistory.documento_identidad}, `
-      + `documentos clínicos ${documentData.documents.length}.`
+      + `documentos clínicos ${documentData.documents.length}, salas iniciales cargadas.`
   );
 }
 

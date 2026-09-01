@@ -10,6 +10,7 @@ import { DocumentsPage } from './pages/DocumentsPage';
 import { LoginPage } from './pages/LoginPage';
 import { MedicalHistoryPage } from './pages/MedicalHistoryPage';
 import { PatientsPage } from './pages/PatientsPage';
+import { RoomsPage } from './pages/RoomsPage';
 import { SchedulesPage } from './pages/SchedulesPage';
 import { UsersPage } from './pages/UsersPage';
 
@@ -22,13 +23,16 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
+
+              {/* Pacientes y Clínica: Recepcionista, Médico y Administrador */}
               <Route element={<AuthorizedRoute allowedRoles={['RECEPCIONISTA', 'ADMINISTRADOR', 'MEDICO']} />}>
                 <Route path="/pacientes" element={<PatientsPage />} />
-              </Route>
-              <Route element={<AuthorizedRoute allowedRoles={['MEDICO']} />}>
                 <Route path="/historial-clinico/:patientId" element={<MedicalHistoryPage />} />
                 <Route path="/pacientes/:patientId/documentos" element={<DocumentsPage />} />
+                <Route path="/salas" element={<RoomsPage />} />
               </Route>
+
+              {/* Módulos Administrativos */}
               <Route element={<AdminRoute />}>
                 <Route path="/admin/medicos" element={<DoctorsPage />} />
                 <Route path="/admin/usuarios" element={<UsersPage />} />
