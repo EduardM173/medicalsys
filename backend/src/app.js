@@ -30,6 +30,7 @@ app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/consents', consentRoutes);
+app.use('/api/consentimientos', consentRoutes);
 app.use('/api/agenda', agendaRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/patients', patientRoutes);
