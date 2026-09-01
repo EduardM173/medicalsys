@@ -129,6 +129,25 @@ export function getMedicalHistory(patientId) {
   return request(`/patients/${patientId}/medical-history`);
 }
 
+export function getMyAgenda(date) {
+  return request(`/agenda/me?date=${encodeURIComponent(date)}`);
+}
+
+export function getConsentOptions() {
+  return request('/consents/options');
+}
+
+export function createConsent(consent) {
+  return request('/consents', {
+    method: 'POST',
+    body: JSON.stringify(consent)
+  });
+}
+
+export function getConsent(id) {
+  return request(`/consents/${id}`);
+}
+
 export function getClinicalDocuments(patientId) {
   return request(`/patients/${patientId}/documents`);
 }

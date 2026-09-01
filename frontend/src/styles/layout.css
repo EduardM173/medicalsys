@@ -155,7 +155,9 @@
 .app-content .patients-page,
 .app-content .doctors-page,
 .app-content .medical-history-page,
-.app-content .documents-page {
+.app-content .documents-page,
+.app-content .agenda-page,
+.app-content .consent-page {
   min-height: 100vh;
 }
 
