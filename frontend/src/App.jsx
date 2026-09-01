@@ -5,6 +5,8 @@ import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { AgendaPage } from './pages/AgendaPage';
+import { ConsentDetailPage } from './pages/ConsentDetailPage';
+import { ConsentFormPage } from './pages/ConsentFormPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DoctorsPage } from './pages/DoctorsPage';
 import { DocumentsPage } from './pages/DocumentsPage';
@@ -28,6 +30,8 @@ function App() {
               </Route>
               <Route element={<AuthorizedRoute allowedRoles={['MEDICO']} />}>
                 <Route path="/agenda" element={<AgendaPage />} />
+                <Route path="/consentimientos/nuevo" element={<ConsentFormPage />} />
+                <Route path="/consentimientos/:consentId" element={<ConsentDetailPage />} />
                 <Route path="/historial-clinico/:patientId" element={<MedicalHistoryPage />} />
                 <Route path="/pacientes/:patientId/documentos" element={<DocumentsPage />} />
               </Route>
