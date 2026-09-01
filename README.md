@@ -99,7 +99,7 @@ npm run prisma:baseline
 npm run prisma:seed
 ```
 
-El seed crea o actualiza los roles, un administrador, un médico y el perfil médico necesario para probar horarios.
+El seed es idempotente: puede ejecutarse varias veces sin duplicar sus escenarios. Crea o actualiza usuarios y roles, dos médicos, horarios semanales, pacientes, historiales, atenciones, documentos clínicos, citas para hoy y mañana, y consentimientos informados.
 
 No ejecute estos comandos sobre la base existente:
 
@@ -140,7 +140,10 @@ Después de ejecutar `npm run prisma:seed`, utilice estas credenciales de desarr
 |---|---|---|---|
 | Administrador | `admin@medicalsys.test` | `MedicalSys2026!` | Gestionar usuarios y horarios médicos. |
 | Recepcionista | `recepcionista@medicalsys.test` | `MedicalSys2026!` | Registrar, consultar y editar pacientes. |
-| Médico | `medico@medicalsys.test` | `MedicalSys2026!` | Verificar que no puede acceder a operaciones administrativas. |
+| Médico principal | `medico@medicalsys.test` | `MedicalSys2026!` | Agenda, historiales, documentos y consentimientos. |
+| Segundo médico | `medico.b@medicalsys.test` | `MedicalSys2026!` | Verificar el aislamiento de agenda entre médicos. |
+| Paciente | `paciente@medicalsys.test` | `MedicalSys2026!` | Comprobar autenticación con rol paciente. |
+| Usuario inactivo | `usuario.inactivo@medicalsys.test` | `MedicalSys2026!` | Verificar que una cuenta inactiva no puede iniciar sesión. |
 
 Estas credenciales son solo para desarrollo local. No deben usarse en un sistema real.
 
@@ -163,6 +166,17 @@ Inicie sesión como administrador y pruebe:
 | Gestión de médicos | `/admin/medicos` | Registrar, consultar y editar perfiles profesionales. |
 | Horarios médicos | `/admin/horarios-medicos` | Seleccionar médico, agregar horarios, editar y habilitar/deshabilitar disponibilidad. |
 | Gestión de pacientes | `/pacientes` | Buscar, registrar, consultar y editar pacientes. |
+
+Inicie sesión con `medico@medicalsys.test` para probar los módulos clínicos:
+
+| Historia | Ruta | Datos sembrados |
+|---|---|---|
+| HU-11 Historial clínico | `/pacientes` | Busque el documento `4892104`; contiene antecedentes y dos atenciones. El documento `5938217` prueba un paciente sin historial. |
+| HU-13 Documentos clínicos | `/pacientes` | Abra el paciente `4892104`; tiene dos documentos. El paciente `6047331` tiene un documento adicional. |
+| HU-16 Agenda médica | `/agenda` | La fecha actual contiene tres citas del médico principal; mañana contiene una. La agenda del segundo médico contiene una cita distinta hoy. |
+| HU-19 Consentimiento informado | `/consentimientos/nuevo` | Los pacientes y las citas aparecen como opciones. El seed imprime en la terminal las rutas de dos consentimientos ya creados. |
+
+Los horarios administrativos incluyen lunes a viernes de `08:00` a `12:00` para el médico principal, lunes/miércoles/viernes de `14:00` a `18:00` para el segundo médico y un horario inactivo de demostración. Las citas se recalculan con cada ejecución para que siempre existan datos en la fecha actual y el día siguiente.
 
 El botón **Cerrar sesión** se encuentra en la parte inferior de la barra lateral.
 
