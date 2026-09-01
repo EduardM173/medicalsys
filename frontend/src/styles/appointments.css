@@ -15,7 +15,8 @@
 .appointment-count { padding: 6px 12px; color: var(--color-primary); font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); background: var(--color-blue-soft); border-radius: 999px; }
 
 .appointment-list { display: grid; gap: 12px; }
-.appointment-item { display: grid; align-items: center; padding: 14px 16px; background: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-md); gap: 16px; grid-template-columns: 90px repeat(3, minmax(0, 1fr)) auto; }
+.appointment-item { display: grid; padding: 14px 16px; background: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-md); gap: 12px; }
+.appointment-row { display: grid; align-items: center; gap: 16px; grid-template-columns: 90px repeat(3, minmax(0, 1fr)) auto; }
 .appointment-time { display: grid; color: var(--color-navy); }
 .appointment-time span { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 .appointment-info { display: grid; overflow: hidden; }
@@ -31,6 +32,31 @@
 
 .appointment-empty { margin: 0; padding: 36px 16px; color: var(--color-text-secondary); text-align: center; }
 
+/* HU-15: acciones de cambio de estado y reprogramación de una cita */
+.appointment-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid var(--color-border); }
+.appointment-actions-label { margin-right: 2px; color: var(--color-text-secondary); font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); }
+
+.appointment-action-button { padding: 6px 14px; color: var(--color-primary); font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); background: var(--color-blue-soft); border: 0; border-radius: 999px; cursor: pointer; }
+.appointment-action-button:hover:not(:disabled) { filter: brightness(0.96); }
+.appointment-action-button:disabled { cursor: not-allowed; opacity: 0.6; }
+
+.appointment-action-button.action-confirmada { color: var(--color-info); background: var(--color-blue-soft); }
+.appointment-action-button.action-en_consulta { color: var(--color-warning); background: var(--color-warning-soft); }
+.appointment-action-button.action-completada { color: var(--color-success); background: var(--color-success-soft); }
+.appointment-action-button.action-cancelada { color: var(--color-danger); background: var(--color-danger-soft); }
+.appointment-action-button.action-reschedule { color: var(--color-navy); background: var(--color-surface); border: 1px solid var(--color-border); }
+
+.reschedule-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; padding-top: 12px; border-top: 1px dashed var(--color-border); }
+.reschedule-form .form-field { flex: 0 0 auto; margin: 0; }
+.reschedule-form .form-field input { padding: 0 14px; }
+.reschedule-form-actions { display: flex; gap: 10px; margin-left: auto; }
+.reschedule-form-actions .button { width: auto; }
+
+@media (max-width: 640px) {
+  .appointment-actions, .reschedule-form { flex-direction: column; align-items: stretch; }
+  .reschedule-form-actions { margin-left: 0; }
+}
+
 /* Modal de reserva de cita */
 .modal-overlay { position: fixed; inset: 0; z-index: 50; display: grid; padding: 24px; background: rgb(16 41 75 / 45%); place-items: center; }
 .modal-card { width: min(100%, 640px); max-height: 90vh; padding: 28px; overflow-y: auto; background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
@@ -44,8 +70,8 @@
 .appointment-loading { margin: 0; padding: 36px 16px; color: var(--color-text-secondary); text-align: center; }
 
 @media (max-width: 820px) {
-  .appointment-item { grid-template-columns: 70px repeat(2, minmax(0, 1fr)); }
-  .appointment-item .appointment-info:nth-child(4) { display: none; }
+  .appointment-row { grid-template-columns: 70px repeat(2, minmax(0, 1fr)); }
+  .appointment-row .appointment-info:nth-child(4) { display: none; }
   .appointment-form-grid { grid-template-columns: 1fr; }
 }
 
@@ -54,6 +80,6 @@
   .appointments-header { align-items: stretch; flex-direction: column; }
   .new-appointment-button { width: 100%; }
   .appointment-toolbar, .appointment-list-card { padding: 20px; }
-  .appointment-item { grid-template-columns: 1fr; }
+  .appointment-row { grid-template-columns: 1fr; }
   .modal-card { padding: 20px; }
 }

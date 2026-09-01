@@ -173,6 +173,11 @@ export function createAppointment(appointment) {
   return request('/appointments', { method: 'POST', body: JSON.stringify(appointment) });
 }
 
+// HU-15: actualización de una cita (reprogramación y/o cambio de estado, incluida cancelación lógica).
+export function updateAppointment(id, changes) {
+  return request(`/appointments/${id}`, { method: 'PATCH', body: JSON.stringify(changes) });
+}
+
 // ==========================================
 // Documentos Clínicos y Exámenes (HU-13 / HU-18)
 // ==========================================
