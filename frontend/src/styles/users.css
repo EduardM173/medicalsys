@@ -66,6 +66,103 @@
   padding: 0 14px;
 }
 
+.password-setup {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 20px;
+}
+
+.password-input-field {
+  position: relative;
+}
+
+.password-input-field input {
+  padding-right: 82px;
+}
+
+.user-password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 34px;
+  padding: 0;
+  color: var(--color-primary);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.password-strength {
+  grid-column: 1 / -1;
+  margin: -4px 0 20px;
+  padding: 14px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.password-strength-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+}
+
+.password-strength-heading strong {
+  color: var(--color-text-primary);
+}
+
+.password-strength-bar {
+  height: 7px;
+  margin: 10px 0;
+  overflow: hidden;
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+.password-strength-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-danger);
+  border-radius: inherit;
+  transition: width 160ms ease, background-color 160ms ease;
+}
+
+.strength-0 { width: 0; }
+.strength-1 { width: 25%; }
+.strength-2 { width: 50%; background: var(--color-warning); }
+.strength-3 { width: 75%; background: var(--color-primary); }
+.strength-4 { width: 100%; background: var(--color-success); }
+
+.password-requirements {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  list-style: none;
+}
+
+.password-requirements .completed,
+.password-match-success {
+  color: var(--color-success);
+}
+
+.password-match-error {
+  color: var(--color-danger);
+}
+
+.password-match-success,
+.password-match-error {
+  margin-top: -2px;
+  font-size: var(--font-size-caption);
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -198,6 +295,11 @@ th {
   }
 
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .password-setup,
+  .password-requirements {
     grid-template-columns: 1fr;
   }
 
