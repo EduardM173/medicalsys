@@ -25,7 +25,7 @@ export function Sidebar() {
         </span>
       </NavLink>
 
-      {['ADMINISTRADOR', 'RECEPCIONISTA'].includes(user.rol) && (
+      {['ADMINISTRADOR', 'RECEPCIONISTA', 'MEDICO'].includes(user.rol) && (
         <nav className="sidebar-nav" aria-label="Módulos del sistema">
           <span className="sidebar-section-label">Módulos del sistema</span>
           {user.rol === 'ADMINISTRADOR' && (
@@ -69,10 +69,10 @@ export function Sidebar() {
             className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
             to="/pacientes"
           >
-            <span className="sidebar-item-icon" aria-hidden="true">P</span>
+            <span className="sidebar-item-icon" aria-hidden="true">{user.rol === 'MEDICO' ? 'H' : 'P'}</span>
             <span>
-              <strong>Gestión de Pacientes</strong>
-              <small>Registro y consulta</small>
+              <strong>{user.rol === 'MEDICO' ? 'Historial Clínico' : 'Gestión de Pacientes'}</strong>
+              <small>{user.rol === 'MEDICO' ? 'Consulta por paciente' : 'Registro y consulta'}</small>
             </span>
             <span className="sidebar-arrow" aria-hidden="true">›</span>
           </NavLink>

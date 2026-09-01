@@ -124,3 +124,7 @@ export function createPatient(patient) {
 export function updatePatient(id, patient) {
   return request(`/patients/${id}`, { method: 'PATCH', body: JSON.stringify(patient) });
 }
+
+export function getMedicalHistory(patientId) {
+  return request(`/patients/${patientId}/medical-history`);
+}
