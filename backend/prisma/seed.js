@@ -118,6 +118,7 @@ async function main() {
     passwordHash
   });
   const doctorProfile = await upsertDoctorProfile(doctor.id_usuario);
+  const clinicalData = await seedMedicalHistory(doctorProfile.id_medico);
 
   for (const [codigo, nombre, tipo, duracionMinutos, precioBase] of services) {
     await upsertService(codigo, nombre, tipo, duracionMinutos, precioBase);
