@@ -200,6 +200,10 @@ export function getAvailableRooms({ fechaHoraInicio, fechaHoraFin, tipo } = {}) 
   return request(`/rooms/available?${params.toString()}`);
 }
 
+export function getPendingAppointments() {
+  return request('/rooms/pending-appointments');
+}
+
 export function getRoomReservations(params = {}) {
   const query = new URLSearchParams(params).toString();
   return request(`/rooms/reservations${query ? `?${query}` : ''}`);

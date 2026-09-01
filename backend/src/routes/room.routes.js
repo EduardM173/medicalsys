@@ -21,6 +21,14 @@ router.get(
   roomController.getAvailableRooms
 );
 
+// Listar citas pendientes de sala
+router.get(
+  '/pending-appointments',
+  authenticate,
+  requireRole('RECEPCIONISTA', 'ADMINISTRADOR', 'MEDICO'),
+  roomController.listPendingAppointments
+);
+
 // Listar reservas de salas
 router.get(
   '/reservations',

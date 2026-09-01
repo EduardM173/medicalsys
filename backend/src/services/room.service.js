@@ -139,6 +139,54 @@ class RoomService {
     return availableRooms.map(serializeRoom);
   }
 
+  async listPendingAppointments() {
+    const appointments = await prisma.cita.findMany({
+      where: {
+        estado: { in: ['PROGRAMADA', 'CONFIRMADA'] }
+      },
+      orderBy: { fecha_hora_inicio: 'asc' },
+      include: {
+        paciente: true,
+        medico: {
+          include: { usuario: true }
+        },
+        servicio_medico: true,
+        reserva_sala: {
+          include: { sala: true }
+        }
+      }
+    });
+
+    return appointments.map((appt) => ({
+      id: appt.id_cita.toString(),
+      motivo: appt.motivo,
+      estado: appt.estado,
+      fechaHoraInicio: appt.fecha_hora_inicio.toISOString(),
+      fechaHoraFin: appt.fecha_hora_fin.toISOString(),
+      paciente: appt.paciente ? {
+        id: appt.paciente.id_paciente.toString(),
+        nombreCompleto: `${appt.paciente.nombres} ${appt.paciente.apellidos}`.trim(),
+        ci: `${appt.paciente.documento_identidad}${appt.paciente.complemento ? ` ${appt.paciente.complemento}` : ''}`
+      } : null,
+      medico: appt.medico ? {
+        id: appt.medico.id_medico.toString(),
+        especialidad: appt.medico.especialidad,
+        nombreCompleto: appt.medico.usuario ? `${appt.medico.usuario.nombres} ${appt.medico.usuario.apellidos}`.trim() : 'Médico'
+      } : null,
+      servicio: appt.servicio_medico ? {
+        id: appt.servicio_medico.id_servicio.toString(),
+        nombre: appt.servicio_medico.nombre,
+        tipo: appt.servicio_medico.tipo
+      } : null,
+      reserva: appt.reserva_sala ? {
+        id: appt.reserva_sala.id_reserva.toString(),
+        idSala: appt.reserva_sala.id_sala.toString(),
+        estado: appt.reserva_sala.estado,
+        salaNombre: appt.reserva_sala.sala?.nombre
+      } : null
+    }));
+  }
+
   async listReservations(filters = {}) {
     const where = {};
 

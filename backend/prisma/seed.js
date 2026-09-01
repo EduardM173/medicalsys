@@ -21,6 +21,12 @@ const initialRooms = [
   { nombre: 'Sala de Procedimientos 1', tipo: 'SALA', ubicacion: 'Piso 1 - Procedimientos Menores', estado: 'DISPONIBLE' }
 ];
 
+const initialServices = [
+  { codigo: 'SERV-CONS-01', nombre: 'Consulta de Medicina General', tipo: 'CONSULTA', duracion_minutos: 30, precio_base: 150.00 },
+  { codigo: 'SERV-CIRU-01', nombre: 'Cirugía Menor Ambulatoria', tipo: 'CIRUGIA', duracion_minutos: 60, precio_base: 800.00 },
+  { codigo: 'SERV-PROC-01', nombre: 'Procedimiento Menor / Curación', tipo: 'PROCEDIMIENTO', duracion_minutos: 45, precio_base: 200.00 }
+];
+
 async function upsertRole(codigo, nombre, descripcion) {
   return prisma.rol.upsert({
     where: { codigo },
@@ -299,14 +305,83 @@ async function seedClinicalDocuments(clinicalData, uploaderId) {
 }
 
 async function upsertRooms() {
+  const createdRooms = [];
   for (const room of initialRooms) {
-    const existing = await prisma.sala.findUnique({
+    let existing = await prisma.sala.findUnique({
       where: { nombre: room.nombre }
     });
     if (!existing) {
-      await prisma.sala.create({ data: room });
+      existing = await prisma.sala.create({ data: room });
+    }
+    createdRooms.push(existing);
+  }
+  return createdRooms;
+}
+
+async function upsertServices() {
+  const createdServices = [];
+  for (const s of initialServices) {
+    let existing = await prisma.servicio_medico.findUnique({
+      where: { codigo: s.codigo }
+    });
+    if (!existing) {
+      existing = await prisma.servicio_medico.create({ data: s });
+    }
+    createdServices.push(existing);
+  }
+  return createdServices;
+}
+
+async function seedTestAppointments({ patients, doctorId, serviceId, adminId }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const appointmentsData = [
+    {
+      id_paciente: patients[0].id_paciente,
+      id_medico: doctorId,
+      id_servicio: serviceId,
+      creado_por: adminId,
+      fecha_hora_inicio: new Date(`${today}T09:00:00.000Z`),
+      fecha_hora_fin: new Date(`${today}T09:30:00.000Z`),
+      motivo: 'Control de rutina y revisión general',
+      estado: 'PROGRAMADA'
+    },
+    {
+      id_paciente: patients[1].id_paciente,
+      id_medico: doctorId,
+      id_servicio: serviceId,
+      creado_por: adminId,
+      fecha_hora_inicio: new Date(`${today}T10:30:00.000Z`),
+      fecha_hora_fin: new Date(`${today}T11:00:00.000Z`),
+      motivo: 'Evaluación por dolores articulares',
+      estado: 'PROGRAMADA'
+    },
+    {
+      id_paciente: patients[2].id_paciente,
+      id_medico: doctorId,
+      id_servicio: serviceId,
+      creado_por: adminId,
+      fecha_hora_inicio: new Date(`${today}T14:00:00.000Z`),
+      fecha_hora_fin: new Date(`${today}T15:00:00.000Z`),
+      motivo: 'Procedimiento ambulatorio programado',
+      estado: 'PROGRAMADA'
+    }
+  ];
+
+  const created = [];
+  for (const appt of appointmentsData) {
+    const existing = await prisma.cita.findFirst({
+      where: {
+        id_paciente: appt.id_paciente,
+        fecha_hora_inicio: appt.fecha_hora_inicio
+      }
+    });
+    if (!existing) {
+      created.push(await prisma.cita.create({ data: appt }));
+    } else {
+      created.push(existing);
     }
   }
+  return created;
 }
 
 async function main() {
@@ -341,11 +416,18 @@ async function main() {
   const clinicalData = await seedMedicalHistory(doctorProfile.id_medico);
   const documentData = await seedClinicalDocuments(clinicalData, doctor.id_usuario);
   await upsertRooms();
+  const services = await upsertServices();
+
+  const appointments = await seedTestAppointments({
+    patients: [clinicalData.patientWithHistory, clinicalData.patientWithoutHistory, documentData.secondPatient],
+    doctorId: doctorProfile.id_medico,
+    serviceId: services[0].id_servicio,
+    adminId: admin.id_usuario
+  });
 
   console.log(
     `Seed listo: administrador ${admin.email}, médico ${doctor.email}, recepcionista ${receptionist.email}, `
-      + `paciente con historial ${clinicalData.patientWithHistory.documento_identidad}, `
-      + `documentos clínicos ${documentData.documents.length}, salas iniciales cargadas.`
+      + `pacientes 3, citas de prueba ${appointments.length}, salas 4, servicios 3.`
   );
 }
 

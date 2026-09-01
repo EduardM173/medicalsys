@@ -20,6 +20,15 @@ async function getAvailableRooms(req, res, next) {
   }
 }
 
+async function listPendingAppointments(req, res, next) {
+  try {
+    const appointments = await roomService.listPendingAppointments();
+    return res.status(200).json(appointments);
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function listReservations(req, res, next) {
   try {
     const { idSala, fecha, estado } = req.query;
@@ -83,6 +92,7 @@ async function cancelReservation(req, res, next) {
 module.exports = {
   listRooms,
   getAvailableRooms,
+  listPendingAppointments,
   listReservations,
   createReservation,
   updateReservation,

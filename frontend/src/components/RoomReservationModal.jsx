@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
-import { createRoomReservation, getAvailableRooms } from '../services/api';
+import { createRoomReservation, getAvailableRooms, getPendingAppointments } from '../services/api';
 
 export function RoomReservationModal({ isOpen, onClose, selectedRoom, rooms, onReservationCreated }) {
-  const [idSala, setIdSala] = useState(selectedRoom?.id || rooms[0]?.id || '');
+  const [appointments, setAppointments] = useState([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [idCita, setIdCita] = useState('');
+  const [idSala, setIdSala] = useState(selectedRoom?.id || rooms[0]?.id || '');
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [horaInicio, setHoraInicio] = useState('09:00');
   const [horaFin, setHoraFin] = useState('10:00');
@@ -12,6 +14,57 @@ export function RoomReservationModal({ isOpen, onClose, selectedRoom, rooms, onR
   const [error, setError] = useState('');
   const [availableList, setAvailableList] = useState([]);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
+
+  // Cargar citas programadas al abrir el modal
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+
+    async function loadAppts() {
+      setLoadingAppointments(true);
+      try {
+        const appts = await getPendingAppointments();
+        if (active) {
+          setAppointments(appts);
+          // Si hay citas, preseleccionar la primera cita que no tenga reserva activa
+          const unassigned = appts.filter((a) => !a.reserva || a.reserva.estado !== 'ACTIVA');
+          if (unassigned.length > 0) {
+            selectAppointment(unassigned[0]);
+          } else if (appts.length > 0) {
+            selectAppointment(appts[0]);
+          }
+        }
+      } catch (_err) {
+        // Silenciar error en carga inicial
+      } finally {
+        if (active) setLoadingAppointments(false);
+      }
+    }
+
+    loadAppts();
+    return () => { active = false; };
+  }, [isOpen]);
+
+  function selectAppointment(appt) {
+    if (!appt) return;
+    setIdCita(appt.id);
+    if (appt.fechaHoraInicio && appt.fechaHoraFin) {
+      const startDate = new Date(appt.fechaHoraInicio);
+      const endDate = new Date(appt.fechaHoraFin);
+      setFecha(startDate.toISOString().slice(0, 10));
+      setHoraInicio(startDate.toTimeString().slice(0, 5));
+      setHoraFin(endDate.toTimeString().slice(0, 5));
+    }
+  }
+
+  function handleAppointmentChange(e) {
+    const val = e.target.value;
+    setIdCita(val);
+    const selected = appointments.find((a) => a.id === val);
+    if (selected) {
+      selectAppointment(selected);
+    }
+  }
 
   useEffect(() => {
     if (selectedRoom) {
@@ -57,12 +110,12 @@ export function RoomReservationModal({ isOpen, onClose, selectedRoom, rooms, onR
     e.preventDefault();
     setError('');
 
-    if (!idCita.trim()) {
-      setError('Debe ingresar el Identificador de la Cita médica.');
+    if (!idCita) {
+      setError('Debe seleccionar o ingresar una Cita médica válida.');
       return;
     }
     if (!idSala) {
-      setError('Debe seleccionar una sala.');
+      setError('Debe seleccionar una sala disponible.');
       return;
     }
 
@@ -77,7 +130,7 @@ export function RoomReservationModal({ isOpen, onClose, selectedRoom, rooms, onR
     setLoading(true);
     try {
       await createRoomReservation({
-        idCita: idCita.trim(),
+        idCita,
         idSala,
         fechaHoraInicio: startIso,
         fechaHoraFin: endIso
@@ -111,17 +164,40 @@ export function RoomReservationModal({ isOpen, onClose, selectedRoom, rooms, onR
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
             <div className="modal-field">
-              <label htmlFor="idCitaInput">ID de Cita Médica *</label>
-              <input
-                id="idCitaInput"
-                type="number"
-                min="1"
-                required
-                placeholder="Ej. 1"
-                value={idCita}
-                onChange={(e) => setIdCita(e.target.value)}
-                className="rooms-input"
-              />
+              <label htmlFor="idCitaSelect">
+                Cita Médica Programada * {loadingAppointments && <small>(Cargando citas...)</small>}
+              </label>
+
+              {appointments.length > 0 ? (
+                <select
+                  id="idCitaSelect"
+                  value={idCita}
+                  onChange={handleAppointmentChange}
+                  className="rooms-select"
+                  required
+                >
+                  <option value="">-- Seleccionar Cita Médica --</option>
+                  {appointments.map((appt) => {
+                    const hasRoom = appt.reserva && appt.reserva.estado === 'ACTIVA';
+                    return (
+                      <option key={appt.id} value={appt.id}>
+                        Cita #{appt.id} — {appt.paciente?.nombreCompleto || 'Paciente'} • {appt.medico?.nombreCompleto || 'Médico'} • {appt.servicio?.nombre || 'Consulta'} {hasRoom ? `[Ya en ${appt.reserva.salaNombre}]` : '(Sin sala)'}
+                      </option>
+                    );
+                  })}
+                </select>
+              ) : (
+                <input
+                  id="idCitaInput"
+                  type="number"
+                  min="1"
+                  required
+                  placeholder="ID numérico de la cita (ej. 1)"
+                  value={idCita}
+                  onChange={(e) => setIdCita(e.target.value)}
+                  className="rooms-input"
+                />
+              )}
             </div>
 
             <div className="modal-field">
