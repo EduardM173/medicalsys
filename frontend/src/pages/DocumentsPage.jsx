@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { DocumentUploadModal } from '../components/DocumentUploadModal';
 import { useAuth } from '../contexts/AuthContext';
-import { getClinicalDocumentFile, getClinicalDocuments } from '../services/api';
+import { deleteClinicalDocument, getClinicalDocumentFile, getClinicalDocuments } from '../services/api';
 import '../styles/documents.css';
 
 const typeLabels = {
@@ -98,6 +98,18 @@ export function DocumentsPage() {
     }
   }
 
+  async function handleDelete(documentId, documentTitle) {
+    if (!window.confirm(`¿Está seguro de eliminar el documento "${documentTitle}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    try {
+      await deleteClinicalDocument(documentId);
+      loadDocuments();
+    } catch (err) {
+      setError(err.message || 'No fue posible eliminar el documento clínico.');
+    }
+  }
+
   if (loading && !data) {
     return <main className="documents-page"><p className="documents-state">Cargando documentos clínicos...</p></main>;
   }
@@ -185,13 +197,25 @@ export function DocumentsPage() {
                     <small>Atención: {document.atencion.motivoConsulta} · {formatDate(document.atencion.fechaAtencion)}</small>
                   )}
                 </div>
-                <Button
-                  className="document-open-button"
-                  disabled={openingId === document.id}
-                  onClick={() => openDocument(document)}
-                >
-                  {openingId === document.id ? 'Abriendo...' : 'Abrir / Descargar'}
-                </Button>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <Button
+                    className="document-open-button"
+                    disabled={openingId === document.id}
+                    onClick={() => openDocument(document)}
+                  >
+                    {openingId === document.id ? 'Abriendo...' : 'Abrir / Descargar'}
+                  </Button>
+                  {isDoctorOrAdmin && (
+                    <button
+                      type="button"
+                      className="text-action"
+                      style={{ color: 'var(--color-danger, #ef4444)', fontWeight: '500', padding: '6px 10px' }}
+                      onClick={() => handleDelete(document.id, document.titulo)}
+                    >
+                      Eliminar
+                    </button>
+                  )}
+                </div>
               </article>
             ))}
           </div>
