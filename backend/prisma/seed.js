@@ -21,10 +21,12 @@ const initialRooms = [
   { nombre: 'Sala de Procedimientos 1', tipo: 'SALA', ubicacion: 'Piso 1 - Procedimientos Menores', estado: 'DISPONIBLE' }
 ];
 
-const initialServices = [
-  { codigo: 'SERV-CONS-01', nombre: 'Consulta de Medicina General', tipo: 'CONSULTA', duracion_minutos: 30, precio_base: 150.00 },
-  { codigo: 'SERV-CIRU-01', nombre: 'Cirugía Menor Ambulatoria', tipo: 'CIRUGIA', duracion_minutos: 60, precio_base: 800.00 },
-  { codigo: 'SERV-PROC-01', nombre: 'Procedimiento Menor / Curación', tipo: 'PROCEDIMIENTO', duracion_minutos: 45, precio_base: 200.00 }
+const services = [
+  ['CONS-GEN', 'Consulta General', 'CONSULTA', 30, 100],
+  ['CONS-ESP', 'Consulta Especializada', 'CONSULTA', 45, 150],
+  ['CTRL-POST', 'Control Post-Operatorio', 'CONSULTA', 30, 80],
+  ['CIR-GEN', 'Cirugía General', 'CIRUGIA', 90, 800],
+  ['ECO-PEL', 'Chequeo Ecográfico Pélvico', 'EXAMEN', 45, 120]
 ];
 
 async function upsertRole(codigo, nombre, descripcion) {
@@ -35,7 +37,14 @@ async function upsertRole(codigo, nombre, descripcion) {
   });
 }
 
-async function upsertUser({ email, nombres, apellidos, idRol, passwordHash }) {
+async function upsertUser({
+  email,
+  nombres,
+  apellidos,
+  idRol,
+  passwordHash,
+  estado = 'ACTIVO'
+}) {
   return prisma.usuario.upsert({
     where: { email },
     update: {
@@ -43,7 +52,7 @@ async function upsertUser({ email, nombres, apellidos, idRol, passwordHash }) {
       nombres,
       apellidos,
       password_hash: passwordHash,
-      estado: 'ACTIVO'
+      estado
     },
     create: {
       id_rol: idRol,
@@ -51,25 +60,25 @@ async function upsertUser({ email, nombres, apellidos, idRol, passwordHash }) {
       apellidos,
       email,
       password_hash: passwordHash,
-      estado: 'ACTIVO'
+      estado
     }
   });
 }
 
-async function upsertDoctorProfile(userId) {
+async function upsertDoctorProfile({ userId, license, specialty }) {
   const existingProfile = await prisma.medico.findFirst({
     where: {
       OR: [
         { id_usuario: userId },
-        { matricula_profesional: 'MED-DEV-001' }
+        { matricula_profesional: license }
       ]
     }
   });
 
   const data = {
     id_usuario: userId,
-    matricula_profesional: 'MED-DEV-001',
-    especialidad: 'Medicina General',
+    matricula_profesional: license,
+    especialidad: specialty,
     activo: true
   };
 
@@ -81,6 +90,21 @@ async function upsertDoctorProfile(userId) {
   }
 
   return prisma.medico.create({ data });
+}
+
+async function upsertService(codigo, nombre, tipo, duracionMinutos, precioBase) {
+  return prisma.servicio_medico.upsert({
+    where: { codigo },
+    update: { nombre, tipo, duracion_minutos: duracionMinutos, precio_base: precioBase, activo: true },
+    create: {
+      codigo,
+      nombre,
+      tipo,
+      duracion_minutos: duracionMinutos,
+      precio_base: precioBase,
+      activo: true
+    }
+  });
 }
 
 async function upsertTestPatient(documentoIdentidad, data) {
@@ -318,70 +342,267 @@ async function upsertRooms() {
   return createdRooms;
 }
 
-async function upsertServices() {
-  const createdServices = [];
-  for (const s of initialServices) {
-    let existing = await prisma.servicio_medico.findUnique({
-      where: { codigo: s.codigo }
-    });
-    if (!existing) {
-      existing = await prisma.servicio_medico.create({ data: s });
+async function upsertMedicalService() {
+  return prisma.servicio_medico.upsert({
+    where: { codigo: 'CONS-GEN-DEV' },
+    update: {
+      nombre: 'Consulta de Medicina General',
+      descripcion: 'Servicio de prueba para la agenda médica.',
+      tipo: 'CONSULTA',
+      duracion_minutos: 30,
+      precio_base: '120.00',
+      activo: true,
+      fecha_actualizacion: new Date()
+    },
+    create: {
+      codigo: 'CONS-GEN-DEV',
+      nombre: 'Consulta de Medicina General',
+      descripcion: 'Servicio de prueba para la agenda médica.',
+      tipo: 'CONSULTA',
+      duracion_minutos: 30,
+      precio_base: '120.00',
+      activo: true
     }
-    createdServices.push(existing);
-  }
-  return createdServices;
+  });
 }
 
-async function seedTestAppointments({ patients, doctorId, serviceId, adminId }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const appointmentsData = [
-    {
-      id_paciente: patients[0].id_paciente,
-      id_medico: doctorId,
-      id_servicio: serviceId,
-      creado_por: adminId,
-      fecha_hora_inicio: new Date(`${today}T09:00:00.000Z`),
-      fecha_hora_fin: new Date(`${today}T09:30:00.000Z`),
-      motivo: 'Control de rutina y revisión general',
-      estado: 'PROGRAMADA'
-    },
-    {
-      id_paciente: patients[1].id_paciente,
-      id_medico: doctorId,
-      id_servicio: serviceId,
-      creado_por: adminId,
-      fecha_hora_inicio: new Date(`${today}T10:30:00.000Z`),
-      fecha_hora_fin: new Date(`${today}T11:00:00.000Z`),
-      motivo: 'Evaluación por dolores articulares',
-      estado: 'PROGRAMADA'
-    },
-    {
-      id_paciente: patients[2].id_paciente,
-      id_medico: doctorId,
-      id_servicio: serviceId,
-      creado_por: adminId,
-      fecha_hora_inicio: new Date(`${today}T14:00:00.000Z`),
-      fecha_hora_fin: new Date(`${today}T15:00:00.000Z`),
-      motivo: 'Procedimiento ambulatorio programado',
-      estado: 'PROGRAMADA'
-    }
-  ];
+function clinicDateTime(daysFromToday, time) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/La_Paz',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const date = new Date(Date.UTC(
+    Number(values.year),
+    Number(values.month) - 1,
+    Number(values.day) + daysFromToday
+  ));
+  const dateText = date.toISOString().slice(0, 10);
+  return new Date(`${dateText}T${time}:00-04:00`);
+}
 
-  const created = [];
-  for (const appt of appointmentsData) {
-    const existing = await prisma.cita.findFirst({
-      where: {
-        id_paciente: appt.id_paciente,
-        fecha_hora_inicio: appt.fecha_hora_inicio
-      }
-    });
-    if (!existing) {
-      created.push(await prisma.cita.create({ data: appt }));
-    } else {
-      created.push(existing);
+function clinicDateText(daysFromToday = 0) {
+  return clinicDateTime(daysFromToday, '12:00').toISOString().slice(0, 10);
+}
+
+function scheduleTime(time) {
+  return new Date(`1970-01-01T${time}:00.000Z`);
+}
+
+async function upsertTestSchedule({ doctorId, day, start, end, active = true }) {
+  const startTime = scheduleTime(start);
+  const endTime = scheduleTime(end);
+  const existing = await prisma.horario_medico.findFirst({
+    where: {
+      id_medico: doctorId,
+      dia_semana: day,
+      hora_inicio: startTime,
+      hora_fin: endTime
     }
+  });
+  const data = {
+    id_medico: doctorId,
+    dia_semana: day,
+    hora_inicio: startTime,
+    hora_fin: endTime,
+    activo: active,
+    fecha_actualizacion: new Date()
+  };
+
+  if (existing) {
+    return prisma.horario_medico.update({
+      where: { id_horario: existing.id_horario },
+      data
+    });
   }
-  return created;
+  return prisma.horario_medico.create({ data });
+}
+
+async function seedDoctorSchedules({ doctorAId, doctorBId }) {
+  return Promise.all([
+    ...[1, 2, 3, 4, 5].map((day) => upsertTestSchedule({
+      doctorId: doctorAId,
+      day,
+      start: '08:00',
+      end: '12:00'
+    })),
+    ...[1, 3, 5].map((day) => upsertTestSchedule({
+      doctorId: doctorBId,
+      day,
+      start: '14:00',
+      end: '18:00'
+    })),
+    upsertTestSchedule({
+      doctorId: doctorBId,
+      day: 6,
+      start: '09:00',
+      end: '12:00',
+      active: false
+    })
+  ]);
+}
+
+async function upsertTestAppointment({
+  doctorId,
+  patientId,
+  serviceId,
+  createdBy,
+  seedKey,
+  startTime,
+  endTime,
+  reason,
+  status
+}) {
+  const existingAppointment = await prisma.cita.findFirst({
+    where: {
+      id_medico: doctorId,
+      indicaciones_previas: `SEED:${seedKey}`
+    }
+  });
+  const data = {
+    id_paciente: patientId,
+    id_medico: doctorId,
+    id_servicio: serviceId,
+    creado_por: createdBy,
+    fecha_hora_inicio: startTime,
+    fecha_hora_fin: endTime,
+    motivo: reason,
+    indicaciones_previas: `SEED:${seedKey}`,
+    estado: status,
+    fecha_actualizacion: new Date()
+  };
+
+  if (existingAppointment) {
+    return prisma.cita.update({
+      where: { id_cita: existingAppointment.id_cita },
+      data
+    });
+  }
+
+  return prisma.cita.create({ data });
+}
+
+async function seedMedicalAgenda({ doctorAId, doctorBId, createdBy, patientAId, patientBId }) {
+  const service = await upsertMedicalService();
+  const appointments = await Promise.all([
+    upsertTestAppointment({
+      doctorId: doctorAId,
+      patientId: patientAId,
+      serviceId: service.id_servicio,
+      createdBy,
+      seedKey: 'AGENDA-MEDICO-A-HOY-1',
+      startTime: clinicDateTime(0, '08:00'),
+      endTime: clinicDateTime(0, '08:30'),
+      reason: 'Control médico general',
+      status: 'CONFIRMADA'
+    }),
+    upsertTestAppointment({
+      doctorId: doctorAId,
+      patientId: patientBId,
+      serviceId: service.id_servicio,
+      createdBy,
+      seedKey: 'AGENDA-MEDICO-A-HOY-2',
+      startTime: clinicDateTime(0, '09:30'),
+      endTime: clinicDateTime(0, '10:00'),
+      reason: 'Consulta de seguimiento',
+      status: 'PROGRAMADA'
+    }),
+    upsertTestAppointment({
+      doctorId: doctorAId,
+      patientId: patientAId,
+      serviceId: service.id_servicio,
+      createdBy,
+      seedKey: 'AGENDA-MEDICO-A-HOY-3',
+      startTime: clinicDateTime(0, '11:00'),
+      endTime: clinicDateTime(0, '11:30'),
+      reason: 'Consulta cancelada de demostración',
+      status: 'CANCELADA'
+    }),
+    upsertTestAppointment({
+      doctorId: doctorBId,
+      patientId: patientBId,
+      serviceId: service.id_servicio,
+      createdBy,
+      seedKey: 'AGENDA-MEDICO-B-HOY-1',
+      startTime: clinicDateTime(0, '14:30'),
+      endTime: clinicDateTime(0, '15:00'),
+      reason: 'Cita exclusiva del segundo médico',
+      status: 'PROGRAMADA'
+    }),
+    upsertTestAppointment({
+      doctorId: doctorAId,
+      patientId: patientBId,
+      serviceId: service.id_servicio,
+      createdBy,
+      seedKey: 'AGENDA-MEDICO-A-MANANA-1',
+      startTime: clinicDateTime(1, '10:00'),
+      endTime: clinicDateTime(1, '10:30'),
+      reason: 'Control en fecha diferente',
+      status: 'PROGRAMADA'
+    })
+  ]);
+
+  return { appointments, service };
+}
+
+async function upsertTestConsent({
+  folio,
+  patientId,
+  doctorId,
+  appointmentId,
+  procedure,
+  content,
+  status,
+  signedAt = null,
+  signatureKey = null,
+  signatureHash = null
+}) {
+  const data = {
+    id_paciente: patientId,
+    id_medico: doctorId,
+    id_cita: appointmentId || null,
+    folio,
+    procedimiento: procedure,
+    contenido: content,
+    estado: status,
+    fecha_generacion: clinicDateTime(0, '07:30'),
+    fecha_firma: signedAt,
+    firma_storage_key: signatureKey,
+    firma_hash_sha256: signatureHash
+  };
+  return prisma.consentimiento_informado.upsert({
+    where: { folio },
+    update: data,
+    create: data
+  });
+}
+
+async function seedConsents({ doctorId, patientAId, patientBId, appointments }) {
+  return Promise.all([
+    upsertTestConsent({
+      folio: 'CI-SEED-GENERADO-001',
+      patientId: patientAId,
+      doctorId,
+      appointmentId: appointments[0].id_cita,
+      procedure: 'Procedimiento ambulatorio de demostración',
+      content: 'Se explicó al paciente el objetivo del procedimiento, sus beneficios, riesgos frecuentes, alternativas disponibles y el derecho a retirar su consentimiento antes de iniciar.',
+      status: 'GENERADO'
+    }),
+    upsertTestConsent({
+      folio: 'CI-SEED-FIRMADO-001',
+      patientId: patientBId,
+      doctorId,
+      appointmentId: appointments[1].id_cita,
+      procedure: 'Tratamiento clínico de seguimiento',
+      content: 'El paciente declara haber recibido información comprensible, haber resuelto sus dudas y aceptar voluntariamente el tratamiento clínico propuesto.',
+      status: 'FIRMADO',
+      signedAt: clinicDateTime(0, '07:45'),
+      signatureKey: 'seed/consentimientos/CI-SEED-FIRMADO-001.sig',
+      signatureHash: 'd5fca5ec9ed2e8f5652b9a80e8fc57fd4c5b9e335703519056be814a6774467b'
+    })
+  ]);
 }
 
 async function main() {
@@ -405,6 +626,13 @@ async function main() {
     idRol: rolesByCode.MEDICO.id_rol,
     passwordHash
   });
+  const secondDoctor = await upsertUser({
+    email: 'medico.b@medicalsys.test',
+    nombres: 'Elena',
+    apellidos: 'Vargas',
+    idRol: rolesByCode.MEDICO.id_rol,
+    passwordHash
+  });
   const receptionist = await upsertUser({
     email: 'recepcionista@medicalsys.test',
     nombres: 'Recepcionista',
@@ -412,22 +640,74 @@ async function main() {
     idRol: rolesByCode.RECEPCIONISTA.id_rol,
     passwordHash
   });
-  const doctorProfile = await upsertDoctorProfile(doctor.id_usuario);
+  const patientUser = await upsertUser({
+    email: 'paciente@medicalsys.test',
+    nombres: 'Alejandro',
+    apellidos: 'Morales Quiroga',
+    idRol: rolesByCode.PACIENTE.id_rol,
+    passwordHash
+  });
+  const inactiveUser = await upsertUser({
+    email: 'usuario.inactivo@medicalsys.test',
+    nombres: 'Usuario',
+    apellidos: 'Inactivo',
+    idRol: rolesByCode.RECEPCIONISTA.id_rol,
+    passwordHash,
+    estado: 'INACTIVO'
+  });
+  const doctorProfile = await upsertDoctorProfile({
+    userId: doctor.id_usuario,
+    license: 'MED-DEV-001',
+    specialty: 'Medicina General'
+  });
+  const secondDoctorProfile = await upsertDoctorProfile({
+    userId: secondDoctor.id_usuario,
+    license: 'MED-DEV-002',
+    specialty: 'Medicina Interna'
+  });
   const clinicalData = await seedMedicalHistory(doctorProfile.id_medico);
-  const documentData = await seedClinicalDocuments(clinicalData, doctor.id_usuario);
-  await upsertRooms();
-  const services = await upsertServices();
-
-  const appointments = await seedTestAppointments({
-    patients: [clinicalData.patientWithHistory, clinicalData.patientWithoutHistory, documentData.secondPatient],
+  await prisma.paciente.update({
+    where: { id_paciente: clinicalData.patientWithHistory.id_paciente },
+    data: { id_usuario: patientUser.id_usuario }
+  });
+  const documentData = await seedClinicalDocuments(
+    clinicalData,
+    doctor.id_usuario
+  );
+  const agendaData = await seedMedicalAgenda({
+    doctorAId: doctorProfile.id_medico,
+    doctorBId: secondDoctorProfile.id_medico,
+    createdBy: receptionist.id_usuario,
+    patientAId: clinicalData.patientWithHistory.id_paciente,
+    patientBId: documentData.secondPatient.id_paciente
+  });
+  const schedules = await seedDoctorSchedules({
+    doctorAId: doctorProfile.id_medico,
+    doctorBId: secondDoctorProfile.id_medico
+  });
+  const consents = await seedConsents({
     doctorId: doctorProfile.id_medico,
-    serviceId: services[0].id_servicio,
-    adminId: admin.id_usuario
+    patientAId: clinicalData.patientWithHistory.id_paciente,
+    patientBId: documentData.secondPatient.id_paciente,
+    appointments: agendaData.appointments
   });
 
+  for (const [codigo, nombre, tipo, duracionMinutos, precioBase] of services) {
+    await upsertService(codigo, nombre, tipo, duracionMinutos, precioBase);
+  }
+
+  await upsertRooms();
+
   console.log(
-    `Seed listo: administrador ${admin.email}, médico ${doctor.email}, recepcionista ${receptionist.email}, `
-      + `pacientes 3, citas de prueba ${appointments.length}, salas 4, servicios 3.`
+    `Seed listo: administrador ${admin.email}, médicos ${doctor.email} y ${secondDoctor.email}, `
+      + `recepcionista ${receptionist.email}, paciente ${patientUser.email}, usuario inactivo ${inactiveUser.email}, `
+      + `paciente con historial ${clinicalData.patientWithHistory.documento_identidad}, `
+      + `paciente sin historial ${clinicalData.patientWithoutHistory.documento_identidad}, `
+      + `documentos clínicos ${documentData.documents.length}, `
+      + `servicios médicos ${services.length}, `
+      + `salas iniciales 4, `
+      + `horarios ${schedules.length}, citas ${agendaData.appointments.length} (${clinicDateText()} y ${clinicDateText(1)}), `
+      + `consentimientos ${consents.map((consent) => `${consent.folio}=/consentimientos/${consent.id_consentimiento}`).join(', ')}.`
   );
 }
 

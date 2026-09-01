@@ -99,7 +99,7 @@ npm run prisma:baseline
 npm run prisma:seed
 ```
 
-El seed crea o actualiza los roles, un administrador, un médico y el perfil médico necesario para probar horarios.
+El seed es idempotente: puede ejecutarse varias veces sin duplicar sus escenarios. Crea o actualiza usuarios y roles, dos médicos, horarios semanales, pacientes, historiales, atenciones, documentos clínicos, citas para hoy y mañana, y consentimientos informados.
 
 No ejecute estos comandos sobre la base existente:
 
@@ -140,9 +140,16 @@ Después de ejecutar `npm run prisma:seed`, utilice estas credenciales de desarr
 |---|---|---|---|
 | Administrador | `admin@medicalsys.test` | `MedicalSys2026!` | Gestionar usuarios y horarios médicos. |
 | Recepcionista | `recepcionista@medicalsys.test` | `MedicalSys2026!` | Registrar, consultar y editar pacientes. |
-| Médico | `medico@medicalsys.test` | `MedicalSys2026!` | Verificar que no puede acceder a operaciones administrativas. |
+| Médico principal | `medico@medicalsys.test` | `MedicalSys2026!` | Agenda, historiales, documentos y consentimientos. |
+| Segundo médico | `medico.b@medicalsys.test` | `MedicalSys2026!` | Verificar el aislamiento de agenda entre médicos. |
+| Paciente | `paciente@medicalsys.test` | `MedicalSys2026!` | Comprobar autenticación con rol paciente. |
+| Usuario inactivo | `usuario.inactivo@medicalsys.test` | `MedicalSys2026!` | Verificar que una cuenta inactiva no puede iniciar sesión. |
 
 Estas credenciales son solo para desarrollo local. No deben usarse en un sistema real.
+
+## Seguridad de contraseñas
+
+Al crear usuarios desde **Gestión de Usuarios**, la contraseña debe confirmarse y cumplir estas reglas: al menos 12 caracteres, una letra mayúscula, una minúscula, un número, un símbolo y ningún espacio. El formulario muestra el cumplimiento de cada requisito y una barra de fortaleza; la API aplica la misma política antes de guardar el hash con bcrypt.
 
 ## Verificaciones y módulos disponibles
 
@@ -163,6 +170,18 @@ Inicie sesión como administrador y pruebe:
 | Gestión de médicos | `/admin/medicos` | Registrar, consultar y editar perfiles profesionales. |
 | Horarios médicos | `/admin/horarios-medicos` | Seleccionar médico, agregar horarios, editar y habilitar/deshabilitar disponibilidad. |
 | Gestión de pacientes | `/pacientes` | Buscar, registrar, consultar y editar pacientes. |
+| Agenda de citas | `/citas` | Reservar una cita (paciente, médico, servicio, fecha/hora) y consultar las citas del día. Disponible para Administrador y Recepcionista. |
+
+Inicie sesión con `medico@medicalsys.test` para probar los módulos clínicos:
+
+| Historia | Ruta | Datos sembrados |
+|---|---|---|
+| HU-11 Historial clínico | `/pacientes` | Busque el documento `4892104`; contiene antecedentes y dos atenciones. El documento `5938217` prueba un paciente sin historial. |
+| HU-13 Documentos clínicos | `/pacientes` | Abra el paciente `4892104`; tiene dos documentos. El paciente `6047331` tiene un documento adicional. |
+| HU-16 Agenda médica | `/agenda` | La fecha actual contiene tres citas del médico principal; mañana contiene una. La agenda del segundo médico contiene una cita distinta hoy. |
+| HU-19 Consentimiento informado | `/consentimientos/nuevo` | Los pacientes y las citas aparecen como opciones. El seed imprime en la terminal las rutas de dos consentimientos ya creados. |
+
+Los horarios administrativos incluyen lunes a viernes de `08:00` a `12:00` para el médico principal, lunes/miércoles/viernes de `14:00` a `18:00` para el segundo médico y un horario inactivo de demostración. Las citas se recalculan con cada ejecución para que siempre existan datos en la fecha actual y el día siguiente.
 
 El botón **Cerrar sesión** se encuentra en la parte inferior de la barra lateral.
 
@@ -194,9 +213,25 @@ GET   /api/patients?search=texto
 POST  /api/patients
 GET   /api/patients/:id
 PATCH /api/patients/:id
+
+GET  /api/services
+
+POST /api/appointments
+GET  /api/appointments?fecha=YYYY-MM-DD&medicoId=&pacienteId=&estado=
+GET  /api/appointments/:id
 ```
 
-Los endpoints de usuarios, médicos y horarios requieren sesión con rol `ADMINISTRADOR`. Sin sesión responden `401`; un médico autenticado recibe `403` en esas operaciones administrativas.
+Los endpoints de usuarios y horarios requieren sesión con rol `ADMINISTRADOR`. La creación y edición de médicos también requiere `ADMINISTRADOR`, pero la consulta (`GET /api/doctors`) está disponible además para `RECEPCIONISTA`, ya que la necesita para reservar citas. Los endpoints de citas y de servicios (`/api/appointments`, `/api/services`) requieren `RECEPCIONISTA` o `ADMINISTRADOR`. Sin sesión responden `401`; un rol sin permiso recibe `403` en esas operaciones.
+
+### HU-14: Registrar una cita (Reglas de negocio)
+
+- **PA-01**: una cita está asociada a un paciente, médico y servicio existentes y activos.
+- **PA-02**: la cita almacena fecha y hora de inicio, fecha y hora de fin, motivo y estado.
+- **PA-03**: la fecha y hora de fin debe ser posterior a la fecha y hora de inicio (se calcula a partir de la duración del servicio).
+- **PA-04**: no se permite crear una cita fuera de los horarios activos configurados para el médico (`horario_medico`).
+- **PA-05**: no se permite registrar una cita que se solape con otra cita activa (`PROGRAMADA`, `CONFIRMADA`, `EN_CONSULTA`) del mismo médico.
+- **PA-06**: una cita nueva se registra con el estado inicial `PROGRAMADA`.
+- **PA-07**: una consulta posterior de la cita (`GET /api/appointments/:id`) recupera los datos almacenados en PostgreSQL.
 
 ## Solución de problemas
 

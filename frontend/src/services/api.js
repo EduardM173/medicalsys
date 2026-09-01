@@ -132,6 +132,47 @@ export function getMedicalHistory(patientId) {
   return request(`/patients/${patientId}/medical-history`);
 }
 
+export function getMyAgenda(date) {
+  return request(`/agenda/me?date=${encodeURIComponent(date)}`);
+}
+
+export function getConsentOptions() {
+  return request('/consents/options');
+}
+
+export function createConsent(consent) {
+  return request('/consents', {
+    method: 'POST',
+    body: JSON.stringify(consent)
+  });
+}
+
+export function getConsent(id) {
+  return request(`/consents/${id}`);
+}
+
+export function getServices() {
+  return request('/services');
+}
+
+export function getAppointments(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.fecha) params.set('fecha', filters.fecha);
+  if (filters.medicoId) params.set('medicoId', filters.medicoId);
+  if (filters.pacienteId) params.set('pacienteId', filters.pacienteId);
+  if (filters.estado) params.set('estado', filters.estado);
+  const query = params.toString();
+  return request(`/appointments${query ? `?${query}` : ''}`);
+}
+
+export function getAppointment(id) {
+  return request(`/appointments/${id}`);
+}
+
+export function createAppointment(appointment) {
+  return request('/appointments', { method: 'POST', body: JSON.stringify(appointment) });
+}
+
 // ==========================================
 // Documentos Clínicos y Exámenes (HU-13 / HU-18)
 // ==========================================

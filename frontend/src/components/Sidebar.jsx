@@ -27,48 +27,89 @@ export function Sidebar() {
         </span>
       </NavLink>
 
-      <nav className="sidebar-nav" aria-label="Módulos del sistema">
-        <span className="sidebar-section-label">Módulos del sistema</span>
+      {['ADMINISTRADOR', 'RECEPCIONISTA', 'MEDICO'].includes(role) && (
+        <nav className="sidebar-nav" aria-label="Módulos del sistema">
+          <span className="sidebar-section-label">Módulos del sistema</span>
 
-        {role === 'ADMINISTRADOR' && (
-          <>
-            <NavLink
-              className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
-              to="/admin/usuarios"
-            >
-              <span className="sidebar-item-icon" aria-hidden="true">U</span>
-              <span>
-                <strong>Gestión de Usuarios</strong>
-                <small>Usuarios, roles y estados</small>
-              </span>
-              <span className="sidebar-arrow" aria-hidden="true">›</span>
-            </NavLink>
-            <NavLink
-              className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
-              to="/admin/horarios-medicos"
-            >
-              <span className="sidebar-item-icon" aria-hidden="true">H</span>
-              <span>
-                <strong>Horarios Médicos</strong>
-                <small>Disponibilidad semanal</small>
-              </span>
-              <span className="sidebar-arrow" aria-hidden="true">›</span>
-            </NavLink>
-            <NavLink
-              className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
-              to="/admin/medicos"
-            >
-              <span className="sidebar-item-icon" aria-hidden="true">M</span>
-              <span>
-                <strong>Gestión de Médicos</strong>
-                <small>Perfiles profesionales</small>
-              </span>
-              <span className="sidebar-arrow" aria-hidden="true">›</span>
-            </NavLink>
-          </>
-        )}
+          {role === 'ADMINISTRADOR' && (
+            <>
+              <NavLink
+                className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+                to="/admin/usuarios"
+              >
+                <span className="sidebar-item-icon" aria-hidden="true">U</span>
+                <span>
+                  <strong>Gestión de Usuarios</strong>
+                  <small>Usuarios, roles y estados</small>
+                </span>
+                <span className="sidebar-arrow" aria-hidden="true">›</span>
+              </NavLink>
+              <NavLink
+                className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+                to="/admin/horarios-medicos"
+              >
+                <span className="sidebar-item-icon" aria-hidden="true">H</span>
+                <span>
+                  <strong>Horarios Médicos</strong>
+                  <small>Disponibilidad semanal</small>
+                </span>
+                <span className="sidebar-arrow" aria-hidden="true">›</span>
+              </NavLink>
+              <NavLink
+                className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+                to="/admin/medicos"
+              >
+                <span className="sidebar-item-icon" aria-hidden="true">M</span>
+                <span>
+                  <strong>Gestión de Médicos</strong>
+                  <small>Perfiles profesionales</small>
+                </span>
+                <span className="sidebar-arrow" aria-hidden="true">›</span>
+              </NavLink>
+            </>
+          )}
 
-        {['ADMINISTRADOR', 'RECEPCIONISTA', 'MEDICO'].includes(role) && (
+          {['ADMINISTRADOR', 'RECEPCIONISTA'].includes(role) && (
+            <NavLink
+              className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+              to="/citas"
+            >
+              <span className="sidebar-item-icon" aria-hidden="true">C</span>
+              <span>
+                <strong>Agenda de Citas</strong>
+                <small>Programar y consultar citas</small>
+              </span>
+              <span className="sidebar-arrow" aria-hidden="true">›</span>
+            </NavLink>
+          )}
+
+          {role === 'MEDICO' && (
+            <>
+              <NavLink
+                className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+                to="/agenda"
+              >
+                <span className="sidebar-item-icon" aria-hidden="true">A</span>
+                <span>
+                  <strong>Agenda Médica</strong>
+                  <small>Mis citas programadas</small>
+                </span>
+                <span className="sidebar-arrow" aria-hidden="true">›</span>
+              </NavLink>
+              <NavLink
+                className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+                to="/consentimientos/nuevo"
+              >
+                <span className="sidebar-item-icon" aria-hidden="true">C</span>
+                <span>
+                  <strong>Consentimientos</strong>
+                  <small>Generar consentimiento</small>
+                </span>
+                <span className="sidebar-arrow" aria-hidden="true">›</span>
+              </NavLink>
+            </>
+          )}
+
           <NavLink
             className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
             to="/pacientes"
@@ -80,9 +121,7 @@ export function Sidebar() {
             </span>
             <span className="sidebar-arrow" aria-hidden="true">›</span>
           </NavLink>
-        )}
 
-        {['ADMINISTRADOR', 'RECEPCIONISTA', 'MEDICO'].includes(role) && (
           <NavLink
             className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
             to="/salas"
@@ -94,8 +133,8 @@ export function Sidebar() {
             </span>
             <span className="sidebar-arrow" aria-hidden="true">›</span>
           </NavLink>
-        )}
-      </nav>
+        </nav>
+      )}
 
       <div className="sidebar-footer">
         {logoutError && <p className="sidebar-error" role="alert">{logoutError}</p>}
