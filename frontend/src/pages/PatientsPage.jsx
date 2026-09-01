@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { PatientForm } from '../components/PatientForm';
+import { useAuth } from '../contexts/AuthContext';
 import { createPatient, getPatient, getPatients, updatePatient } from '../services/api';
 import '../styles/patients.css';
 
@@ -20,6 +22,9 @@ function documentLabel(patient) {
 }
 
 export function PatientsPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const isDoctor = user?.rol === 'MEDICO';
   const [patients, setPatients] = useState([]);
   const [search, setSearch] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -105,11 +110,11 @@ export function PatientsPage() {
     <main className="patients-page">
       <header className="patients-header">
         <div>
-          <span className="login-kicker">Directorio</span>
-          <h1>Gestión de Pacientes</h1>
-          <p>Registro y consulta de pacientes de MedicalSys</p>
+          <span className="login-kicker">{isDoctor ? 'Consulta clínica' : 'Directorio'}</span>
+          <h1>{isDoctor ? 'Historial Clínico' : 'Gestión de Pacientes'}</h1>
+          <p>{isDoctor ? 'Seleccione un paciente para consultar su historial' : 'Registro y consulta de pacientes de MedicalSys'}</p>
         </div>
-        <Button className="new-patient-button" onClick={openCreateForm}>+ Nuevo paciente</Button>
+        {!isDoctor && <Button className="new-patient-button" onClick={openCreateForm}>+ Nuevo paciente</Button>}
       </header>
 
       <section className="patient-toolbar" aria-label="Búsqueda de pacientes">
@@ -162,7 +167,11 @@ export function PatientsPage() {
                 {selectedPatient.contactoEmergencia && <div><dt>Contacto de emergencia</dt><dd>{selectedPatient.contactoEmergencia}</dd></div>}
                 {selectedPatient.telefonoEmergencia && <div><dt>Teléfono de emergencia</dt><dd>{selectedPatient.telefonoEmergencia}</dd></div>}
               </dl>
-              <div className="patient-detail-actions"><Button onClick={() => openEditForm(selectedPatient.id)}>Editar paciente</Button></div>
+              <div className="patient-detail-actions">
+                {isDoctor
+                  ? <Button onClick={() => navigate(`/historial-clinico/${selectedPatient.id}`)}>Ver historial clínico</Button>
+                  : <Button onClick={() => openEditForm(selectedPatient.id)}>Editar paciente</Button>}
+              </div>
             </>
           )}
         </section>
@@ -195,7 +204,11 @@ export function PatientsPage() {
                 </div>
                 <div className="patient-row-actions">
                   <button className="text-action" onClick={() => fetchPatient(patient.id)} type="button">Ver</button>
-                  <button className="text-action" onClick={() => openEditForm(patient.id)} type="button">Editar</button>
+                  {isDoctor ? (
+                    <button className="text-action" onClick={() => navigate(`/historial-clinico/${patient.id}`)} type="button">Historial</button>
+                  ) : (
+                    <button className="text-action" onClick={() => openEditForm(patient.id)} type="button">Editar</button>
+                  )}
                 </div>
               </article>
             ))}
