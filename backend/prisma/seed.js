@@ -14,6 +14,15 @@ const roles = [
   ['PACIENTE', 'Paciente', 'Acceso de paciente']
 ];
 
+// HU-14: catálogo de servicios médicos usado por el formulario de reserva de citas.
+const services = [
+  ['CONS-GEN', 'Consulta General', 'CONSULTA', 30, 100],
+  ['CONS-ESP', 'Consulta Especializada', 'CONSULTA', 45, 150],
+  ['CTRL-POST', 'Control Post-Operatorio', 'CONSULTA', 30, 80],
+  ['CIR-GEN', 'Cirugía General', 'CIRUGIA', 90, 800],
+  ['ECO-PEL', 'Chequeo Ecográfico Pélvico', 'EXAMEN', 45, 120]
+];
+
 async function upsertRole(codigo, nombre, descripcion) {
   return prisma.rol.upsert({
     where: { codigo },
@@ -75,6 +84,21 @@ async function upsertDoctorProfile({ userId, license, specialty }) {
   }
 
   return prisma.medico.create({ data });
+}
+
+async function upsertService(codigo, nombre, tipo, duracionMinutos, precioBase) {
+  return prisma.servicio_medico.upsert({
+    where: { codigo },
+    update: { nombre, tipo, duracion_minutos: duracionMinutos, precio_base: precioBase, activo: true },
+    create: {
+      codigo,
+      nombre,
+      tipo,
+      duracion_minutos: duracionMinutos,
+      precio_base: precioBase,
+      activo: true
+    }
+  });
 }
 
 async function upsertTestPatient(documentoIdentidad, data) {
@@ -643,12 +667,17 @@ async function main() {
     appointments: agendaData.appointments
   });
 
+  for (const [codigo, nombre, tipo, duracionMinutos, precioBase] of services) {
+    await upsertService(codigo, nombre, tipo, duracionMinutos, precioBase);
+  }
+
   console.log(
     `Seed listo: administrador ${admin.email}, médicos ${doctor.email} y ${secondDoctor.email}, `
       + `recepcionista ${receptionist.email}, paciente ${patientUser.email}, usuario inactivo ${inactiveUser.email}, `
       + `paciente con historial ${clinicalData.patientWithHistory.documento_identidad}, `
       + `paciente sin historial ${clinicalData.patientWithoutHistory.documento_identidad}, `
       + `documentos clínicos ${documentData.documents.length}, `
+      + `servicios médicos ${services.length}, `
       + `horarios ${schedules.length}, citas ${agendaData.appointments.length} (${clinicDateText()} y ${clinicDateText(1)}), `
       + `consentimientos ${consents.map((consent) => `${consent.folio}=/consentimientos/${consent.id_consentimiento}`).join(', ')}.`
   );

@@ -4,6 +4,7 @@ import { AdminRoute, AuthorizedRoute } from './components/AdminRoute';
 import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
+import { AppointmentsPage } from './pages/AppointmentsPage';
 import { AgendaPage } from './pages/AgendaPage';
 import { ConsentDetailPage } from './pages/ConsentDetailPage';
 import { ConsentFormPage } from './pages/ConsentFormPage';
@@ -27,6 +28,9 @@ function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route element={<AuthorizedRoute allowedRoles={['RECEPCIONISTA', 'ADMINISTRADOR', 'MEDICO']} />}>
                 <Route path="/pacientes" element={<PatientsPage />} />
+              </Route>
+              <Route element={<AuthorizedRoute allowedRoles={['RECEPCIONISTA', 'ADMINISTRADOR']} />}>
+                <Route path="/citas" element={<AppointmentsPage />} />
               </Route>
               <Route element={<AuthorizedRoute allowedRoles={['MEDICO']} />}>
                 <Route path="/agenda" element={<AgendaPage />} />
