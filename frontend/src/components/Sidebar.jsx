@@ -77,6 +77,7 @@ export function Sidebar() {
               </span>
               <span className="sidebar-arrow" aria-hidden="true">›</span>
             </NavLink>
+          )}
           {user.rol === 'MEDICO' && (
             <>
               <NavLink
