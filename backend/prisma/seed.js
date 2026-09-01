@@ -10,6 +10,14 @@ const roles = [
   ['PACIENTE', 'Paciente', 'Acceso de paciente']
 ];
 
+const services = [
+  ['CONS-GEN', 'Consulta General', 'CONSULTA', 30, 100],
+  ['CONS-ESP', 'Consulta Especializada', 'CONSULTA', 45, 150],
+  ['CTRL-POST', 'Control Post-Operatorio', 'CONSULTA', 30, 80],
+  ['CIR-GEN', 'Cirugía General', 'CIRUGIA', 90, 800],
+  ['ECO-PEL', 'Chequeo Ecográfico Pélvico', 'EXAMEN', 45, 120]
+];
+
 async function upsertRole(codigo, nombre, descripcion) {
   return prisma.rol.upsert({
     where: { codigo },
@@ -66,6 +74,21 @@ async function upsertDoctorProfile(userId) {
   return prisma.medico.create({ data });
 }
 
+async function upsertService(codigo, nombre, tipo, duracionMinutos, precioBase) {
+  return prisma.servicio_medico.upsert({
+    where: { codigo },
+    update: { nombre, tipo, duracion_minutos: duracionMinutos, precio_base: precioBase, activo: true },
+    create: {
+      codigo,
+      nombre,
+      tipo,
+      duracion_minutos: duracionMinutos,
+      precio_base: precioBase,
+      activo: true
+    }
+  });
+}
+
 async function main() {
   const rolesByCode = {};
   for (const [codigo, nombre, descripcion] of roles) {
@@ -96,7 +119,11 @@ async function main() {
   });
   const doctorProfile = await upsertDoctorProfile(doctor.id_usuario);
 
-  console.log(`Seed listo: administrador ${admin.email}, médico ${doctor.email}, recepcionista ${receptionist.email}, perfil ${doctorProfile.id_medico}.`);
+  for (const [codigo, nombre, tipo, duracionMinutos, precioBase] of services) {
+    await upsertService(codigo, nombre, tipo, duracionMinutos, precioBase);
+  }
+
+  console.log(`Seed listo: administrador ${admin.email}, médico ${doctor.email}, recepcionista ${receptionist.email}, perfil ${doctorProfile.id_medico}, ${services.length} servicios médicos.`);
 }
 
 main()

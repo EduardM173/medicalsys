@@ -67,6 +67,17 @@ export function Sidebar() {
           )}
           <NavLink
             className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+            to="/citas"
+          >
+            <span className="sidebar-item-icon" aria-hidden="true">C</span>
+            <span>
+              <strong>Agenda de Citas</strong>
+              <small>Programar y consultar citas</small>
+            </span>
+            <span className="sidebar-arrow" aria-hidden="true">›</span>
+          </NavLink>
+          <NavLink
+            className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
             to="/pacientes"
           >
             <span className="sidebar-item-icon" aria-hidden="true">P</span>
