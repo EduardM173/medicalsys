@@ -17,3 +17,7 @@ npm-debug.log*
 
 # Archivos generados por Prisma
 backend/generated/
+
+# Archivos subidos en desarrollo local
+backend/uploads/
+uploads/
