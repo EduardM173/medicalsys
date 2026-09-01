@@ -65,6 +65,19 @@ export function Sidebar() {
               </NavLink>
             </>
           )}
+          {user.rol === 'MEDICO' && (
+            <NavLink
+              className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+              to="/agenda"
+            >
+              <span className="sidebar-item-icon" aria-hidden="true">A</span>
+              <span>
+                <strong>Agenda Médica</strong>
+                <small>Mis citas programadas</small>
+              </span>
+              <span className="sidebar-arrow" aria-hidden="true">›</span>
+            </NavLink>
+          )}
           <NavLink
             className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
             to="/pacientes"
