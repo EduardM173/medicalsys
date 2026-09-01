@@ -36,6 +36,16 @@ function toDoctor(doctor) {
 }
 
 function toAttention(attention) {
+  const sistolica = attention.presion_sistolica;
+  const diastolica = attention.presion_diastolica;
+  const peso = attention.peso_kg ? Number(attention.peso_kg) : null;
+  const talla = attention.talla_cm ? Number(attention.talla_cm) : null;
+  let imc = null;
+  if (peso && talla && talla > 0) {
+    const tallaM = talla / 100;
+    imc = Number((peso / (tallaM * tallaM)).toFixed(2));
+  }
+
   return {
     id: Number(attention.id_atencion),
     fechaAtencion: attention.fecha_atencion.toISOString(),
@@ -45,6 +55,15 @@ function toAttention(attention) {
     diagnosticoDescripcion: attention.diagnostico_descripcion,
     tratamiento: attention.tratamiento,
     observaciones: attention.observaciones,
+    presionSistolica: sistolica,
+    presionDiastolica: diastolica,
+    presionArterial: sistolica && diastolica ? `${sistolica}/${diastolica}` : null,
+    frecuenciaCardiaca: attention.frecuencia_cardiaca,
+    temperatura: attention.temperatura ? Number(attention.temperatura) : null,
+    saturacionOxigeno: attention.saturacion_oxigeno,
+    pesoKg: peso,
+    tallaCm: talla,
+    imc,
     medico: toDoctor(attention.medico)
   };
 }
@@ -94,6 +113,13 @@ async function getMedicalHistoryByPatientId(patientIdInput) {
               diagnostico_descripcion: true,
               tratamiento: true,
               observaciones: true,
+              presion_sistolica: true,
+              presion_diastolica: true,
+              frecuencia_cardiaca: true,
+              temperatura: true,
+              saturacion_oxigeno: true,
+              peso_kg: true,
+              talla_cm: true,
               medico: {
                 select: {
                   id_medico: true,
