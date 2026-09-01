@@ -3,7 +3,8 @@ const path = require('path');
 
 class LocalStorageProvider {
   constructor() {
-    this.uploadDir = path.join(process.cwd(), 'uploads', 'clinical-documents');
+    this.uploadDir = path.resolve(__dirname, '../../../uploads/clinical-documents');
+    this.devDir = path.resolve(__dirname, '../../../storage/dev');
     this.ensureDirectoryExists();
   }
 
@@ -15,29 +16,41 @@ class LocalStorageProvider {
 
   async saveFile({ buffer, filename }) {
     this.ensureDirectoryExists();
-    const targetPath = path.join(this.uploadDir, filename);
+    const cleanFilename = path.basename(filename);
+    const targetPath = path.join(this.uploadDir, cleanFilename);
     await fs.promises.writeFile(targetPath, buffer);
     return {
       storageProvider: 'LOCAL',
-      storageKey: filename
+      storageKey: cleanFilename
     };
   }
 
   async getFileStream(storageKey) {
-    const targetPath = path.join(this.uploadDir, path.basename(storageKey));
+    const cleanKey = path.basename(storageKey);
+
+    // 1. Buscar en uploads/clinical-documents
+    let targetPath = path.join(this.uploadDir, cleanKey);
     if (!fs.existsSync(targetPath)) {
-      const error = new Error('El archivo físico no fue encontrado en el almacenamiento local.');
+      // 2. Buscar en storage/dev
+      targetPath = path.join(this.devDir, cleanKey);
+    }
+
+    if (!fs.existsSync(targetPath)) {
+      const error = new Error('El archivo asociado al documento no está disponible.');
       error.statusCode = 404;
       throw error;
     }
+
+    const stats = await fs.promises.stat(targetPath);
     return {
       stream: fs.createReadStream(targetPath),
-      size: (await fs.promises.stat(targetPath)).size
+      size: stats.size
     };
   }
 
   async deleteFile(storageKey) {
-    const targetPath = path.join(this.uploadDir, path.basename(storageKey));
+    const cleanKey = path.basename(storageKey);
+    const targetPath = path.join(this.uploadDir, cleanKey);
     if (fs.existsSync(targetPath)) {
       await fs.promises.unlink(targetPath);
     }
