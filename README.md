@@ -163,6 +163,7 @@ Inicie sesión como administrador y pruebe:
 | Gestión de médicos | `/admin/medicos` | Registrar, consultar y editar perfiles profesionales. |
 | Horarios médicos | `/admin/horarios-medicos` | Seleccionar médico, agregar horarios, editar y habilitar/deshabilitar disponibilidad. |
 | Gestión de pacientes | `/pacientes` | Buscar, registrar, consultar y editar pacientes. |
+| Agenda de citas | `/citas` | Reservar una cita (paciente, médico, servicio, fecha/hora) y consultar las citas del día. Disponible para Administrador y Recepcionista. |
 
 El botón **Cerrar sesión** se encuentra en la parte inferior de la barra lateral.
 
@@ -194,9 +195,25 @@ GET   /api/patients?search=texto
 POST  /api/patients
 GET   /api/patients/:id
 PATCH /api/patients/:id
+
+GET  /api/services
+
+POST /api/appointments
+GET  /api/appointments?fecha=YYYY-MM-DD&medicoId=&pacienteId=&estado=
+GET  /api/appointments/:id
 ```
 
-Los endpoints de usuarios, médicos y horarios requieren sesión con rol `ADMINISTRADOR`. Sin sesión responden `401`; un médico autenticado recibe `403` en esas operaciones administrativas.
+Los endpoints de usuarios y horarios requieren sesión con rol `ADMINISTRADOR`. La creación y edición de médicos también requiere `ADMINISTRADOR`, pero la consulta (`GET /api/doctors`) está disponible además para `RECEPCIONISTA`, ya que la necesita para reservar citas. Los endpoints de citas y de servicios (`/api/appointments`, `/api/services`) requieren `RECEPCIONISTA` o `ADMINISTRADOR`. Sin sesión responden `401`; un rol sin permiso recibe `403` en esas operaciones.
+
+### HU-14: Registrar una cita (Reglas de negocio)
+
+- **PA-01**: una cita está asociada a un paciente, médico y servicio existentes y activos.
+- **PA-02**: la cita almacena fecha y hora de inicio, fecha y hora de fin, motivo y estado.
+- **PA-03**: la fecha y hora de fin debe ser posterior a la fecha y hora de inicio (se calcula a partir de la duración del servicio).
+- **PA-04**: no se permite crear una cita fuera de los horarios activos configurados para el médico (`horario_medico`).
+- **PA-05**: no se permite registrar una cita que se solape con otra cita activa (`PROGRAMADA`, `CONFIRMADA`, `EN_CONSULTA`) del mismo médico.
+- **PA-06**: una cita nueva se registra con el estado inicial `PROGRAMADA`.
+- **PA-07**: una consulta posterior de la cita (`GET /api/appointments/:id`) recupera los datos almacenados en PostgreSQL.
 
 ## Solución de problemas
 

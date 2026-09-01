@@ -133,6 +133,28 @@ export function getClinicalDocuments(patientId) {
   return request(`/patients/${patientId}/documents`);
 }
 
+export function getServices() {
+  return request('/services');
+}
+
+export function getAppointments(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.fecha) params.set('fecha', filters.fecha);
+  if (filters.medicoId) params.set('medicoId', filters.medicoId);
+  if (filters.pacienteId) params.set('pacienteId', filters.pacienteId);
+  if (filters.estado) params.set('estado', filters.estado);
+  const query = params.toString();
+  return request(`/appointments${query ? `?${query}` : ''}`);
+}
+
+export function getAppointment(id) {
+  return request(`/appointments/${id}`);
+}
+
+export function createAppointment(appointment) {
+  return request('/appointments', { method: 'POST', body: JSON.stringify(appointment) });
+}
+
 export async function getClinicalDocumentFile(documentId) {
   let response;
   try {
