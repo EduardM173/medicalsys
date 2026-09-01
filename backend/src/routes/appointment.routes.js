@@ -9,5 +9,6 @@ router.use(requireAuth, requireRole('RECEPCIONISTA', 'ADMINISTRADOR'));
 router.post('/', appointmentController.createAppointment);
 router.get('/', appointmentController.listAppointments);
 router.get('/:id', appointmentController.getAppointment);
+router.patch('/:id', appointmentController.updateAppointment);
 
 module.exports = router;

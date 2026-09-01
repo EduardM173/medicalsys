@@ -4,6 +4,17 @@ const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const activeStates = ['PROGRAMADA', 'CONFIRMADA', 'EN_CONSULTA'];
 
+// HU-15 / PA-04: transiciones de estado permitidas para una cita existente.
+// COMPLETADA y CANCELADA son estados finales: no admiten nuevos cambios.
+const allowedTransitions = {
+  PROGRAMADA: ['CONFIRMADA', 'CANCELADA'],
+  CONFIRMADA: ['EN_CONSULTA', 'CANCELADA'],
+  EN_CONSULTA: ['COMPLETADA', 'CANCELADA'],
+  COMPLETADA: [],
+  CANCELADA: []
+};
+const validAppointmentStates = Object.keys(allowedTransitions);
+
 class AppointmentError extends Error {
   constructor(statusCode, message) {
     super(message);
@@ -212,6 +223,99 @@ async function createAppointment(input, createdByUserId) {
   return toAppointment(appointment);
 }
 
+// HU-15 / MED-97: endpoint genérico de actualización de una cita existente.
+// Admite dos operaciones, que pueden combinarse en la misma solicitud:
+//  - Reprogramación (fecha/horaInicio): PA-01, PA-02, PA-03.
+//  - Cambio de estado (estado): PA-04, y como caso particular la
+//    cancelación lógica (PA-05).
+async function updateAppointment(idInput, input = {}) {
+  const id = parseId(idInput, 'cita');
+
+  const existing = await prisma.cita.findUnique({
+    where: { id_cita: id },
+    include: appointmentInclude
+  });
+  if (!existing) {
+    throw new AppointmentError(404, 'Cita no encontrada.');
+  }
+
+  const wantsReschedule = input.fecha !== undefined || input.horaInicio !== undefined;
+  const wantsStatusChange = input.estado !== undefined && input.estado !== null && input.estado !== '';
+
+  if (!wantsReschedule && !wantsStatusChange) {
+    throw new AppointmentError(400, 'Debe indicar el nuevo estado o la nueva fecha y hora de la cita.');
+  }
+
+  // Una cita en un estado final (COMPLETADA o CANCELADA) ya no puede
+  // reprogramarse ni cambiar de estado.
+  if (['COMPLETADA', 'CANCELADA'].includes(existing.estado)) {
+    throw new AppointmentError(400, `No es posible modificar una cita en estado ${existing.estado}.`);
+  }
+
+  const data = {};
+
+  // PA-01 / PA-02 / PA-03: reprogramación de fecha y hora.
+  if (wantsReschedule) {
+    if (typeof input.fecha !== 'string' || !datePattern.test(input.fecha)) {
+      throw new AppointmentError(400, 'La fecha de la cita no es válida.');
+    }
+    if (typeof input.horaInicio !== 'string' || !timePattern.test(input.horaInicio)) {
+      throw new AppointmentError(400, 'La hora de inicio de la cita no es válida.');
+    }
+
+    const start = new Date(`${input.fecha}T${input.horaInicio}:00`);
+    if (Number.isNaN(start.getTime())) {
+      throw new AppointmentError(400, 'La fecha u hora de la cita no es válida.');
+    }
+
+    const now = new Date();
+    if (start.getTime() < now.getTime()) {
+      throw new AppointmentError(400, 'No se puede reprogramar una cita a una fecha u hora pasada.');
+    }
+
+    const durationMs = existing.fecha_hora_fin.getTime() - existing.fecha_hora_inicio.getTime();
+    const end = new Date(start.getTime() + durationMs);
+
+    // PA-02: la reprogramación vuelve a aplicar las validaciones de horario del médico.
+    await assertWithinDoctorSchedule(existing.id_medico, start, end);
+    // PA-03: una reprogramación que se solape con otra cita activa del médico recibe HTTP 409.
+    await assertNoAppointmentConflict(existing.id_medico, start, end, id);
+
+    data.fecha_hora_inicio = start;
+    data.fecha_hora_fin = end;
+  }
+
+  // PA-04 / PA-05: cambio de estado, incluida la cancelación lógica.
+  if (wantsStatusChange) {
+    if (!validAppointmentStates.includes(input.estado)) {
+      throw new AppointmentError(400, 'El estado indicado no es válido.');
+    }
+
+    const allowedNextStates = allowedTransitions[existing.estado] || [];
+    if (!allowedNextStates.includes(input.estado)) {
+      throw new AppointmentError(
+        400,
+        `No se puede cambiar la cita de ${existing.estado} a ${input.estado}.`
+      );
+    }
+
+    // PA-05: cancelar una cita solo actualiza su estado a CANCELADA; el
+    // registro nunca se elimina de PostgreSQL (cancelación lógica).
+    data.estado = input.estado;
+  }
+
+  data.fecha_actualizacion = new Date();
+
+  const appointment = await prisma.cita.update({
+    where: { id_cita: id },
+    data,
+    include: appointmentInclude
+  });
+
+  // PA-06: los cambios quedan disponibles en una consulta posterior de la misma cita.
+  return toAppointment(appointment);
+}
+
 // PA-07: una consulta posterior de la cita recupera los datos almacenados en PostgreSQL.
 async function getAppointmentById(idInput) {
   const id = parseId(idInput, 'cita');
@@ -260,7 +364,9 @@ async function listAppointments(filters = {}) {
 
 module.exports = {
   AppointmentError,
+  allowedTransitions,
   createAppointment,
   getAppointmentById,
-  listAppointments
+  listAppointments,
+  updateAppointment
 };
