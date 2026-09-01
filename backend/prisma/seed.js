@@ -1,7 +1,11 @@
 require('dotenv').config();
 
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
+const path = require('path');
 const prisma = require('../src/config/prisma');
+
+const developmentStorageRoot = path.resolve(__dirname, '../storage/dev');
 
 const roles = [
   ['ADMINISTRADOR', 'Administrador', 'Acceso administrativo al sistema'],
@@ -152,7 +156,7 @@ async function seedMedicalHistory(doctorId) {
     }
   });
 
-  await upsertTestAttention(history.id_historia, doctorId, 'Control de presión arterial', {
+  const pressureAttention = await upsertTestAttention(history.id_historia, doctorId, 'Control de presión arterial', {
     fecha_atencion: new Date('2026-07-12T14:30:00.000Z'),
     anamnesis: 'Paciente refiere buen cumplimiento del tratamiento y ausencia de cefalea.',
     diagnostico_codigo: 'I10',
@@ -161,7 +165,7 @@ async function seedMedicalHistory(doctorId) {
     observaciones: 'Nuevo control recomendado en ocho semanas.'
   });
 
-  await upsertTestAttention(history.id_historia, doctorId, 'Consulta por cuadro respiratorio', {
+  const respiratoryAttention = await upsertTestAttention(history.id_historia, doctorId, 'Consulta por cuadro respiratorio', {
     fecha_atencion: new Date('2026-08-20T16:00:00.000Z'),
     anamnesis: 'Tos seca y congestión nasal de tres días de evolución, sin dificultad respiratoria.',
     diagnostico_codigo: 'J06.9',
@@ -181,7 +185,105 @@ async function seedMedicalHistory(doctorId) {
     direccion: 'Sopocachi, La Paz'
   });
 
-  return { history, patientWithHistory, patientWithoutHistory };
+  return {
+    history,
+    patientWithHistory,
+    patientWithoutHistory,
+    pressureAttention,
+    respiratoryAttention
+  };
+}
+
+async function upsertTestDocument({
+  historyId,
+  attentionId,
+  uploaderId,
+  type,
+  title,
+  fileName,
+  storageKey,
+  mimeType,
+  registeredAt
+}) {
+  const fileStats = await fs.promises.stat(path.join(developmentStorageRoot, storageKey));
+  const data = {
+    id_historia: historyId,
+    id_atencion: attentionId || null,
+    subido_por: uploaderId,
+    tipo: type,
+    titulo: title,
+    nombre_archivo: fileName,
+    storage_provider: 'LOCAL',
+    storage_key: storageKey,
+    mime_type: mimeType,
+    tamano_bytes: BigInt(fileStats.size),
+    fecha_registro: registeredAt
+  };
+
+  return prisma.documento_clinico.upsert({
+    where: { storage_key: storageKey },
+    update: data,
+    create: data
+  });
+}
+
+async function seedClinicalDocuments(clinicalData, uploaderId) {
+  const secondPatient = await upsertTestPatient('6047331', {
+    nombres: 'Camila',
+    apellidos: 'Vargas Salazar',
+    fecha_nacimiento: new Date('1993-11-22T00:00:00.000Z'),
+    sexo: 'FEMENINO',
+    grupo_sanguineo: 'B+',
+    email: 'camila.vargas@medicalsys.test',
+    telefono: '72030001',
+    direccion: 'Miraflores, La Paz'
+  });
+  const secondHistory = await prisma.historia_clinica.upsert({
+    where: { id_paciente: secondPatient.id_paciente },
+    update: { fecha_actualizacion: new Date() },
+    create: {
+      id_paciente: secondPatient.id_paciente,
+      fecha_apertura: new Date('2026-03-08T00:00:00.000Z')
+    }
+  });
+
+  const documents = await Promise.all([
+    upsertTestDocument({
+      historyId: clinicalData.history.id_historia,
+      attentionId: clinicalData.respiratoryAttention.id_atencion,
+      uploaderId,
+      type: 'EXAMEN',
+      title: 'Resultado de laboratorio de control',
+      fileName: 'resultado-laboratorio-control.txt',
+      storageKey: 'TEST-DOC-A1.txt',
+      mimeType: 'text/plain; charset=utf-8',
+      registeredAt: new Date('2026-08-21T13:00:00.000Z')
+    }),
+    upsertTestDocument({
+      historyId: clinicalData.history.id_historia,
+      attentionId: null,
+      uploaderId,
+      type: 'INFORME',
+      title: 'Informe clínico de seguimiento',
+      fileName: 'informe-clinico-seguimiento.txt',
+      storageKey: 'TEST-DOC-A2.txt',
+      mimeType: 'text/plain; charset=utf-8',
+      registeredAt: new Date('2026-07-15T15:30:00.000Z')
+    }),
+    upsertTestDocument({
+      historyId: secondHistory.id_historia,
+      attentionId: null,
+      uploaderId,
+      type: 'RADIOGRAFIA',
+      title: 'Informe radiológico de demostración',
+      fileName: 'informe-radiologico-demo.txt',
+      storageKey: 'TEST-DOC-B1.txt',
+      mimeType: 'text/plain; charset=utf-8',
+      registeredAt: new Date('2026-06-10T11:00:00.000Z')
+    })
+  ]);
+
+  return { documents, secondPatient };
 }
 
 async function main() {
@@ -214,11 +316,16 @@ async function main() {
   });
   const doctorProfile = await upsertDoctorProfile(doctor.id_usuario);
   const clinicalData = await seedMedicalHistory(doctorProfile.id_medico);
+  const documentData = await seedClinicalDocuments(
+    clinicalData,
+    doctor.id_usuario
+  );
 
   console.log(
     `Seed listo: administrador ${admin.email}, médico ${doctor.email}, recepcionista ${receptionist.email}, `
       + `paciente con historial ${clinicalData.patientWithHistory.documento_identidad}, `
-      + `paciente sin historial ${clinicalData.patientWithoutHistory.documento_identidad}.`
+      + `paciente sin historial ${clinicalData.patientWithoutHistory.documento_identidad}, `
+      + `documentos clínicos ${documentData.documents.length}.`
   );
 }
 

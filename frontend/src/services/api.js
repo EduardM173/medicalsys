@@ -128,3 +128,28 @@ export function updatePatient(id, patient) {
 export function getMedicalHistory(patientId) {
   return request(`/patients/${patientId}/medical-history`);
 }
+
+export function getClinicalDocuments(patientId) {
+  return request(`/patients/${patientId}/documents`);
+}
+
+export async function getClinicalDocumentFile(documentId) {
+  let response;
+  try {
+    response = await fetch(`${apiUrl}/documents/${documentId}/file`, {
+      credentials: 'include'
+    });
+  } catch (_error) {
+    throw new ApiError(0, 'No fue posible conectar con el servidor.');
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new ApiError(
+      response.status,
+      data.message || 'No fue posible abrir el documento clínico.'
+    );
+  }
+
+  return response.blob();
+}

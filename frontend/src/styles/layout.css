@@ -154,7 +154,8 @@
 .app-content .schedules-page,
 .app-content .patients-page,
 .app-content .doctors-page,
-.app-content .medical-history-page {
+.app-content .medical-history-page,
+.app-content .documents-page {
   min-height: 100vh;
 }
 

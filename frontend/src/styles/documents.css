@@ -1,0 +1,45 @@
+.documents-page { min-height: 100vh; padding: 40px clamp(20px, 5vw, 72px); background: var(--color-background); }
+.documents-header, .documents-patient-card, .documents-list-card, .documents-state, .documents-notice { width: min(100%, 1200px); margin-right: auto; margin-left: auto; }
+.documents-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; gap: 24px; }
+.documents-header h1 { margin: 8px 0 4px; color: var(--color-navy); font-size: var(--font-size-title); }
+.documents-header p, .documents-patient-card p { margin: 0; color: var(--color-text-secondary); }
+.documents-header-actions { display: flex; gap: 10px; }
+.documents-header-actions .button { width: auto; white-space: nowrap; }
+.documents-patient-card, .documents-list-card, .documents-state { margin-bottom: 24px; padding: 28px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.documents-patient-card { display: grid; align-items: center; border-left: 4px solid var(--color-info); gap: 20px; grid-template-columns: 58px minmax(0, 1fr) auto; }
+.documents-avatar { display: grid; width: 58px; height: 58px; color: var(--color-primary); font-weight: var(--font-weight-bold); background: var(--color-blue-soft); border-radius: 50%; place-items: center; }
+.documents-patient-card span { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+.documents-patient-card h2 { margin: 2px 0; color: var(--color-navy); font-size: var(--font-size-section); }
+.documents-total { padding: 7px 12px; color: var(--color-primary) !important; font-weight: var(--font-weight-semibold); background: var(--color-blue-soft); border-radius: 999px; }
+.documents-section-heading { margin-bottom: 20px; }
+.documents-section-heading h2 { margin: 4px 0 0; color: var(--color-navy); font-size: var(--font-size-section); }
+.documents-list { display: grid; gap: 12px; }
+.document-row { display: grid; align-items: center; padding: 18px; background: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-md); gap: 16px; grid-template-columns: 46px minmax(0, 1fr) auto; }
+.document-type-icon { display: grid; width: 46px; height: 46px; color: var(--color-primary); font-weight: var(--font-weight-bold); background: var(--color-blue-soft); border-radius: var(--radius-sm); place-items: center; }
+.document-type-icon.type-radiografia { color: var(--color-success); background: var(--color-success-soft); }
+.document-type-icon.type-informe { color: var(--color-info); background: var(--color-blue-soft); }
+.document-main { min-width: 0; }
+.document-title-line { display: flex; align-items: center; gap: 10px; }
+.document-title-line h3 { margin: 0; color: var(--color-navy); font-size: var(--font-size-card); }
+.document-type-badge { padding: 3px 8px; color: var(--color-primary); font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); background: var(--color-blue-soft); border-radius: 999px; }
+.document-main p { margin: 4px 0; color: var(--color-text-secondary); overflow-wrap: anywhere; }
+.document-metadata { display: flex; flex-wrap: wrap; color: var(--color-text-muted); font-size: var(--font-size-caption); gap: 6px 16px; }
+.document-main small { display: block; margin-top: 7px; color: var(--color-text-secondary); }
+.document-open-button { width: auto; }
+.documents-empty, .documents-state { color: var(--color-text-secondary); text-align: center; }
+.documents-state { margin-top: 40px; }
+.documents-state .button { width: auto; margin-top: 12px; }
+.documents-error { color: var(--color-danger); }
+
+@media (max-width: 720px) {
+  .documents-page { padding: 24px 16px; }
+  .documents-header { align-items: stretch; flex-direction: column; }
+  .documents-header-actions { flex-direction: column; }
+  .documents-header-actions .button { width: 100%; }
+  .documents-patient-card, .documents-list-card, .documents-state { padding: 20px; }
+  .documents-patient-card { grid-template-columns: 58px minmax(0, 1fr); }
+  .documents-total { grid-column: 1 / -1; justify-self: start; }
+  .document-row { align-items: start; grid-template-columns: 46px minmax(0, 1fr); }
+  .document-open-button { width: 100%; grid-column: 1 / -1; }
+  .document-title-line { align-items: flex-start; flex-direction: column; }
+}

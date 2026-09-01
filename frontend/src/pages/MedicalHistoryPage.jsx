@@ -101,7 +101,10 @@ export function MedicalHistoryPage() {
           <h1>Historial Clínico</h1>
           <p>Consulta de antecedentes y atenciones anteriores</p>
         </div>
-        <Button className="history-back" onClick={() => navigate('/pacientes')}>← Volver</Button>
+        <div className="history-header-actions">
+          <Button className="history-back" onClick={() => navigate(`/pacientes/${patientId}/documentos`)}>Documentos clínicos</Button>
+          <Button className="history-back" onClick={() => navigate('/pacientes')}>← Volver</Button>
+        </div>
       </header>
 
       <section className="history-patient-card" aria-label="Información del paciente">

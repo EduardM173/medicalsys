@@ -1,0 +1,7 @@
+MEDICALSYS - INFORME CLÍNICO FICTICIO
+
+Paciente de demostración: Alejandro Morales Quiroga
+Tipo: Informe médico
+Referencia: TEST-DOC-A2
+
+Este archivo no corresponde a una persona real. Su única finalidad es verificar la consulta documental de MedicalSys.
