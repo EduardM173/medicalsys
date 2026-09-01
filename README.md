@@ -147,6 +147,10 @@ Después de ejecutar `npm run prisma:seed`, utilice estas credenciales de desarr
 
 Estas credenciales son solo para desarrollo local. No deben usarse en un sistema real.
 
+## Seguridad de contraseñas
+
+Al crear usuarios desde **Gestión de Usuarios**, la contraseña debe confirmarse y cumplir estas reglas: al menos 12 caracteres, una letra mayúscula, una minúscula, un número, un símbolo y ningún espacio. El formulario muestra el cumplimiento de cada requisito y una barra de fortaleza; la API aplica la misma política antes de guardar el hash con bcrypt.
+
 ## Verificaciones y módulos disponibles
 
 Con el backend iniciado, compruebe primero:

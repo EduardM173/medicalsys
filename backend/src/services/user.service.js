@@ -5,6 +5,7 @@ const prisma = require('../config/prisma');
 const allowedRoles = ['ADMINISTRADOR', 'MEDICO', 'RECEPCIONISTA', 'PACIENTE'];
 const allowedStatuses = ['ACTIVO', 'INACTIVO', 'SUSPENDIDO'];
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const passwordMaxLength = 128;
 
 const safeUserSelect = {
   id_usuario: true,
@@ -57,6 +58,34 @@ function normalizePhone(value) {
   return phone || null;
 }
 
+function validatePassword(value) {
+  if (typeof value !== 'string') {
+    throw new UserError(400, 'La contraseña es obligatoria.');
+  }
+  if (value.length < 12) {
+    throw new UserError(400, 'La contraseña debe tener al menos 12 caracteres.');
+  }
+  if (value.length > passwordMaxLength) {
+    throw new UserError(400, `La contraseña no puede superar ${passwordMaxLength} caracteres.`);
+  }
+  if (/\s/.test(value)) {
+    throw new UserError(400, 'La contraseña no puede contener espacios.');
+  }
+  if (!/[a-z]/.test(value)) {
+    throw new UserError(400, 'La contraseña debe incluir una letra minúscula.');
+  }
+  if (!/[A-Z]/.test(value)) {
+    throw new UserError(400, 'La contraseña debe incluir una letra mayúscula.');
+  }
+  if (!/\d/.test(value)) {
+    throw new UserError(400, 'La contraseña debe incluir un número.');
+  }
+  if (!/[^A-Za-z0-9]/.test(value)) {
+    throw new UserError(400, 'La contraseña debe incluir un símbolo.');
+  }
+  return value;
+}
+
 function validateRole(roleInput) {
   const role = typeof roleInput === 'string' ? roleInput.trim().toUpperCase() : '';
   if (!allowedRoles.includes(role)) {
@@ -92,7 +121,7 @@ async function createUser(input) {
   const nombres = requiredText(input.nombres, 'Nombres');
   const apellidos = requiredText(input.apellidos, 'Apellidos');
   const email = normalizeEmail(input.email);
-  const password = requiredText(input.password, 'La contraseña');
+  const password = validatePassword(input.password);
   const roleCode = validateRole(input.rol);
   const telefono = normalizePhone(input.telefono);
 
@@ -195,5 +224,6 @@ module.exports = {
   getUserById,
   listUsers,
   updateUser,
-  UserError
+  UserError,
+  validatePassword
 };
