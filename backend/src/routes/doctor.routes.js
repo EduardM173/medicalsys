@@ -5,10 +5,10 @@ const requireRole = require('../middleware/role.middleware');
 
 const router = Router();
 
-router.use(requireAuth, requireRole('ADMINISTRADOR'));
-router.post('/', doctorController.createDoctor);
-router.get('/', doctorController.listDoctors);
-router.get('/:id', doctorController.getDoctor);
-router.patch('/:id', doctorController.updateDoctor);
+router.use(requireAuth);
+router.get('/', requireRole('RECEPCIONISTA', 'ADMINISTRADOR'), doctorController.listDoctors);
+router.get('/:id', requireRole('RECEPCIONISTA', 'ADMINISTRADOR'), doctorController.getDoctor);
+router.post('/', requireRole('ADMINISTRADOR'), doctorController.createDoctor);
+router.patch('/:id', requireRole('ADMINISTRADOR'), doctorController.updateDoctor);
 
 module.exports = router;

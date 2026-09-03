@@ -5,10 +5,9 @@ const requireRole = require('../middleware/role.middleware');
 
 const router = Router();
 
-router.use(requireAuth, requireRole('ADMINISTRADOR'));
-router.get('/doctors/:doctorId/schedules', scheduleController.listSchedules);
-router.get('/doctors/:doctorId/schedules/active', scheduleController.listActiveSchedules);
-router.post('/doctors/:doctorId/schedules', scheduleController.createSchedule);
-router.patch('/schedules/:scheduleId', scheduleController.updateSchedule);
+router.get('/doctors/:doctorId/schedules', requireAuth, requireRole('ADMINISTRADOR', 'RECEPCIONISTA', 'MEDICO'), scheduleController.listSchedules);
+router.get('/doctors/:doctorId/schedules/active', requireAuth, requireRole('ADMINISTRADOR', 'RECEPCIONISTA', 'MEDICO'), scheduleController.listActiveSchedules);
+router.post('/doctors/:doctorId/schedules', requireAuth, requireRole('ADMINISTRADOR'), scheduleController.createSchedule);
+router.patch('/schedules/:scheduleId', requireAuth, requireRole('ADMINISTRADOR'), scheduleController.updateSchedule);
 
 module.exports = router;

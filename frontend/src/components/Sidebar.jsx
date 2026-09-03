@@ -15,6 +15,8 @@ export function Sidebar() {
     }
   }
 
+  const role = user?.rol;
+
   return (
     <aside className="app-sidebar">
       <NavLink className="sidebar-brand" to="/dashboard" aria-label="Ir al inicio de MedicalSys">
@@ -25,10 +27,11 @@ export function Sidebar() {
         </span>
       </NavLink>
 
-      {['ADMINISTRADOR', 'RECEPCIONISTA'].includes(user.rol) && (
+      {['ADMINISTRADOR', 'RECEPCIONISTA', 'MEDICO'].includes(role) && (
         <nav className="sidebar-nav" aria-label="Módulos del sistema">
           <span className="sidebar-section-label">Módulos del sistema</span>
-          {user.rol === 'ADMINISTRADOR' && (
+
+          {role === 'ADMINISTRADOR' && (
             <>
               <NavLink
                 className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
@@ -65,14 +68,68 @@ export function Sidebar() {
               </NavLink>
             </>
           )}
+
+          {['ADMINISTRADOR', 'RECEPCIONISTA'].includes(role) && (
+            <NavLink
+              className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+              to="/citas"
+            >
+              <span className="sidebar-item-icon" aria-hidden="true">C</span>
+              <span>
+                <strong>Agenda de Citas</strong>
+                <small>Programar y consultar citas</small>
+              </span>
+              <span className="sidebar-arrow" aria-hidden="true">›</span>
+            </NavLink>
+          )}
+
+          {role === 'MEDICO' && (
+            <>
+              <NavLink
+                className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+                to="/agenda"
+              >
+                <span className="sidebar-item-icon" aria-hidden="true">A</span>
+                <span>
+                  <strong>Agenda Médica</strong>
+                  <small>Mis citas programadas</small>
+                </span>
+                <span className="sidebar-arrow" aria-hidden="true">›</span>
+              </NavLink>
+              <NavLink
+                className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+                to="/consentimientos/nuevo"
+              >
+                <span className="sidebar-item-icon" aria-hidden="true">C</span>
+                <span>
+                  <strong>Consentimientos</strong>
+                  <small>Generar consentimiento</small>
+                </span>
+                <span className="sidebar-arrow" aria-hidden="true">›</span>
+              </NavLink>
+            </>
+          )}
+
           <NavLink
             className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
             to="/pacientes"
           >
             <span className="sidebar-item-icon" aria-hidden="true">P</span>
             <span>
-              <strong>Gestión de Pacientes</strong>
-              <small>Registro y consulta</small>
+              <strong>{role === 'MEDICO' ? 'Historial Clínico' : 'Gestión de Pacientes'}</strong>
+              <small>{role === 'MEDICO' ? 'Consulta por paciente' : 'Registro y consulta'}</small>
+            </span>
+            <span className="sidebar-arrow" aria-hidden="true">›</span>
+          </NavLink>
+
+          <NavLink
+            className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+            to="/salas"
+          >
+            <span className="sidebar-item-icon" aria-hidden="true">S</span>
+            <span>
+              <strong>Salas y Quirófanos</strong>
+              <small>Reserva y disponibilidad</small>
             </span>
             <span className="sidebar-arrow" aria-hidden="true">›</span>
           </NavLink>

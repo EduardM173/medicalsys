@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { PatientForm } from '../components/PatientForm';
+import { useAuth } from '../contexts/AuthContext';
 import { createPatient, getPatient, getPatients, updatePatient } from '../services/api';
 import '../styles/patients.css';
 
@@ -20,6 +22,10 @@ function documentLabel(patient) {
 }
 
 export function PatientsPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const isDoctor = user?.rol === 'MEDICO' || user?.rol === 'ADMINISTRADOR';
+
   const [patients, setPatients] = useState([]);
   const [search, setSearch] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -162,7 +168,20 @@ export function PatientsPage() {
                 {selectedPatient.contactoEmergencia && <div><dt>Contacto de emergencia</dt><dd>{selectedPatient.contactoEmergencia}</dd></div>}
                 {selectedPatient.telefonoEmergencia && <div><dt>Teléfono de emergencia</dt><dd>{selectedPatient.telefonoEmergencia}</dd></div>}
               </dl>
-              <div className="patient-detail-actions"><Button onClick={() => openEditForm(selectedPatient.id)}>Editar paciente</Button></div>
+              <div className="patient-detail-actions" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                {isDoctor ? (
+                  <>
+                    <Button onClick={() => navigate(`/historial-clinico/${selectedPatient.id}`)}>
+                      📋 Historial y Documentos
+                    </Button>
+                    <Button variant="secondary" onClick={() => navigate(`/pacientes/${selectedPatient.id}/documentos`)}>
+                      📁 Documentos Clínicos
+                    </Button>
+                  </>
+                ) : (
+                  <Button onClick={() => openEditForm(selectedPatient.id)}>Editar paciente</Button>
+                )}
+              </div>
             </>
           )}
         </section>
@@ -195,7 +214,14 @@ export function PatientsPage() {
                 </div>
                 <div className="patient-row-actions">
                   <button className="text-action" onClick={() => fetchPatient(patient.id)} type="button">Ver</button>
-                  <button className="text-action" onClick={() => openEditForm(patient.id)} type="button">Editar</button>
+                  {isDoctor ? (
+                    <>
+                      <button className="text-action" onClick={() => navigate(`/historial-clinico/${patient.id}`)} type="button">Historial</button>
+                      <button className="text-action" onClick={() => navigate(`/pacientes/${patient.id}/documentos`)} type="button">Documentos</button>
+                    </>
+                  ) : (
+                    <button className="text-action" onClick={() => openEditForm(patient.id)} type="button">Editar</button>
+                  )}
                 </div>
               </article>
             ))}
