@@ -171,6 +171,7 @@ Inicie sesión como administrador y pruebe:
 | Horarios médicos | `/admin/horarios-medicos` | Seleccionar médico, agregar horarios, editar y habilitar/deshabilitar disponibilidad. |
 | Gestión de pacientes | `/pacientes` | Buscar, registrar, consultar y editar pacientes. |
 | Agenda de citas | `/citas` | Reservar una cita (paciente, médico, servicio, fecha/hora) y consultar las citas del día. Disponible para Administrador y Recepcionista. |
+| HU-21 Preparar factura | `/facturacion/preparar` | Seleccionar paciente y cita opcional, agregar servicios reales, ajustar cantidades y validar la vista previa. No crea ni emite una factura y está disponible para Administrador y Recepcionista. |
 
 Inicie sesión con `medico@medicalsys.test` para probar los módulos clínicos:
 

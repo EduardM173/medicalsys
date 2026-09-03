@@ -1,4 +1,5 @@
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const apiUrl = import.meta.env.VITE_API_URL
+  || `${window.location.protocol}//${window.location.hostname}:3000/api`;
 
 export class ApiError extends Error {
   constructor(status, message) {
@@ -202,6 +203,14 @@ export function createAppointment(appointment) {
 // HU-15: actualización de una cita (reprogramación y/o cambio de estado, incluida cancelación lógica).
 export function updateAppointment(id, changes) {
   return request(`/appointments/${id}`, { method: 'PATCH', body: JSON.stringify(changes) });
+}
+
+// HU-21: obtiene una vista previa validada; no crea ni emite una factura.
+export function prepareBilling(data) {
+  return request('/billing/prepare', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
 }
 
 // ==========================================

@@ -5,6 +5,7 @@ import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { AppointmentsPage } from './pages/AppointmentsPage';
+import { BillingPreparationPage } from './pages/BillingPreparationPage';
 import { AgendaPage } from './pages/AgendaPage';
 import { ConsentDetailPage } from './pages/ConsentDetailPage';
 import { ConsentFormPage } from './pages/ConsentFormPage';
@@ -39,6 +40,7 @@ function App() {
               {/* Citas y Recepción */}
               <Route element={<AuthorizedRoute allowedRoles={['RECEPCIONISTA', 'ADMINISTRADOR']} />}>
                 <Route path="/citas" element={<AppointmentsPage />} />
+                <Route path="/facturacion/preparar" element={<BillingPreparationPage />} />
               </Route>
 
               {/* Agenda y Consentimientos Médicos */}
