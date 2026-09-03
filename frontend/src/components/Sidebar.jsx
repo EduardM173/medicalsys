@@ -70,17 +70,30 @@ export function Sidebar() {
           )}
 
           {['ADMINISTRADOR', 'RECEPCIONISTA'].includes(role) && (
-            <NavLink
-              className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
-              to="/citas"
-            >
-              <span className="sidebar-item-icon" aria-hidden="true">C</span>
-              <span>
-                <strong>Agenda de Citas</strong>
-                <small>Programar y consultar citas</small>
-              </span>
-              <span className="sidebar-arrow" aria-hidden="true">›</span>
-            </NavLink>
+            <>
+              <NavLink
+                className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+                to="/citas"
+              >
+                <span className="sidebar-item-icon" aria-hidden="true">C</span>
+                <span>
+                  <strong>Agenda de Citas</strong>
+                  <small>Programar y consultar citas</small>
+                </span>
+                <span className="sidebar-arrow" aria-hidden="true">›</span>
+              </NavLink>
+              <NavLink
+                className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+                to="/facturacion/preparar"
+              >
+                <span className="sidebar-item-icon" aria-hidden="true">F</span>
+                <span>
+                  <strong>Preparar Factura</strong>
+                  <small>Receptor, conceptos y total</small>
+                </span>
+                <span className="sidebar-arrow" aria-hidden="true">›</span>
+              </NavLink>
+            </>
           )}
 
           {role === 'MEDICO' && (

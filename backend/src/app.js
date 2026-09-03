@@ -5,6 +5,7 @@ const appointmentRoutes = require('./routes/appointment.routes');
 const agendaRoutes = require('./routes/agenda.routes');
 const attentionRoutes = require('./routes/attention.routes');
 const authRoutes = require('./routes/auth.routes');
+const billingRoutes = require('./routes/billing.routes');
 const clinicalDocumentRoutes = require('./routes/clinical-document.routes');
 const consentRoutes = require('./routes/consent.routes');
 const doctorRoutes = require('./routes/doctor.routes');
@@ -29,6 +30,7 @@ app.use(cookieParser());
 
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/billing', billingRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/atenciones', attentionRoutes);
 app.use('/api/attentions', attentionRoutes);
