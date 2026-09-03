@@ -102,6 +102,7 @@ function toConsent(consent) {
     status: consent.estado,
     generatedAt: consent.fecha_generacion.toISOString(),
     signedAt: consent.fecha_firma?.toISOString() || null,
+    signatureHash: consent.firma_hash_sha256 || null,
     hasSignature: Boolean(consent.firma_storage_key || consent.firma_hash_sha256),
     patient: toPatient(consent.paciente),
     doctor: toDoctor(consent.medico),
@@ -199,6 +200,59 @@ async function getConsentById(userIdInput, consentIdInput) {
   return toConsent(consent);
 }
 
+/**
+ * PA-01 a PA-07: Firma digital del consentimiento informado.
+ * Valida existencia (404), estado ANULADO (400), estado FIRMADO (409),
+ * calcula SHA-256 del signatureData, y actualiza el registro en transacción.
+ */
+async function signConsent(userIdInput, consentIdInput, signatureData) {
+  const consentId = parseId(consentIdInput, 'consentimiento');
+  const doctor = await findAuthenticatedDoctor(userIdInput);
+
+  if (!signatureData || typeof signatureData !== 'string' || !signatureData.trim()) {
+    throw new ConsentError(400, 'Los datos de la firma son obligatorios.');
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    // PA-01 (MED-163): Validar existencia del consentimiento
+    const consent = await tx.consentimiento_informado.findFirst({
+      where: { id_consentimiento: consentId, id_medico: doctor.id_medico }
+    });
+
+    if (!consent) {
+      throw new ConsentError(404, 'Consentimiento informado no encontrado.');
+    }
+
+    // PA-02 (MED-164): Validar que no esté ANULADO
+    if (consent.estado === 'ANULADO') {
+      throw new ConsentError(400, 'No se puede firmar un consentimiento anulado.');
+    }
+
+    // PA-07 (MED-169): Validar que no esté ya FIRMADO
+    if (consent.estado === 'FIRMADO') {
+      throw new ConsentError(409, 'Este consentimiento ya fue firmado. No se permite sobreescribir la firma sin una reexpedición previa.');
+    }
+
+    // PA-04 (MED-161, MED-166): Calcular huella SHA-256 de los datos de firma
+    const hash = crypto.createHash('sha256').update(signatureData).digest('hex');
+
+    // PA-03 + PA-05 (MED-160, MED-162, MED-165, MED-167): Actualizar fecha_firma, hash y estado
+    const updated = await tx.consentimiento_informado.update({
+      where: { id_consentimiento: consentId },
+      data: {
+        estado: 'FIRMADO',
+        fecha_firma: new Date(),
+        firma_hash_sha256: hash
+      },
+      select: consentSelect
+    });
+
+    return updated;
+  });
+
+  return toConsent(result);
+}
+
 async function getConsentOptions(userIdInput) {
   const doctor = await findAuthenticatedDoctor(userIdInput);
   const [patients, appointments] = await Promise.all([
@@ -236,5 +290,6 @@ module.exports = {
   ConsentError,
   createConsent,
   getConsentById,
-  getConsentOptions
+  getConsentOptions,
+  signConsent
 };

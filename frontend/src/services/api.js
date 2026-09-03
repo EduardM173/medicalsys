@@ -151,6 +151,32 @@ export function getConsent(id) {
   return request(`/consents/${id}`);
 }
 
+export function signConsent(consentId, signatureData) {
+  return request(`/consents/${consentId}/sign`, {
+    method: 'POST',
+    body: JSON.stringify({ signatureData })
+  });
+}
+
+// ==========================================
+// Atención Médica e Historial Clínico (HU-12)
+// ==========================================
+
+export function createAttention(attention) {
+  return request('/atenciones', {
+    method: 'POST',
+    body: JSON.stringify(attention)
+  });
+}
+
+export function getAttentionsByHistory(historyId) {
+  return request(`/historias/${historyId}/atenciones`);
+}
+
+export function getAttentionOptions() {
+  return request('/atenciones/options');
+}
+
 export function getServices() {
   return request('/services');
 }

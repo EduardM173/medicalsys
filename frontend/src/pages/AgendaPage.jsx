@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { AttentionModal } from '../components/AttentionModal';
 import { getMyAgenda } from '../services/api';
 import '../styles/agenda.css';
 
@@ -59,39 +60,37 @@ export function AgendaPage() {
   const [agenda, setAgenda] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [activeAttentionModal, setActiveAttentionModal] = useState(null);
+
+  async function loadAgenda() {
+    if (!isValidDate(selectedDate)) {
+      setAgenda(null);
+      setError('La fecha seleccionada no es válida.');
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const response = await getMyAgenda(selectedDate);
+      setAgenda(response);
+    } catch (requestError) {
+      setAgenda(null);
+      if (requestError.status === 400) {
+        setError('La fecha seleccionada no es válida.');
+      } else if (requestError.status === 403) {
+        setError('No tiene permisos para consultar esta agenda.');
+      } else {
+        setError('No fue posible cargar la agenda médica.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    let active = true;
-
-    async function loadAgenda() {
-      if (!isValidDate(selectedDate)) {
-        setAgenda(null);
-        setError('La fecha seleccionada no es válida.');
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setError('');
-      try {
-        const response = await getMyAgenda(selectedDate);
-        if (active) setAgenda(response);
-      } catch (requestError) {
-        if (!active) return;
-        setAgenda(null);
-        if (requestError.status === 400) {
-          setError('La fecha seleccionada no es válida.');
-        } else if (requestError.status === 403) {
-          setError('No tiene permisos para consultar esta agenda.');
-        } else {
-          setError('No fue posible cargar la agenda médica.');
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
     loadAgenda();
-    return () => { active = false; };
   }, [selectedDate]);
 
   const activeCount = useMemo(
@@ -106,13 +105,30 @@ export function AgendaPage() {
     }
   }
 
+  function handleStartAttention(appointment) {
+    setActiveAttentionModal({
+      patientId: appointment.patient.id,
+      appointmentId: appointment.id,
+      initialData: {
+        motivoConsulta: appointment.reason || ''
+      }
+    });
+    setNotice('');
+  }
+
+  function handleAttentionCompleted() {
+    setActiveAttentionModal(null);
+    setNotice('Atención médica registrada exitosamente. La cita ha sido marcada como completada.');
+    loadAgenda();
+  }
+
   return (
     <main className="agenda-page">
       <header className="agenda-header">
         <div>
           <span className="login-kicker">Agenda personal</span>
           <h1>Agenda Médica</h1>
-          <p>Consulta de citas programadas</p>
+          <p>Consulta y atención de citas programadas</p>
         </div>
         {agenda?.doctor && (
           <div className="agenda-doctor" aria-label="Médico autenticado">
@@ -142,6 +158,7 @@ export function AgendaPage() {
         </div>
       </section>
 
+      {notice && <p className="notice success-notice agenda-notice" role="status">{notice}</p>}
       {error && <p className="notice error-notice agenda-notice" role="alert">{error}</p>}
 
       <section className="agenda-list-card" aria-labelledby="agenda-list-title">
@@ -161,6 +178,9 @@ export function AgendaPage() {
           <div className="agenda-list">
             {agenda.appointments.map((appointment) => {
               const cancelled = appointment.status === 'CANCELADA';
+              const isCompleted = appointment.status === 'COMPLETADA';
+              const canAttend = !cancelled && !isCompleted;
+
               return (
                 <article className={`agenda-appointment${cancelled ? ' cancelled' : ''}`} key={appointment.id}>
                   <time dateTime={appointment.startTime}>{formatTime(appointment.startTime)}</time>
@@ -174,6 +194,15 @@ export function AgendaPage() {
                     <span className={`agenda-status status-${appointment.status.toLowerCase()}`}>
                       {statusLabels[appointment.status] || appointment.status}
                     </span>
+                    {canAttend && (
+                      <button
+                        className="btn-attend"
+                        onClick={() => handleStartAttention(appointment)}
+                        type="button"
+                      >
+                        🩺 Atender
+                      </button>
+                    )}
                   </div>
                 </article>
               );
@@ -181,6 +210,16 @@ export function AgendaPage() {
           </div>
         ) : null}
       </section>
+
+      {activeAttentionModal && (
+        <AttentionModal
+          appointmentId={activeAttentionModal.appointmentId}
+          initialData={activeAttentionModal.initialData}
+          patientId={activeAttentionModal.patientId}
+          onCancel={() => setActiveAttentionModal(null)}
+          onSave={handleAttentionCompleted}
+        />
+      )}
     </main>
   );
 }
