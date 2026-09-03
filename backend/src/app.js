@@ -16,6 +16,7 @@ const roomRoutes = require('./routes/room.routes');
 const scheduleRoutes = require('./routes/schedule.routes');
 const serviceRoutes = require('./routes/service.routes');
 const userRoutes = require('./routes/user.routes');
+const facturaRoutes = require('./routes/factura.routes');
 const errorHandler = require('./middleware/error.middleware');
 
 const app = express();
@@ -45,6 +46,7 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api', scheduleRoutes);
 app.use('/api', documentRoutes);
 app.use('/api', clinicalDocumentRoutes);
+app.use('/api/facturas', facturaRoutes);
 
 app.use(errorHandler);
 

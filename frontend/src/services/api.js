@@ -300,3 +300,42 @@ export function cancelRoomReservation(id) {
     method: 'DELETE'
   });
 }
+
+// ==========================================
+// Servicios Médicos
+// ==========================================
+
+export function getMedicalServices() {
+  return request('/services');
+}
+
+// ==========================================
+// HU-22: Facturación Computarizada SIN (MED-184)
+// ==========================================
+
+export function getClinicBillingConfig() {
+  return request('/facturas/configuracion-clinica');
+}
+
+export function getInvoices(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/facturas${query ? `?${query}` : ''}`);
+}
+
+export function getInvoice(id) {
+  return request(`/facturas/${id}`);
+}
+
+export function createInvoice(invoiceData) {
+  return request('/facturas', {
+    method: 'POST',
+    body: JSON.stringify(invoiceData)
+  });
+}
+
+export function issueInvoice(id) {
+  return request(`/facturas/${id}/emitir`, {
+    method: 'POST'
+  });
+}
+

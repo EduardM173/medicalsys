@@ -698,6 +698,31 @@ async function main() {
 
   await upsertRooms();
 
+  await prisma.configuracion_clinica.upsert({
+    where: { nit: '1028472021' },
+    update: {
+      nombre_comercial: 'MedicalSys - Clínica Especializada',
+      razon_social: 'MedicalSys Salud Integral S.R.L.',
+      direccion: 'Av. Arce #2435, Edificio Los Pinos, PB',
+      telefono: '+591 2 2441234',
+      email: 'facturacion@medicalsys.bo',
+      ciudad: 'La Paz',
+      pais: 'Bolivia',
+      activa: true
+    },
+    create: {
+      nombre_comercial: 'MedicalSys - Clínica Especializada',
+      razon_social: 'MedicalSys Salud Integral S.R.L.',
+      nit: '1028472021',
+      direccion: 'Av. Arce #2435, Edificio Los Pinos, PB',
+      telefono: '+591 2 2441234',
+      email: 'facturacion@medicalsys.bo',
+      ciudad: 'La Paz',
+      pais: 'Bolivia',
+      activa: true
+    }
+  });
+
   console.log(
     `Seed listo: administrador ${admin.email}, médicos ${doctor.email} y ${secondDoctor.email}, `
       + `recepcionista ${receptionist.email}, paciente ${patientUser.email}, usuario inactivo ${inactiveUser.email}, `

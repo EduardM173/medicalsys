@@ -11,6 +11,7 @@ import { ConsentFormPage } from './pages/ConsentFormPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DoctorsPage } from './pages/DoctorsPage';
 import { DocumentsPage } from './pages/DocumentsPage';
+import { FacturacionPage } from './pages/FacturacionPage';
 import { LoginPage } from './pages/LoginPage';
 import { MedicalHistoryPage } from './pages/MedicalHistoryPage';
 import { PatientsPage } from './pages/PatientsPage';
@@ -36,9 +37,10 @@ function App() {
                 <Route path="/salas" element={<RoomsPage />} />
               </Route>
 
-              {/* Citas y Recepción */}
+              {/* Citas, Recepción y Facturación */}
               <Route element={<AuthorizedRoute allowedRoles={['RECEPCIONISTA', 'ADMINISTRADOR']} />}>
                 <Route path="/citas" element={<AppointmentsPage />} />
+                <Route path="/facturacion" element={<FacturacionPage />} />
               </Route>
 
               {/* Agenda y Consentimientos Médicos */}

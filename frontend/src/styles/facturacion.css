@@ -1,0 +1,918 @@
+/* ============================================================
+   HU-22: Facturación Computarizada SIN - UI/UX Alta Fidelidad
+   ============================================================ */
+
+.facturacion-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  max-width: 1440px;
+  margin: 0 auto;
+  color: var(--color-text-primary);
+}
+
+.facturacion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.facturacion-title-group h1 {
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-navy);
+  margin: 0 0 0.25rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.facturacion-badge-bolivia {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.facturacion-title-group p {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+  margin: 0;
+}
+
+.facturacion-tabs {
+  display: flex;
+  gap: 0.5rem;
+  background: #e2e8f0;
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+}
+
+.facturacion-tab-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.facturacion-tab-btn.active {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Layout Principal de Doble Columna */
+.facturacion-workspace {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .facturacion-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Columna Izquierda: Formulario */
+.billing-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.billing-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.75rem;
+}
+
+.billing-card-header h2 {
+  font-size: var(--font-size-section);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-navy);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.billing-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.billing-section-title {
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.form-group label {
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.form-input,
+.form-select {
+  height: var(--input-height);
+  padding: 0 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  background: #ffffff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.patient-autocomplete-container {
+  position: relative;
+}
+
+.patient-autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 0.25rem;
+}
+
+.patient-autocomplete-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f8fafc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.15s;
+}
+
+.patient-autocomplete-item:hover {
+  background: var(--color-blue-soft);
+}
+
+.patient-item-name {
+  font-weight: 600;
+  color: var(--color-navy);
+}
+
+.patient-item-ci {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+/* Selector estilizado de Método de Pago */
+.payment-method-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.payment-method-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 0.5rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.payment-method-btn:hover {
+  border-color: #93c5fd;
+  background: #f8fafc;
+}
+
+.payment-method-btn.selected {
+  border-color: var(--color-primary);
+  background: var(--color-blue-soft);
+  color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+.payment-icon {
+  font-size: 1.5rem;
+}
+
+/* Tabla dinámica de ítems */
+.items-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-body);
+}
+
+.items-table th {
+  background: #f8fafc;
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+  padding: 0.75rem 0.875rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-label);
+}
+
+.items-table td {
+  padding: 0.65rem 0.875rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.quantity-control {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.quantity-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  background: #ffffff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.quantity-input {
+  width: 44px;
+  height: 28px;
+  text-align: center;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: var(--font-size-body);
+}
+
+.item-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-danger);
+  cursor: pointer;
+  padding: 0.35rem;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.item-delete-btn:hover {
+  background: var(--color-danger-soft);
+}
+
+/* Selector de prestaciones médicas */
+.add-service-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.btn-add-item {
+  padding: 0 1rem;
+  height: var(--input-height);
+  background: #f8fafc;
+  border: 1px dashed var(--color-primary);
+  color: var(--color-primary);
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.btn-add-item:hover {
+  background: var(--color-blue-soft);
+}
+
+/* Resumen financiero en formulario */
+.billing-financial-summary {
+  background: #f8fafc;
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-body);
+  color: var(--color-text-secondary);
+}
+
+.summary-row.total-row {
+  border-top: 2px solid #e2e8f0;
+  padding-top: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-navy);
+}
+
+.summary-literal {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  margin-top: 0.25rem;
+}
+
+/* Botón principal de emisión */
+.btn-emit-invoice {
+  height: 52px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 1.05rem;
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-emit-invoice:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-emit-invoice:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ============================================================
+   Columna Derecha: TICKET FISCAL 80MM (SIMULADOR DE ALTA FIDELIDAD)
+   ============================================================ */
+
+.ticket-preview-wrapper {
+  position: sticky;
+  top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ticket-preview-container {
+  width: 100%;
+  max-width: 380px;
+  background: #ffffff;
+  box-shadow: 0 16px 40px rgba(16, 41, 75, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  padding: 1.5rem 1.25rem;
+  font-family: 'Courier New', Courier, monospace;
+  color: #1e293b;
+  position: relative;
+  background-image: radial-gradient(#f8fafc 15%, transparent 16%);
+  background-size: 10px 10px;
+}
+
+/* Borde dentado estilo ticket térmico */
+.ticket-preview-container::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: radial-gradient(circle, transparent, transparent 50%, #ffffff 50%, #ffffff 100%);
+  background-size: 12px 12px;
+}
+
+.ticket-preview-container::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: radial-gradient(circle, transparent, transparent 50%, #ffffff 50%, #ffffff 100%);
+  background-size: 12px 12px;
+}
+
+.ticket-status-pill {
+  text-align: center;
+  font-family: var(--font-family);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ticket-status-pill.borrador {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px dashed #f59e0b;
+}
+
+.ticket-status-pill.emitida {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #10b981;
+}
+
+.ticket-header {
+  text-align: center;
+  margin-bottom: 0.85rem;
+}
+
+.ticket-clinic-name {
+  font-size: 1.05rem;
+  font-weight: bold;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.ticket-clinic-legal {
+  font-size: 0.75rem;
+  margin: 0.2rem 0;
+}
+
+.ticket-clinic-info {
+  font-size: 0.72rem;
+  line-height: 1.3;
+  margin: 0.15rem 0;
+}
+
+.ticket-divider {
+  border: none;
+  border-top: 1px dashed #64748b;
+  margin: 0.75rem 0;
+}
+
+.ticket-divider-double {
+  border: none;
+  border-top: 2px solid #334155;
+  margin: 0.75rem 0;
+}
+
+.ticket-meta-block {
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.ticket-meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ticket-cuf-box {
+  margin: 0.75rem 0;
+  padding: 0.5rem;
+  background: #f8fafc;
+  border: 1px dotted #94a3b8;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.ticket-cuf-label {
+  font-size: 0.68rem;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  color: #475569;
+  margin-bottom: 0.25rem;
+}
+
+.ticket-cuf-value {
+  font-size: 0.65rem;
+  word-break: break-all;
+  line-height: 1.25;
+  color: #0f172a;
+  font-weight: bold;
+}
+
+/* Tabla de ítems en ticket */
+.ticket-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.ticket-items-table th {
+  text-align: left;
+  border-bottom: 1px dashed #475569;
+  padding: 0.25rem 0;
+  font-size: 0.7rem;
+}
+
+.ticket-items-table td {
+  padding: 0.25rem 0;
+  vertical-align: top;
+}
+
+.ticket-items-table .text-right {
+  text-align: right;
+}
+
+/* Totales en ticket */
+.ticket-totals {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  margin: 0.5rem 0;
+}
+
+.ticket-total-main {
+  font-size: 0.95rem;
+  font-weight: bold;
+}
+
+.ticket-literal {
+  font-size: 0.7rem;
+  line-height: 1.3;
+  margin-top: 0.35rem;
+  text-transform: uppercase;
+}
+
+/* Contenedor de Código QR en ticket */
+.ticket-qr-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 1rem 0 0.5rem 0;
+  gap: 0.35rem;
+}
+
+.ticket-qr-container {
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  display: inline-flex;
+}
+
+.ticket-legal-text {
+  text-align: center;
+  font-size: 0.62rem;
+  line-height: 1.35;
+  color: #475569;
+  margin-top: 0.75rem;
+}
+
+/* ============================================================
+   Modal de Confirmación Prominente (MED-193 / PA-03)
+   ============================================================ */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.confirmation-modal {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 680px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  animation: modalScale 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalScale {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-header-success {
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: #ffffff;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.modal-success-icon {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  flex-shrink: 0;
+}
+
+.modal-header-text h3 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.modal-header-text p {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.875rem;
+  opacity: 0.92;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.modal-cuf-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.modal-cuf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-cuf-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-navy);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.modal-cuf-string {
+  font-family: monospace;
+  font-size: 0.82rem;
+  background: #ffffff;
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  word-break: break-all;
+  color: #0f172a;
+}
+
+.btn-copy-cuf {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #e2e8f0;
+  color: #1e293b;
+  border: none;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-copy-cuf:hover {
+  background: #cbd5e1;
+}
+
+.btn-copy-cuf.copied {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.btn-secondary {
+  padding: 0.65rem 1.25rem;
+  border: 1px solid var(--color-border);
+  background: #ffffff;
+  color: var(--color-text-primary);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-secondary:hover {
+  background: #f1f5f9;
+}
+
+.btn-print {
+  padding: 0.65rem 1.5rem;
+  background: var(--color-navy);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(16, 41, 75, 0.2);
+  transition: background 0.15s;
+}
+
+.btn-print:hover {
+  background: var(--color-navy-dark);
+}
+
+/* Floating Toast Notification */
+.toast-floating {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: #065f46;
+  color: #ffffff;
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius-md);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 2000;
+  font-weight: 600;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Alertas de error / aviso */
+.billing-alert {
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-body);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.billing-alert-danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  border: 1px solid #fca5a5;
+}
+
+/* Spinner */
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #ffffff;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   OPTIMIZACIÓN DE IMPRESIÓN PARA TICKET 80MM (@media print)
+   ============================================================ */
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .ticket-printable,
+  .ticket-printable * {
+    visibility: visible;
+  }
+
+  .ticket-printable {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm !important;
+    max-width: 80mm !important;
+    margin: 0 !important;
+    padding: 2mm !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    border: none !important;
+  }
+
+  .ticket-printable::before,
+  .ticket-printable::after,
+  .ticket-status-pill,
+  .modal-actions,
+  .modal-header-success,
+  .btn-copy-cuf,
+  .toast-floating {
+    display: none !important;
+  }
+
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+}
