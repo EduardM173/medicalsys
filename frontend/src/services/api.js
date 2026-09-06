@@ -312,6 +312,17 @@ export function cancelRoomReservation(id) {
 }
 export function getSecurityMatrix() { return request('/security'); }
 export function getSecurityAudit() { return request('/security/audit'); }
+export function createSecurityRole(data) {
+  return request('/security/roles', { method: 'POST', body: JSON.stringify(data) });
+}
 export function updateSecurityRole(role, permissions) {
   return request('/security/roles/' + encodeURIComponent(role), { method: 'PUT', body: JSON.stringify({ permissions }) });
 }
+export function getTemporaryGrants() { return request('/security/temporary-grants'); }
+export function grantTemporaryPermission(data) {
+  return request('/security/temporary-grants', { method: 'POST', body: JSON.stringify(data) });
+}
+export function revokeTemporaryGrant(id) {
+  return request('/security/temporary-grants/' + encodeURIComponent(id), { method: 'DELETE' });
+}
+export function getUserRoles() { return request('/users/roles/catalog'); }

@@ -17,6 +17,10 @@ async function listUsers(_request, response, next) {
     next(error);
   }
 }
+async function listRoles(_request, response, next) {
+  try { response.status(200).json({ roles: await userService.listRoles() }); }
+  catch (error) { next(error); }
+}
 
 async function getUser(request, response, next) {
   try {
@@ -45,4 +49,4 @@ async function deactivateUser(request, response, next) {
   }
 }
 
-module.exports = { createUser, deactivateUser, getUser, listUsers, updateUser };
+module.exports = { createUser, deactivateUser, getUser, listRoles, listUsers, updateUser };

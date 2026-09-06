@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { can } from '../security/permissions';
 import { Button } from '../components/Button';
 import { UserForm } from '../components/UserForm';
-import { createUser, deactivateUser, getUsers, updateUser } from '../services/api';
+import { createUser, deactivateUser, getUserRoles, getUsers, updateUser } from '../services/api';
 import '../styles/users.css';
 
 export function UsersPage() {
@@ -13,6 +13,7 @@ export function UsersPage() {
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [formMode, setFormMode] = useState(null);
@@ -21,8 +22,8 @@ export function UsersPage() {
 
   async function loadUsers() {
     try {
-      const response = await getUsers();
-      setUsers(response.users);
+      const [response, roleResponse] = await Promise.all([getUsers(), getUserRoles()]);
+      setUsers(response.users); setRoles(roleResponse.roles);
       setError('');
     } catch (requestError) {
       setError(requestError.message || 'No fue posible cargar los usuarios.');
@@ -102,6 +103,7 @@ export function UsersPage() {
             isSelf={editingUser?.id === currentUser?.id}
             onCancel={() => setFormMode(null)}
             onSave={saveUser}
+            roles={roles}
           />
         </section>
       )}
@@ -116,7 +118,7 @@ export function UsersPage() {
 
         <div className="user-filters">
           <input type="search" aria-label="Buscar usuarios" placeholder="Buscar por nombre o correo" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select aria-label="Filtrar por rol" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}><option value="">Todos los roles</option>{['ADMINISTRADOR', 'OSI', 'MEDICO', 'RECEPCIONISTA', 'PACIENTE'].map((r) => <option key={r}>{r}</option>)}</select>
+          <select aria-label="Filtrar por rol" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}><option value="">Todos los roles</option>{roles.map((role) => <option key={role.code} value={role.code}>{role.name}</option>)}</select>
           <select aria-label="Filtrar por estado" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="">Todos los estados</option>{['ACTIVO', 'INACTIVO', 'SUSPENDIDO'].map((r) => <option key={r}>{r}</option>)}</select>
         </div>
         {loading ? (

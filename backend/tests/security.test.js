@@ -9,9 +9,17 @@ const accounts = new Map(roles.map((role, index) => [String(index + 1), {
   id_usuario: BigInt(index + 1), estado: 'ACTIVO', rol: { codigo: role, activo: true }
 }]));
 const policies = new Map();
+const userGrants = new Map();
 const db = {
   usuario: { findUnique: async ({ where }) => accounts.get(String(where.id_usuario)) || null },
-  $queryRaw: async (_strings, role) => policies.has(role) ? [{ permissions: policies.get(role) }] : [],
+  rol: {
+    findUnique: async ({ where }) => roles.includes(where.codigo) ? { codigo: where.codigo, activo: true } : null,
+    findMany: async () => roles.map((codigo) => ({ codigo, nombre: codigo, descripcion: null, activo: true })),
+    create: async ({ data }) => ({ ...data })
+  },
+  $queryRaw: async (strings, value) => String(strings[0]).includes('security_user_grant')
+    ? (userGrants.get(String(value)) || []).map((permission_code) => ({ permission_code }))
+    : policies.has(value) ? [{ permissions: policies.get(value) }] : [],
   $executeRaw: async () => 1,
   $transaction: async (callback) => callback(db)
 };
@@ -84,11 +92,19 @@ test('matriz por HTTP, revocación y sesiones vigentes', async () => {
   }
 });
 
-test('rechaza escalamiento, dependencias incompletas y retiro del acceso propio', async () => {
+test('permite cualquier permiso por rol y protege dependencias y acceso propio', async () => {
   const actor = { id: '2', rol: 'OSI' };
-  await assert.rejects(security.updatePolicy('OSI', ['patients.read'], actor), { statusCode: 400 });
+  const expanded = await security.updatePolicy('MEDICO', ['patients.read'], actor);
+  assert.deepEqual(expanded.permissions, ['patients.read']);
+  assert.equal((await security.matrix()).roles.length, roles.length);
+  assert.ok(security.validatePermissions(['patients.read', 'history.read']).includes('history.read'));
+  userGrants.set('5', ['rooms.write']);
+  assert.deepEqual((await security.permissionsForUser('5', 'PACIENTE')).sort(), ['rooms.read', 'rooms.write']);
+  userGrants.clear();
+  const custom = await security.createRole({ name: 'Auditor de prueba', code: 'AUDITOR_PRUEBA' }, actor);
+  assert.equal(custom.code, 'AUDITOR_PRUEBA');
   await assert.rejects(security.updatePolicy('MEDICO', ['attention.write'], actor), { statusCode: 400 });
-  await assert.rejects(security.updatePolicy('OSI', [], actor), { statusCode: 400 });
+  await assert.rejects(security.updatePolicy('OSI', [], actor), { statusCode: 409 });
   assert.deepEqual(await security.permissionsForRole('DESCONOCIDO'), []);
   await assert.rejects(users.mutateUser('DEACTIVATE', '2', {}, actor), { statusCode: 400 });
   await assert.rejects(users.mutateUser('UPDATE', '2', { rol: 'ADMINISTRADOR' }, actor), { statusCode: 400 });

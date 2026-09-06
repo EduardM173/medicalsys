@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
-const { permissionsForRole } = require('./security.service');
+const { permissionsForUser } = require('./security.service');
 
 class AuthError extends Error {
   constructor(statusCode, message) {
@@ -54,7 +54,7 @@ async function login(emailInput, passwordInput) {
   }
 
   const safeUser = toSafeUser(user);
-  safeUser.permissions = await permissionsForRole(user.rol.codigo);
+  safeUser.permissions = await permissionsForUser(user.id_usuario, user.rol.codigo);
   const token = jwt.sign(
     { rol: safeUser.rol },
     getJwtSecret(),
@@ -81,7 +81,7 @@ async function getCurrentUser(userId) {
     throw new AuthError(403, 'Usuario sin acceso habilitado.');
   }
 
-  return { ...toSafeUser(user), permissions: await permissionsForRole(user.rol.codigo) };
+  return { ...toSafeUser(user), permissions: await permissionsForUser(user.id_usuario, user.rol.codigo) };
 }
 
 module.exports = { AuthError, getCurrentUser, login };

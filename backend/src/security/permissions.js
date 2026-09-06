@@ -1,33 +1,33 @@
 const roles = ['ADMINISTRADOR', 'OSI', 'MEDICO', 'RECEPCIONISTA', 'PACIENTE'];
-const admin = ['ADMINISTRADOR'];
-const reception = ['ADMINISTRADOR', 'RECEPCIONISTA'];
-const clinical = ['ADMINISTRADOR', 'MEDICO'];
-const staff = ['ADMINISTRADOR', 'RECEPCIONISTA', 'MEDICO'];
-// Eligible roles cap delegation: non-clinical roles cannot become physicians through permissions.
+const defaultAssignments = {
+  ADMINISTRADOR: ['users.manage', 'security.manage', 'patients.read', 'patients.write', 'history.read', 'attention.write', 'documents.read', 'documents.write', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'doctors.write', 'schedules.read', 'schedules.write', 'services.read', 'billing.prepare'],
+  OSI: ['users.manage', 'security.manage'],
+  MEDICO: ['patients.read', 'history.read', 'attention.write', 'documents.read', 'documents.write', 'agenda.read', 'consents.manage', 'rooms.read', 'schedules.read'],
+  RECEPCIONISTA: ['patients.read', 'patients.write', 'documents.read', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'schedules.read', 'services.read', 'billing.prepare'],
+  PACIENTE: []
+};
 const catalog = [
-  ['users.manage', 'Administrar usuarios y asignar roles', ['ADMINISTRADOR', 'OSI'], []],
-  ['security.manage', 'Administrar matriz y consultar auditoría', ['ADMINISTRADOR', 'OSI'], ['users.manage']],
-  ['patients.read', 'Consultar pacientes', staff, []],
-  ['patients.write', 'Registrar y editar pacientes', reception, ['patients.read']],
-  ['history.read', 'Consultar historial clínico', clinical, ['patients.read']],
-  ['attention.write', 'Registrar atenciones médicas', clinical, ['history.read']],
-  ['documents.read', 'Consultar y descargar documentos', staff, ['patients.read']],
-  ['documents.write', 'Subir y eliminar documentos', clinical, ['documents.read']],
-  ['appointments.manage', 'Gestionar citas', reception, ['patients.read', 'doctors.read', 'services.read', 'schedules.read']],
-  ['agenda.read', 'Consultar agenda propia', ['MEDICO'], []],
-  ['consents.manage', 'Generar y firmar consentimientos propios', ['MEDICO'], []],
-  ['rooms.read', 'Consultar salas y reservas', staff, []],
-  ['rooms.write', 'Reservar, reasignar y cancelar salas', reception, ['rooms.read']],
-  ['doctors.read', 'Consultar directorio médico', reception, []],
-  ['doctors.write', 'Gestionar perfiles médicos', admin, ['doctors.read', 'users.manage']],
-  ['schedules.read', 'Consultar horarios médicos', staff, []],
-  ['schedules.write', 'Gestionar horarios médicos', admin, ['schedules.read', 'doctors.read']],
-  ['services.read', 'Consultar catálogo de servicios', reception, []],
-  ['billing.prepare', 'Preparar factura', reception, ['patients.read', 'services.read', 'appointments.manage']]
-].map(([code, label, eligibleRoles, requires]) => ({ code, label, eligibleRoles, requires }));
-function defaults(role) {
-  return catalog.filter((p) => p.eligibleRoles.includes(role)).map((p) => p.code);
-}
+  ['users.manage', 'Administrar usuarios y asignar roles', []],
+  ['security.manage', 'Administrar matriz y consultar auditoría', ['users.manage']],
+  ['patients.read', 'Consultar pacientes', []],
+  ['patients.write', 'Registrar y editar pacientes', ['patients.read']],
+  ['history.read', 'Consultar historial clínico', ['patients.read']],
+  ['attention.write', 'Registrar atenciones médicas', ['history.read']],
+  ['documents.read', 'Consultar y descargar documentos', ['patients.read']],
+  ['documents.write', 'Subir y eliminar documentos', ['documents.read']],
+  ['appointments.manage', 'Gestionar citas', ['patients.read', 'doctors.read', 'services.read', 'schedules.read']],
+  ['agenda.read', 'Consultar agenda propia', []],
+  ['consents.manage', 'Generar y firmar consentimientos propios', []],
+  ['rooms.read', 'Consultar salas y reservas', []],
+  ['rooms.write', 'Reservar, reasignar y cancelar salas', ['rooms.read']],
+  ['doctors.read', 'Consultar directorio médico', []],
+  ['doctors.write', 'Gestionar perfiles médicos', ['doctors.read', 'users.manage']],
+  ['schedules.read', 'Consultar horarios médicos', []],
+  ['schedules.write', 'Gestionar horarios médicos', ['schedules.read', 'doctors.read']],
+  ['services.read', 'Consultar catálogo de servicios', []],
+  ['billing.prepare', 'Preparar factura', ['patients.read', 'services.read', 'appointments.manage']]
+].map(([code, label, requires]) => ({ code, label, requires }));
+function defaults(role) { return [...(defaultAssignments[role] || [])]; }
 function permissionForRequest(request) {
   const path = request.originalUrl.split('?')[0].replace(/\/$/, '');
   const read = ['GET', 'HEAD'].includes(request.method);
