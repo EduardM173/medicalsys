@@ -3,14 +3,6 @@ import { ApiError } from '../services/api';
 import { Button } from './Button';
 import { Input } from './Input';
 
-const roles = [
-  ['ADMINISTRADOR', 'Administrador'],
-  ['OSI', 'Oficial de Seguridad de la Información'],
-  ['MEDICO', 'Médico'],
-  ['RECEPCIONISTA', 'Recepcionista'],
-  ['PACIENTE', 'Paciente']
-];
-
 const statuses = [
   ['ACTIVO', 'Activo'],
   ['INACTIVO', 'Inactivo'],
@@ -34,7 +26,7 @@ function getPasswordStrength(password, completedRequirements) {
   return { label: 'Muy fuerte', level: 4 };
 }
 
-export function UserForm({ initialUser = null, isSelf = false, onCancel, onSave }) {
+export function UserForm({ initialUser = null, isSelf = false, onCancel, onSave, roles = [] }) {
   const editing = Boolean(initialUser);
   const [form, setForm] = useState({
     nombres: initialUser?.nombres || '',
@@ -194,7 +186,7 @@ export function UserForm({ initialUser = null, isSelf = false, onCancel, onSave 
           <label htmlFor="user-role">Rol *</label>
           <select disabled={isSelf} required id="user-role" onChange={(event) => setField('rol', event.target.value)} value={form.rol}>
             <option value="" disabled>Seleccione un rol</option>
-            {roles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            {roles.map((role) => <option key={role.code} value={role.code}>{role.name}</option>)}
           </select>
         </div>
         {editing && (

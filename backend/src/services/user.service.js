@@ -1,9 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { Prisma } = require('@prisma/client');
 const prisma = require('../config/prisma');
-const { recordAudit, permissionsForRole } = require('./security.service');
-
-const allowedRoles = ['ADMINISTRADOR', 'OSI', 'MEDICO', 'RECEPCIONISTA', 'PACIENTE'];
+const { recordAudit, permissionsForRole, permissionsForUser } = require('./security.service');
 const allowedStatuses = ['ACTIVO', 'INACTIVO', 'SUSPENDIDO'];
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const passwordMaxLength = 128;
@@ -89,7 +87,7 @@ function validatePassword(value) {
 
 function validateRole(roleInput) {
   const role = typeof roleInput === 'string' ? roleInput.trim().toUpperCase() : '';
-  if (!allowedRoles.includes(role)) {
+  if (!/^[A-Z][A-Z0-9_]{0,29}$/.test(role)) {
     throw new UserError(400, 'Rol no válido.');
   }
   return role;
@@ -165,6 +163,11 @@ async function listUsers() {
   return users.map(toSafeUser);
 }
 
+async function listRoles() {
+  const roles = await prisma.rol.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } });
+  return roles.map((role) => ({ code: role.codigo, name: role.nombre, description: role.descripcion }));
+}
+
 async function getUserById(idInput) {
   const id = parseUserId(idInput);
   const user = await prisma.usuario.findUnique({
@@ -223,7 +226,7 @@ async function mutateUser(action, idInput, input, actor) {
     await db.$executeRaw`SELECT pg_advisory_xact_lock(742106)`;
     const account = await db.usuario.findUnique({ where: { id_usuario: BigInt(actor.id) }, include: { rol: true } });
     const actorPermissions = account && account.estado === 'ACTIVO' && account.rol.activo
-      ? await permissionsForRole(account.rol.codigo, db) : [];
+      ? await permissionsForUser(account.id_usuario, account.rol.codigo, db) : [];
     if (!actorPermissions.includes('users.manage')) throw new UserError(403, 'No tiene permisos para administrar usuarios.');
     const id = idInput ? parseUserId(idInput) : null;
     if (id === BigInt(actor.id) && (action === 'DEACTIVATE' || input.rol !== undefined || input.estado !== undefined)) {
@@ -259,12 +262,12 @@ async function mutateUser(action, idInput, input, actor) {
 }
 module.exports = {
   mutateUser,
-  allowedRoles,
   allowedStatuses,
   createUser,
   deactivateUser,
   getUserById,
   listUsers,
+  listRoles,
   updateUser,
   UserError,
   validatePassword

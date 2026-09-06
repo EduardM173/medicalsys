@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
-const { permissionsForRole } = require('../services/security.service');
+const { permissionsForUser } = require('../services/security.service');
 async function requireAuth(request, response, next) {
   let payload;
   try {
@@ -16,7 +16,7 @@ async function requireAuth(request, response, next) {
     }
     request.user = {
       id: String(user.id_usuario), idUsuario: String(user.id_usuario), rol: user.rol.codigo,
-      permissions: await permissionsForRole(user.rol.codigo)
+      permissions: await permissionsForUser(user.id_usuario, user.rol.codigo)
     };
     return next();
   } catch (error) { return next(error); }
