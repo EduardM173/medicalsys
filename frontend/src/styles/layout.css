@@ -49,6 +49,8 @@
 }
 
 .sidebar-nav {
+  overflow-y: auto;
+  min-height: 0;
   margin-top: 24px;
 }
 

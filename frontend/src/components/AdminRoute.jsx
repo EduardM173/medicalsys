@@ -1,17 +1,8 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-
-export function AuthorizedRoute({ allowedRoles }) {
+import { can } from '../security/permissions';
+export function AuthorizedRoute({ permission }) {
   const { user } = useAuth();
-
-  if (!allowedRoles.includes(user?.rol)) {
-    return <Navigate replace to="/dashboard" />;
-  }
-
-  return <Outlet />;
-}
-
-export function AdminRoute() {
-  return <AuthorizedRoute allowedRoles={['ADMINISTRADOR']} />;
+  return can(user, permission) ? <Outlet /> : <Navigate replace to="/dashboard" />;
 }

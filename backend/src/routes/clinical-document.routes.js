@@ -27,6 +27,7 @@ router.post(
 router.get(
   '/documents/:documentId/download',
   authenticate,
+  requireRole(),
   clinicalDocumentController.downloadDocument
 );
 

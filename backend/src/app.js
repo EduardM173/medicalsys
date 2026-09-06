@@ -30,6 +30,7 @@ app.use(cookieParser());
 
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/security', require('./routes/security.routes'));
 app.use('/api/billing', billingRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/atenciones', attentionRoutes);

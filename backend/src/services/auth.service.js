@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
+const { permissionsForRole } = require('./security.service');
 
 class AuthError extends Error {
   constructor(statusCode, message) {
@@ -48,11 +49,12 @@ async function login(emailInput, passwordInput) {
     throw new AuthError(401, 'Correo electrónico o contraseña incorrectos.');
   }
 
-  if (user.estado !== 'ACTIVO') {
+  if (user.estado !== 'ACTIVO' || !user.rol.activo) {
     throw new AuthError(403, 'Usuario sin acceso habilitado.');
   }
 
   const safeUser = toSafeUser(user);
+  safeUser.permissions = await permissionsForRole(user.rol.codigo);
   const token = jwt.sign(
     { rol: safeUser.rol },
     getJwtSecret(),
@@ -75,11 +77,11 @@ async function getCurrentUser(userId) {
     throw new AuthError(401, 'Autenticación requerida.');
   }
 
-  if (user.estado !== 'ACTIVO') {
+  if (user.estado !== 'ACTIVO' || !user.rol.activo) {
     throw new AuthError(403, 'Usuario sin acceso habilitado.');
   }
 
-  return toSafeUser(user);
+  return { ...toSafeUser(user), permissions: await permissionsForRole(user.rol.codigo) };
 }
 
 module.exports = { AuthError, getCurrentUser, login };
