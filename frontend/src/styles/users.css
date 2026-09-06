@@ -308,3 +308,31 @@ th {
     padding: 20px;
   }
 }
+.security-matrix-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.security-matrix-heading h2 { margin: 0 0 8px; }
+.security-matrix-heading p { margin: 0; }
+.security-pending, .security-saved { padding: 8px 12px; border-radius: 8px; font-size: .8rem; }
+.security-pending { color: #825300; background: var(--color-warning-soft); }
+.security-saved { color: #08774c; background: var(--color-success-soft); }
+.security-legend { color: var(--color-text-secondary); font-size: .82rem; margin: 18px 0; }
+.security-matrix table { min-width: 900px; border-collapse: separate; border-spacing: 0; }
+.security-matrix .table-wrapper { max-height: 70vh; overflow: auto; }
+.security-matrix thead th { position: sticky; top: 0; z-index: 2; background: var(--color-surface); }
+.security-matrix thead th:not(:first-child) { min-width: 120px; text-align: center; }
+.security-matrix thead th:first-child, .security-matrix tbody th { position: sticky; left: 0; z-index: 1; min-width: 220px; max-width: 270px; white-space: normal; background: var(--color-surface); box-shadow: 1px 0 0 var(--color-border); }
+.security-matrix tbody th { text-transform: none; font-size: .875rem; font-weight: 500; color: var(--color-text-primary); }
+.security-matrix thead th:first-child { z-index: 3; }
+.security-matrix td { text-align: center; padding: 4px 12px; }
+.security-role-name { display: block; text-transform: none; font-size: .875rem; }
+.security-matrix th small { display: block; margin: 4px 0 10px; text-transform: none; font-weight: 400; }
+.security-save { padding: 7px 9px; border: 0; border-radius: 7px; background: var(--color-primary); color: white; cursor: pointer; font-size: .75rem; text-transform: none; }
+.security-save:disabled { background: var(--color-background); color: var(--color-text-secondary); cursor: default; }
+.security-checkbox { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; cursor: pointer; }
+.security-checkbox input { width: 20px; height: 20px; min-height: auto; accent-color: var(--color-primary); cursor: pointer; }
+.security-checkbox input:disabled { cursor: not-allowed; }
+.security-cell-changed { background: var(--color-warning-soft); }
+.security-unavailable { color: var(--color-text-muted); }
+.security-page .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+.user-filters { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
+.user-filters input { flex: 1; min-width: 180px; padding: 10px; }
+.user-filters select { padding: 8px; }

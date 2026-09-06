@@ -2,7 +2,7 @@ const userService = require('../services/user.service');
 
 async function createUser(request, response, next) {
   try {
-    const user = await userService.createUser(request.body);
+    const user = await userService.mutateUser('CREATE', null, request.body, request.user);
     response.status(201).json({ user });
   } catch (error) {
     next(error);
@@ -29,7 +29,7 @@ async function getUser(request, response, next) {
 
 async function updateUser(request, response, next) {
   try {
-    const user = await userService.updateUser(request.params.id, request.body);
+    const user = await userService.mutateUser('UPDATE', request.params.id, request.body, request.user);
     response.status(200).json({ user });
   } catch (error) {
     next(error);
@@ -38,7 +38,7 @@ async function updateUser(request, response, next) {
 
 async function deactivateUser(request, response, next) {
   try {
-    await userService.deactivateUser(request.params.id);
+    await userService.mutateUser('DEACTIVATE', request.params.id, {}, request.user);
     response.status(200).json({ message: 'Usuario desactivado.' });
   } catch (error) {
     next(error);

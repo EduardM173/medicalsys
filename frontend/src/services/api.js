@@ -30,6 +30,7 @@ async function request(path, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    if (path !== '/auth/me' && [401, 403].includes(response.status)) window.dispatchEvent(new Event('permissions-changed'));
     throw new ApiError(response.status, data.message || 'No fue posible procesar la solicitud.');
   }
 
@@ -308,4 +309,9 @@ export function cancelRoomReservation(id) {
   return request(`/rooms/reservations/${id}`, {
     method: 'DELETE'
   });
+}
+export function getSecurityMatrix() { return request('/security'); }
+export function getSecurityAudit() { return request('/security/audit'); }
+export function updateSecurityRole(role, permissions) {
+  return request('/security/roles/' + encodeURIComponent(role), { method: 'PUT', body: JSON.stringify({ permissions }) });
 }

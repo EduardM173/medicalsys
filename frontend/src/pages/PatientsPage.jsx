@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { PatientForm } from '../components/PatientForm';
+import { can } from '../security/permissions';
 import { useAuth } from '../contexts/AuthContext';
 import { createPatient, getPatient, getPatients, updatePatient } from '../services/api';
 import '../styles/patients.css';
@@ -24,7 +25,7 @@ function documentLabel(patient) {
 export function PatientsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isDoctor = user?.rol === 'MEDICO' || user?.rol === 'ADMINISTRADOR';
+  const canWrite = can(user, 'patients.write');
 
   const [patients, setPatients] = useState([]);
   const [search, setSearch] = useState('');
@@ -115,7 +116,7 @@ export function PatientsPage() {
           <h1>Gestión de Pacientes</h1>
           <p>Registro y consulta de pacientes de MedicalSys</p>
         </div>
-        <Button className="new-patient-button" onClick={openCreateForm}>+ Nuevo paciente</Button>
+        {canWrite && <Button className="new-patient-button" onClick={openCreateForm}>+ Nuevo paciente</Button>}
       </header>
 
       <section className="patient-toolbar" aria-label="Búsqueda de pacientes">
@@ -129,7 +130,7 @@ export function PatientsPage() {
       {notice && <p className="notice success-notice">{notice}</p>}
       {error && <p className="notice error-notice" role="alert">{error}</p>}
 
-      {formMode && (
+      {canWrite && formMode && (
         <section className="patient-form-panel" aria-label={formMode === 'edit' ? 'Editar paciente' : 'Nuevo paciente'}>
           <div className="patient-panel-heading">
             <div>
@@ -169,18 +170,9 @@ export function PatientsPage() {
                 {selectedPatient.telefonoEmergencia && <div><dt>Teléfono de emergencia</dt><dd>{selectedPatient.telefonoEmergencia}</dd></div>}
               </dl>
               <div className="patient-detail-actions" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                {isDoctor ? (
-                  <>
-                    <Button onClick={() => navigate(`/historial-clinico/${selectedPatient.id}`)}>
-                      📋 Historial y Documentos
-                    </Button>
-                    <Button variant="secondary" onClick={() => navigate(`/pacientes/${selectedPatient.id}/documentos`)}>
-                      📁 Documentos Clínicos
-                    </Button>
-                  </>
-                ) : (
-                  <Button onClick={() => openEditForm(selectedPatient.id)}>Editar paciente</Button>
-                )}
+                {can(user, 'history.read') && <Button onClick={() => navigate(`/historial-clinico/${selectedPatient.id}`)}>Historial clínico</Button>}
+                {can(user, 'documents.read') && <Button onClick={() => navigate(`/pacientes/${selectedPatient.id}/documentos`)}>Documentos</Button>}
+                {canWrite && <Button onClick={() => openEditForm(selectedPatient.id)}>Editar paciente</Button>}
               </div>
             </>
           )}
@@ -214,14 +206,9 @@ export function PatientsPage() {
                 </div>
                 <div className="patient-row-actions">
                   <button className="text-action" onClick={() => fetchPatient(patient.id)} type="button">Ver</button>
-                  {isDoctor ? (
-                    <>
-                      <button className="text-action" onClick={() => navigate(`/historial-clinico/${patient.id}`)} type="button">Historial</button>
-                      <button className="text-action" onClick={() => navigate(`/pacientes/${patient.id}/documentos`)} type="button">Documentos</button>
-                    </>
-                  ) : (
-                    <button className="text-action" onClick={() => openEditForm(patient.id)} type="button">Editar</button>
-                  )}
+                  {can(user, 'history.read') && <button className="text-action" onClick={() => navigate(`/historial-clinico/${patient.id}`)}>Historial</button>}
+                  {can(user, 'documents.read') && <button className="text-action" onClick={() => navigate(`/pacientes/${patient.id}/documentos`)}>Documentos</button>}
+                  {canWrite && <button className="text-action" onClick={() => openEditForm(patient.id)}>Editar</button>}
                 </div>
               </article>
             ))}

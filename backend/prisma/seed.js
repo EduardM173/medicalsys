@@ -606,6 +606,8 @@ async function seedConsents({ doctorId, patientAId, patientBId, appointments }) 
 }
 
 async function main() {
+  await require('../scripts/setup-security')();
+  await require('../scripts/seed-security')();
   const rolesByCode = {};
   for (const [codigo, nombre, descripcion] of roles) {
     rolesByCode[codigo] = await upsertRole(codigo, nombre, descripcion);

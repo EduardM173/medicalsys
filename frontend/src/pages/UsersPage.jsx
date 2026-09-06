@@ -1,10 +1,17 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { can } from '../security/permissions';
 import { Button } from '../components/Button';
 import { UserForm } from '../components/UserForm';
 import { createUser, deactivateUser, getUsers, updateUser } from '../services/api';
 import '../styles/users.css';
 
 export function UsersPage() {
+  const { user: currentUser } = useAuth();
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -64,12 +71,16 @@ export function UsersPage() {
     }
   }
 
+  const filteredUsers = users.filter((u) => (!roleFilter || u.rol === roleFilter)
+    && (!statusFilter || u.estado === statusFilter)
+    && (u.nombres + ' ' + u.apellidos + ' ' + u.email).toLowerCase().includes(search.trim().toLowerCase()));
   return (
     <main className="users-page">
       <header className="admin-header">
         <div>
           <h1>Gestión de Usuarios</h1>
           <p>Administración de accesos y roles de MedicalSys</p>
+          {can(currentUser, 'security.manage') && <Link to="/admin/seguridad">Matriz de roles y auditoría de seguridad →</Link>}
         </div>
         <Button className="new-user-button" onClick={openCreateForm}>+ Nuevo usuario</Button>
       </header>
@@ -88,6 +99,7 @@ export function UsersPage() {
           <UserForm
             key={editingUser?.id || 'new'}
             initialUser={editingUser}
+            isSelf={editingUser?.id === currentUser?.id}
             onCancel={() => setFormMode(null)}
             onSave={saveUser}
           />
@@ -98,13 +110,18 @@ export function UsersPage() {
         <div className="table-heading">
           <div>
             <h2>Usuarios registrados</h2>
-            <p>{users.length} usuarios en MedicalSys</p>
+            <p>{filteredUsers.length} de {users.length} usuarios en MedicalSys</p>
           </div>
         </div>
 
+        <div className="user-filters">
+          <input type="search" aria-label="Buscar usuarios" placeholder="Buscar por nombre o correo" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <select aria-label="Filtrar por rol" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}><option value="">Todos los roles</option>{['ADMINISTRADOR', 'OSI', 'MEDICO', 'RECEPCIONISTA', 'PACIENTE'].map((r) => <option key={r}>{r}</option>)}</select>
+          <select aria-label="Filtrar por estado" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="">Todos los estados</option>{['ACTIVO', 'INACTIVO', 'SUSPENDIDO'].map((r) => <option key={r}>{r}</option>)}</select>
+        </div>
         {loading ? (
           <p className="empty-state">Cargando usuarios...</p>
-        ) : users.length === 0 ? (
+        ) : filteredUsers.length === 0 ? (
           <p className="empty-state">No existen usuarios registrados.</p>
         ) : (
           <div className="table-wrapper">
@@ -120,7 +137,7 @@ export function UsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <tr key={user.id}>
                     <td><strong>{user.nombres} {user.apellidos}</strong></td>
                     <td>{user.email}</td>
@@ -130,7 +147,7 @@ export function UsersPage() {
                     <td>
                       <div className="row-actions">
                         <button className="text-action" onClick={() => openEditForm(user)} type="button">Editar</button>
-                        {user.estado !== 'INACTIVO' && (
+                        {user.id !== currentUser?.id && user.estado !== 'INACTIVO' && (
                           <button className="text-action danger-action" onClick={() => handleDeactivate(user)} type="button">Desactivar</button>
                         )}
                       </div>

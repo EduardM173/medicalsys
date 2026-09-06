@@ -5,6 +5,9 @@
   "description": "API de MedicalSys",
   "main": "src/server.js",
   "scripts": {
+    "security:seed": "node scripts/seed-security.js",
+    "test:security": "node --test tests/security.test.js",
+    "security:setup": "node scripts/setup-security.js",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "prisma:generate": "prisma generate",
