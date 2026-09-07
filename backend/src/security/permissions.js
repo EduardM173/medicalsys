@@ -1,9 +1,9 @@
 const roles = ['ADMINISTRADOR', 'OSI', 'MEDICO', 'RECEPCIONISTA', 'PACIENTE'];
 const defaultAssignments = {
-  ADMINISTRADOR: ['users.manage', 'security.manage', 'patients.read', 'patients.write', 'history.read', 'attention.write', 'documents.read', 'documents.write', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'doctors.write', 'schedules.read', 'schedules.write', 'services.read', 'billing.prepare'],
+  ADMINISTRADOR: ['users.manage', 'security.manage', 'patients.read', 'patients.write', 'history.read', 'attention.write', 'documents.read', 'documents.write', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'doctors.write', 'schedules.read', 'schedules.write', 'services.read', 'billing.prepare', 'notifications.manage'],
   OSI: ['users.manage', 'security.manage'],
   MEDICO: ['patients.read', 'history.read', 'attention.write', 'documents.read', 'documents.write', 'agenda.read', 'consents.manage', 'rooms.read', 'schedules.read'],
-  RECEPCIONISTA: ['patients.read', 'patients.write', 'documents.read', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'schedules.read', 'services.read', 'billing.prepare'],
+  RECEPCIONISTA: ['patients.read', 'patients.write', 'documents.read', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'schedules.read', 'services.read', 'billing.prepare', 'notifications.manage'],
   PACIENTE: []
 };
 const catalog = [
@@ -25,7 +25,8 @@ const catalog = [
   ['schedules.read', 'Consultar horarios médicos', []],
   ['schedules.write', 'Gestionar horarios médicos', ['schedules.read', 'doctors.read']],
   ['services.read', 'Consultar catálogo de servicios', []],
-  ['billing.prepare', 'Preparar factura', ['patients.read', 'services.read', 'appointments.manage']]
+  ['billing.prepare', 'Preparar factura', ['patients.read', 'services.read', 'appointments.manage']],
+  ['notifications.manage', 'Enviar confirmaciones y recordatorios de citas por WhatsApp', ['appointments.manage']]
 ].map(([code, label, requires]) => ({ code, label, requires }));
 function defaults(role) { return [...(defaultAssignments[role] || [])]; }
 function permissionForRequest(request) {
@@ -45,6 +46,7 @@ function permissionForRequest(request) {
   if (/^\/api\/(?:consents|consentimientos)(?:\/|$)/.test(path)) return 'consents.manage';
   if (/^\/api\/services(?:\/|$)/.test(path)) return 'services.read';
   if (/^\/api\/billing(?:\/|$)/.test(path)) return 'billing.prepare';
+  if (/^\/api\/notifications(?:\/|$)/.test(path)) return 'notifications.manage';
   return null;
 }
 module.exports = { roles, catalog, defaults, permissionForRequest };

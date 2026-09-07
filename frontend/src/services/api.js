@@ -326,3 +326,36 @@ export function revokeTemporaryGrant(id) {
   return request('/security/temporary-grants/' + encodeURIComponent(id), { method: 'DELETE' });
 }
 export function getUserRoles() { return request('/users/roles/catalog'); }
+
+// ==========================================
+// HU-24 / HU-25: Notificaciones de citas por WhatsApp
+// ==========================================
+
+export function getConfirmationCandidates() {
+  return request('/notifications/confirmations/candidates');
+}
+
+export function sendAppointmentConfirmation(citaId) {
+  return request('/notifications/confirmations', {
+    method: 'POST',
+    body: JSON.stringify({ citaId })
+  });
+}
+
+export function getReminderCandidates() {
+  return request('/notifications/reminders/candidates');
+}
+
+export function sendAppointmentReminder(citaId) {
+  return request('/notifications/reminders', {
+    method: 'POST',
+    body: JSON.stringify({ citaId })
+  });
+}
+
+export function runAppointmentReminders(citaIds) {
+  return request('/notifications/reminders/run', {
+    method: 'POST',
+    body: JSON.stringify({ citaIds })
+  });
+}

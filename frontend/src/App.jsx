@@ -18,7 +18,7 @@ import { PatientsPage } from './pages/PatientsPage';
 import { RoomsPage } from './pages/RoomsPage';
 import { SchedulesPage } from './pages/SchedulesPage';
 import { UsersPage } from './pages/UsersPage';
-
+import { WhatsAppNotificationsPage } from './pages/WhatsAppNotificationsPage';
 import { SecurityPage } from './pages/SecurityPage';
 
 function App() {
@@ -32,6 +32,7 @@ function App() {
       <Route element={<AuthorizedRoute permission="rooms.read" />}><Route path="/salas" element={<RoomsPage />} /></Route>
       <Route element={<AuthorizedRoute permission="appointments.manage" />}><Route path="/citas" element={<AppointmentsPage />} /></Route>
       <Route element={<AuthorizedRoute permission="billing.prepare" />}><Route path="/facturacion/preparar" element={<BillingPreparationPage />} /></Route>
+      <Route element={<AuthorizedRoute permission="notifications.manage" />}><Route path="/whatsapp" element={<WhatsAppNotificationsPage />} /></Route>
       <Route element={<AuthorizedRoute permission="agenda.read" />}><Route path="/agenda" element={<AgendaPage />} /></Route>
       <Route element={<AuthorizedRoute permission="consents.manage" />}><Route path="/consentimientos/nuevo" element={<ConsentFormPage />} /></Route>
       <Route element={<AuthorizedRoute permission="consents.manage" />}><Route path="/consentimientos/:consentId" element={<ConsentDetailPage />} /></Route>
