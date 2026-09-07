@@ -5,12 +5,58 @@
 }
 
 .login-brand {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: clamp(40px, 8vw, 96px);
   color: var(--color-surface);
-  background: var(--color-navy);
+  background: var(--bg-gradient-primary);
+  overflow: hidden;
+}
+
+.circle-bg-1,
+.circle-bg-2 {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(50px);
+  opacity: 0.25;
+  animation: floatAnimation 8s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.circle-bg-1 {
+  width: 250px;
+  height: 250px;
+  background: radial-gradient(circle, #478B8D 0%, #294669 100%);
+  top: 10%;
+  left: 10%;
+}
+
+.circle-bg-2 {
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, #E4D329 0%, #0D0B61 100%);
+  bottom: 15%;
+  right: 10%;
+  animation-delay: -4s;
+}
+
+@keyframes floatAnimation {
+  0% {
+    transform: translateY(0px) scale(1);
+  }
+  100% {
+    transform: translateY(-25px) scale(1.08);
+  }
+}
+
+.login-brand .brand-mark,
+.login-brand h1,
+.login-brand h2,
+.login-brand p {
+  position: relative;
+  z-index: 1;
 }
 
 .brand-mark {
@@ -23,6 +69,7 @@
   font-weight: var(--font-weight-bold);
   background: var(--color-surface);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
   place-items: center;
 }
 
@@ -125,6 +172,110 @@
   background: transparent;
   border: 0;
   cursor: pointer;
+}
+
+.login-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -4px 0 20px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.login-remember {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  gap: 8px;
+}
+
+.login-remember input {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  accent-color: var(--color-teal);
+  cursor: pointer;
+}
+
+.login-forgot-link {
+  padding: 0;
+  color: var(--color-teal);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-semibold);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.login-forgot-link:hover {
+  color: var(--color-navy);
+  text-decoration: underline;
+}
+
+/* Modal de recuperación de contraseña */
+.forgot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+  background: rgb(13 11 97 / 58%);
+  backdrop-filter: blur(4px);
+  animation: fadeInSlideUp 0.25s ease;
+}
+
+.forgot-modal {
+  width: min(100%, 440px);
+  padding: 30px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-card);
+  border-radius: var(--radius-card);
+  box-shadow: 0 24px 64px rgb(9 7 74 / 45%);
+  animation: modalPop 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.forgot-heading {
+  margin-bottom: 24px;
+}
+
+.forgot-heading h2 {
+  margin: 8px 0 4px;
+  color: var(--color-navy);
+  font-size: var(--font-size-section);
+}
+
+.forgot-heading p {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.forgot-success {
+  margin: 0 0 20px;
+  padding: 12px;
+  color: var(--color-success);
+  font-size: var(--font-size-label);
+  background: var(--color-success-soft);
+  border: 1px solid var(--color-teal);
+  border-radius: var(--radius-sm);
+}
+
+.forgot-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.forgot-actions .button {
+  flex: 1 1 0;
+  width: auto;
 }
 
 .button {

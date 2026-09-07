@@ -102,7 +102,10 @@ export function ConsentDetailPage() {
           <h1>{consent.folio}</h1>
           <p>Documento generado y registrado en MedicalSys</p>
         </div>
-        <Button onClick={() => navigate('/consentimientos/nuevo')}>+ Nuevo consentimiento</Button>
+        <div className="consent-header-actions">
+          <Button onClick={() => navigate('/consentimientos')} type="button" variant="ghost">← Historial</Button>
+          <Button onClick={() => navigate('/consentimientos/nuevo')}>+ Nuevo consentimiento</Button>
+        </div>
       </header>
 
       <section className="consent-detail-card">

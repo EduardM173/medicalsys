@@ -365,12 +365,12 @@ export function BillingPreparationPage() {
     <main className="billing-page">
       <header className="billing-header billing-header-hero animate-fade-in">
         <div>
-          <span className="billing-eyebrow">FACTURACIÓN · HU-22</span>
+          <span className="billing-eyebrow">Módulo de Facturación</span>
           <h1>Emitir factura computarizada</h1>
           <p>Prepare, valide y emita la factura con respaldo del SIN/SIAT.</p>
         </div>
         <span className={`billing-status${emittedInvoice || (preview && preview.estado === 'EMITIDA') ? ' billing-status-emitida' : ''}`}>
-          {emittedInvoice || (preview && preview.estado === 'EMITIDA') ? 'Emitida · Autorizada SIN' : 'Vista previa · No emitida'}
+          {emittedInvoice || (preview && preview.estado === 'EMITIDA') ? 'Factura Emitida y Autorizada' : 'Borrador de Factura'}
         </span>
       </header>
 
@@ -497,7 +497,7 @@ export function BillingPreparationPage() {
               <span className="billing-invoice-badge">Autorizada por SIN</span>
             </div>
 
-            <div ref={ticketRef}>
+            <div id="ticket-impresion" ref={ticketRef}>
               <TicketUi data={emittedInvoice} emitted />
             </div>
 

@@ -48,6 +48,13 @@ export function loginRequest(credentials) {
   });
 }
 
+export function forgotPasswordRequest(email) {
+  return request('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  });
+}
+
 export function getMe() {
   return request('/auth/me');
 }
@@ -151,6 +158,10 @@ export function createConsent(consent) {
 
 export function getConsent(id) {
   return request(`/consents/${id}`);
+}
+
+export function getConsents() {
+  return request('/consents');
 }
 
 export function signConsent(consentId, signatureData) {

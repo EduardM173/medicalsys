@@ -84,4 +84,32 @@ async function getCurrentUser(userId) {
   return { ...toSafeUser(user), permissions: await permissionsForUser(user.id_usuario, user.rol.codigo) };
 }
 
-module.exports = { AuthError, getCurrentUser, login };
+async function forgotPassword(emailInput) {
+  const email = typeof emailInput === 'string' ? emailInput.trim().toLowerCase() : '';
+  if (!email) {
+    throw new AuthError(400, 'Ingrese su correo electrónico para continuar.');
+  }
+
+  const user = await prisma.usuario.findUnique({
+    where: { email },
+    select: { id_usuario: true, email: true, nombres: true, apellidos: true, estado: true }
+  });
+
+  // No se revela si la cuenta existe: se devuelve el mismo mensaje en ambos casos.
+  if (user && user.estado === 'ACTIVO') {
+    const token = jwt.sign(
+      { role: 'PASSWORD_RESET' },
+      getJwtSecret(),
+      { subject: String(user.id_usuario), expiresIn: '30m' }
+    );
+    const resetLink = `${process.env.APP_BASE_URL || 'http://localhost:5173'}/recuperar-contrasena?token=${token}`;
+
+    // Simulación del envío por correo: se registra en consola en el entorno de desarrollo.
+    // eslint-disable-next-line no-console
+    console.log(`[forgot-password] Enviar a ${user.email}: ${user.nombres} ${user.apellidos} | Enlace: ${resetLink}`);
+  }
+
+  return { message: 'Se han enviado las instrucciones de restablecimiento a su correo electrónico.' };
+}
+
+module.exports = { AuthError, forgotPassword, getCurrentUser, login };

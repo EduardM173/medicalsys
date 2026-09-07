@@ -89,16 +89,15 @@
 .billing-emit-actions { display: flex; justify-content: center; margin-top: 6px; }
 .billing-emit-actions .button { min-width: 260px; }
 
-/* Pase de impresión: solo el ticket queda visible */
-@media print {
-  body * { visibility: hidden !important; }
-  body .billing-ticket-deck, body .billing-deck-inner, body .billing-modal-overlay, body .billing-modal { visibility: visible !important; position: absolute !important; left: 0; top: 0; box-shadow: none !important; border: none !important; }
-  body .billing-modal { margin: 10mm auto; }
-  body .billing-deck-head, body .billing-emit-actions, body .billing-modal-head, body .billing-modal-actions { display: none !important; }
-  body .billing-modal-overlay { background: none !important; padding: 10mm !important; overflow: visible !important; }
+/* Pase de impresión: la regla global #ticket-impresion en global.css se encarga del ticket 80mm */
+.billing-deck-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
-
-/* Ticket fiscal 80mm — papel térmico con borde dentado */
 .ticket {
   position: relative;
   width: 300px;

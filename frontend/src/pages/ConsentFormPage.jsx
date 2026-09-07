@@ -159,7 +159,6 @@ export function ConsentFormPage() {
           <textarea name="content" onChange={updateField} placeholder="Ingrese el contenido informado que corresponde al procedimiento..." required rows="12" value={form.content} />
         </label>
 
-        <p className="consent-form-note">El consentimiento se guardará en estado GENERADO. La firma corresponde a otra etapa del proceso.</p>
         <div className="consent-actions">
           <Button disabled={saving} type="submit">{saving ? 'Generando...' : 'Generar consentimiento'}</Button>
         </div>

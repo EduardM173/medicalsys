@@ -10,7 +10,7 @@ export const modules = [
   ['billing.prepare', '/facturacion/preparar', 'Preparar Factura', 'Receptor, conceptos y total', 'F'],
   ['notifications.manage', '/whatsapp', 'WhatsApp de Citas', 'Confirmaciones y recordatorios', 'W'],
   ['agenda.read', '/agenda', 'Agenda Médica', 'Mis citas programadas', 'A'],
-  ['consents.manage', '/consentimientos/nuevo', 'Consentimientos', 'Generar y firmar', 'C'],
+  ['consents.manage', '/consentimientos', 'Consentimientos', 'Historial, generación y firma', 'C'],
   ['patients.read', '/pacientes', 'Pacientes', 'Registro y consulta', 'P'],
   ['rooms.read', '/salas', 'Salas y Quirófanos', 'Consulta de disponibilidad', 'S']
 ];

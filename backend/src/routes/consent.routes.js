@@ -11,6 +11,7 @@ const requireConsentAccess = requireRole.withMessage(
 
 router.use(requireAuth, requireConsentAccess);
 router.get('/options', consentController.getConsentOptions);
+router.get('/', consentController.getConsents);
 router.post('/', consentController.createConsent);
 router.get('/:consentId', consentController.getConsent);
 router.post('/:consentId/sign', consentController.signConsent);
