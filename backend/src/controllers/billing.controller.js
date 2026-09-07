@@ -9,4 +9,16 @@ async function prepareInvoice(request, response, next) {
   }
 }
 
-module.exports = { prepareInvoice };
+async function emitInvoice(request, response, next) {
+  try {
+    const factura = await billingService.emitirFacturaComputarizada(
+      request.params.id,
+      request.user.idUsuario
+    );
+    response.status(200).json({ factura });
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { prepareInvoice, emitInvoice };

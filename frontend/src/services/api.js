@@ -206,11 +206,18 @@ export function updateAppointment(id, changes) {
   return request(`/appointments/${id}`, { method: 'PATCH', body: JSON.stringify(changes) });
 }
 
-// HU-21: obtiene una vista previa validada; no crea ni emite una factura.
+// HU-21: valida y persiste la factura como borrador (BORRADOR); no la emite.
 export function prepareBilling(data) {
   return request('/billing/prepare', {
     method: 'POST',
     body: JSON.stringify(data)
+  });
+}
+
+// HU-22: emite una factura computarizada previamente preparada (BORRADOR).
+export function emitBilling(id) {
+  return request(`/billing/${id}/emit`, {
+    method: 'POST'
   });
 }
 

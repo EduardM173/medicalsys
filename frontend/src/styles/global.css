@@ -92,3 +92,87 @@ select:focus {
 .status.success {
   color: var(--color-success);
 }
+
+/* Botones — paleta corporativa HU-22 */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--input-height);
+  padding: 0 20px;
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-surface);
+  background: var(--color-primary);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  gap: 8px;
+  text-decoration: none;
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  box-shadow: 0 6px 16px rgb(71 139 141 / 28%);
+  transform: translateY(-1px);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.button-secondary {
+  color: var(--color-steel);
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.button-secondary:hover:not(:disabled) {
+  color: var(--color-navy);
+  background: var(--color-background);
+  border-color: var(--color-steel);
+  box-shadow: none;
+}
+
+.button-gold {
+  color: var(--color-navy);
+  background: var(--color-gold);
+  border-color: var(--color-gold);
+}
+
+.button-gold:hover:not(:disabled) {
+  background: #EFE24A;
+  border-color: #EFE24A;
+  box-shadow: 0 6px 16px rgb(228 211 41 / 35%);
+}
+
+.button-teal {
+  color: var(--color-surface);
+  background: var(--color-teal);
+  border-color: var(--color-teal);
+}
+
+.button-teal:hover:not(:disabled) {
+  background: #3C7B7D;
+  border-color: #3C7B7D;
+}
+
+.button-ghost {
+  color: var(--color-teal);
+  background: transparent;
+  border-color: var(--color-teal);
+}
+
+.button-ghost:hover:not(:disabled) {
+  color: var(--color-surface);
+  background: var(--color-teal);
+  box-shadow: none;
+}

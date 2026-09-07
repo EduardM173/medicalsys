@@ -77,14 +77,19 @@
   text-decoration: none;
 }
 
-.sidebar-item:hover,
-.sidebar-item.active {
-  background: var(--color-primary);
+.sidebar-item:hover {
+  background: var(--color-steel);
 }
 
 .sidebar-item.active {
-  border-color: var(--color-blue-soft);
-  box-shadow: var(--focus-ring);
+  position: relative;
+  background: var(--color-steel);
+  border-color: var(--color-teal);
+  box-shadow: inset 4px 0 0 var(--color-gold);
+}
+
+.sidebar-item.active .sidebar-arrow {
+  color: var(--color-gold);
 }
 
 .sidebar-item-icon {
@@ -98,13 +103,17 @@
   place-items: center;
 }
 
+.sidebar-item.active .sidebar-item-icon {
+  background: var(--color-teal);
+}
+
 .sidebar-item strong {
   font-size: var(--font-size-body);
 }
 
 .sidebar-item.active small,
 .sidebar-item:hover small {
-  color: var(--color-blue-soft);
+  color: var(--color-teal-soft);
 }
 
 .sidebar-arrow {

@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '../components/Button';
 import {
   ApiError,
+  emitBilling,
   getAppointments,
   getPatients,
   getServices,
@@ -35,6 +37,81 @@ function formatAppointment(appointment) {
   return `${new Intl.DateTimeFormat('es-BO', { dateStyle: 'medium', timeStyle: 'short' }).format(date)} · ${appointment.servicio.nombre}`;
 }
 
+function paymentLabel(value) {
+  return paymentMethods.find(([code]) => code === value)?.[1] || value || '—';
+}
+
+function formatFechaEmision(value) {
+  if (!value) return 'Pendiente';
+  return new Intl.DateTimeFormat('es-BO', { dateStyle: 'long', timeStyle: 'medium' }).format(new Date(value));
+}
+
+function TicketUi({ data, emitted = false }) {
+  return (
+    <div className={`ticket${emitted ? ' ticket-emitida' : ''}`}>
+      <header className="ticket-header">
+        <strong>{data.configuracion?.nombreComercial || 'MedicalSys Centro Médico'}</strong>
+        <span>{data.configuracion?.razonSocial || ''}</span>
+        <small>
+          NIT: {data.configuracion?.nit || '—'}
+          {data.configuracion?.direccion ? ` · ${data.configuracion.direccion}` : ''}
+        </small>
+        {data.configuracion?.telefono && <small>Tel: {data.configuracion.telefono}</small>}
+      </header>
+
+      {emitted && data.cuf && (
+        <p className="ticket-leyenda">
+          FACTURA COMPUTARIZADA · LEY Nº 453 · <em>“Este documento solo tiene validez con la verificación en el SIN”</em>
+        </p>
+      )}
+
+      <dl className="ticket-rows">
+        <div><dt>Factura Nº</dt><dd>{data.numeroFactura || '—'}</dd></div>
+        <div><dt>Fecha emisión</dt><dd>{formatFechaEmision(emitted ? data.fechaEmision : null)}</dd></div>
+        <div><dt>NIT/CI</dt><dd>{data.receptor?.nitCi || '—'}{data.receptor?.complemento ? ` ${data.receptor.complemento}` : ''}</dd></div>
+        <div><dt>Razón social</dt><dd>{data.receptor?.razonSocial || '—'}</dd></div>
+        <div><dt>Método de pago</dt><dd>{paymentLabel(data.metodoPago)}</dd></div>
+      </dl>
+
+      <table className="ticket-items">
+        <thead><tr><th>Detalle</th><th>Cant.</th><th>Subtotal</th></tr></thead>
+        <tbody>
+          {(data.conceptos || []).map((item) => (
+            <tr key={item.servicioId || item.descripcion}>
+              <td><strong>{item.descripcion}</strong>{item.codigo ? <small>{item.codigo}</small> : null}</td>
+              <td>{item.cantidad}</td>
+              <td>{formatMoney(item.subtotal)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="ticket-total">
+        <span>Total Bs</span>
+        <strong>{formatMoney(data.total)}</strong>
+      </div>
+
+      <div className={`ticket-cuf${emitted && data.cuf ? ' ticket-cuf-activo' : ''}`}>
+        <span>CUF · CÓDIGO ÚNICO DE FACTURACIÓN</span>
+        {emitted && data.cuf ? <code>{data.cuf}</code> : <small>Pendiente de autorización del SIN</small>}
+      </div>
+
+      <div className="ticket-qr">
+        {emitted && data.qrPayload ? (
+          <>
+            <QRCodeSVG value={data.qrPayload} size={104} level="M" includeMargin={false} />
+            <small>Verifique con el SIAT escaneando el QR</small>
+          </>
+        ) : (
+          <div className="ticket-qr-empty" aria-hidden="true" />
+        )}
+      </div>
+
+      {emitted && data.sinReferencia && <div className="ticket-autorizacion">Autorizada por SIN · {data.sinReferencia}</div>}
+    </div>
+  );
+}
+
 export function BillingPreparationPage() {
   const [patients, setPatients] = useState([]);
   const [services, setServices] = useState([]);
@@ -42,9 +119,13 @@ export function BillingPreparationPage() {
   const [loading, setLoading] = useState(true);
   const [appointmentsLoading, setAppointmentsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [emitting, setEmitting] = useState(false);
   const [error, setError] = useState('');
   const [preview, setPreview] = useState(null);
+  const [emittedInvoice, setEmittedInvoice] = useState(null);
+  const [copied, setCopied] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState('');
+  const ticketRef = useRef(null);
   const [form, setForm] = useState({
     pacienteId: '',
     citaId: '',
@@ -162,6 +243,7 @@ export function BillingPreparationPage() {
     event.preventDefault();
     setError('');
     setPreview(null);
+    setEmittedInvoice(null);
     if (!form.pacienteId) {
       setError('Seleccione un paciente.');
       return;
@@ -202,15 +284,62 @@ export function BillingPreparationPage() {
     }
   }
 
+  async function handleEmit() {
+    if (!preview?.id) return;
+    setError('');
+    setCopied(false);
+    setEmitting(true);
+    try {
+      const response = await emitBilling(preview.id);
+      setEmittedInvoice(response.factura);
+      setPreview(null);
+    } catch (requestError) {
+      let message = requestError instanceof ApiError
+        ? requestError.message
+        : 'No fue posible emitir la factura.';
+      if (requestError?.status === 400) message = 'Esta factura ya fue emitida; no es posible emitirla nuevamente.';
+      setError(message);
+      setPreview(null);
+    } finally {
+      setEmitting(false);
+    }
+  }
+
+  async function copyCuf() {
+    if (!emittedInvoice?.cuf) return;
+    try {
+      await navigator.clipboard.writeText(emittedInvoice.cuf);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (_error) {
+      setError('No fue posible copiar el CUF.');
+    }
+  }
+
+  function handlePrint() {
+    if (ticketRef.current) {
+      window.print();
+    }
+  }
+
+  function closeSuccessModal() {
+    setEmittedInvoice(null);
+    setPreview(null);
+    setForm({ ...form, pacienteId: '', citaId: '', nitCi: '', complemento: '', razonSocial: '', email: '' });
+    setItems([]);
+  }
+
   return (
     <main className="billing-page">
-      <header className="billing-header">
+      <header className="billing-header billing-header-hero">
         <div>
-          <span className="billing-eyebrow">FACTURACIÓN</span>
-          <h1>Preparar factura</h1>
-          <p>Revise receptor, conceptos e importes antes de continuar con una futura emisión.</p>
+          <span className="billing-eyebrow">FACTURACIÓN · HU-22</span>
+          <h1>Emitir factura computarizada</h1>
+          <p>Prepare, valide y emita la factura con respaldo del SIN/SIAT.</p>
         </div>
-        <span className="billing-status">Vista previa · No emitida</span>
+        <span className={`billing-status${emittedInvoice || (preview && preview.estado === 'EMITIDA') ? ' billing-status-emitida' : ''}`}>
+          {emittedInvoice || (preview && preview.estado === 'EMITIDA') ? 'Emitida · Autorizada SIN' : 'Vista previa · No emitida'}
+        </span>
       </header>
 
       {loading ? (
@@ -305,21 +434,62 @@ export function BillingPreparationPage() {
       )}
 
       {preview && (
-        <section aria-live="polite" className="billing-preview">
-          <div className="billing-preview-banner"><div><span>PREPARACIÓN VALIDADA</span><h2>Vista previa de factura</h2></div><strong>No emitida</strong></div>
-          <div className="billing-preview-meta">
-            <div><span>Paciente</span><strong>{preview.paciente.nombre}</strong><small>CI {preview.paciente.documentoIdentidad}{preview.paciente.complemento ? ` ${preview.paciente.complemento}` : ''}</small></div>
-            <div><span>Receptor</span><strong>{preview.receptor.razonSocial}</strong><small>NIT/CI {preview.receptor.nitCi || 'Sin dato'}</small></div>
-            <div><span>Método de pago</span><strong>{paymentMethods.find(([value]) => value === preview.metodoPago)?.[1] || preview.metodoPago}</strong><small>{preview.cita ? `Cita #${preview.cita.id}` : 'Sin cita relacionada'}</small></div>
+        <section aria-live="polite" className="billing-prepared">
+          <div className="billing-prepared-banner">
+            <div><span>PREPARACIÓN VALIDADA</span><h2>Factura preparada como borrador</h2><small>Nº {preview.numeroFactura}</small></div>
+            <span className="billing-prepared-badge">No emitida</span>
           </div>
-          <div className="billing-table-wrap">
-            <table className="billing-table preview-table"><thead><tr><th>Concepto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>
-              {preview.conceptos.map((item) => <tr key={item.servicioId}><td><strong>{item.descripcion}</strong><small>{item.codigo}</small></td><td>{item.cantidad}</td><td>{formatMoney(item.precioUnitario)}</td><td><strong>{formatMoney(item.subtotal)}</strong></td></tr>)}
-            </tbody></table>
+
+          <div className="billing-prepared-columns">
+            <div className="billing-prepared-summary">
+              <div className="billing-preview-meta">
+                <div><span>Paciente</span><strong>{preview.paciente.nombre}</strong><small>CI {preview.paciente.documentoIdentidad}{preview.paciente.complemento ? ` ${preview.paciente.complemento}` : ''}</small></div>
+                <div><span>Receptor</span><strong>{preview.receptor.razonSocial}</strong><small>NIT/CI {preview.receptor.nitCi || 'Sin dato'}</small></div>
+                <div><span>Método de pago</span><strong>{paymentLabel(preview.metodoPago)}</strong><small>{preview.cita ? `Cita #${preview.cita.id}` : 'Sin cita relacionada'}</small></div>
+              </div>
+              <div className="billing-table-wrap">
+                <table className="billing-table preview-table"><thead><tr><th>Concepto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>
+                  {preview.conceptos.map((item) => <tr key={item.servicioId}><td><strong>{item.descripcion}</strong><small>{item.codigo}</small></td><td>{item.cantidad}</td><td>{formatMoney(item.precioUnitario)}</td><td><strong>{formatMoney(item.subtotal)}</strong></td></tr>)}
+                </tbody></table>
+              </div>
+              <div className="billing-preview-total billing-preview-total-gold"><span>Total validado por el servidor</span><strong>{formatMoney(preview.total)}</strong></div>
+              <p className="billing-warning">{preview.advertencia}</p>
+            </div>
+
+            <div className="billing-prepared-ticket" ref={ticketRef}>
+              <h3>Previsualización · Ticket fiscal (80 mm)</h3>
+              <TicketUi data={preview} emitted={false} />
+            </div>
           </div>
-          <div className="billing-preview-total"><span>Total validado por el servidor</span><strong>{formatMoney(preview.total)}</strong></div>
-          <p className="billing-warning">{preview.advertencia}</p>
+
+          <div className="billing-emit-actions">
+            <Button disabled={emitting} onClick={handleEmit} type="button" variant="teal">
+              {emitting ? 'Autorizando con el SIN...' : 'Emitir factura computarizada'}
+            </Button>
+          </div>
         </section>
+      )}
+
+      {emittedInvoice && (
+        <div className="billing-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="billing-success-title">
+          <div className="billing-modal">
+            <div className="billing-modal-head">
+              <span className="billing-success-check" aria-hidden="true">✓</span>
+              <div><h2 id="billing-success-title">Factura emitida correctamente</h2><p>El SIN autorizó el documento fiscal.</p></div>
+              <span className="billing-invoice-badge">Autorizada por SIN</span>
+            </div>
+
+            <div ref={ticketRef}>
+              <TicketUi data={emittedInvoice} emitted />
+            </div>
+
+            <div className="billing-modal-actions">
+              <Button onClick={handlePrint} type="button" variant="primary">Imprimir / Descargar PDF</Button>
+              <Button onClick={copyCuf} type="button" variant="secondary">{copied ? 'CUF copiado ✓' : 'Copiar CUF'}</Button>
+              <Button onClick={closeSuccessModal} type="button" variant="ghost">Cerrar</Button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );
