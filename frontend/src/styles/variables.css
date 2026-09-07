@@ -47,11 +47,30 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
+  /* Bordes de tarjetas y contenedores */
+  --color-border-card: rgb(41 70 105 / 12%);
+
   /* Formas y elevación */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
+  --radius-card: 16px;
   --input-height: 42px;
-  --shadow-card: 0 12px 32px rgb(13 11 97 / 10%);
+  --shadow-sm: 0 2px 8px rgb(13 11 97 / 6%);
+  --shadow-md: 0 8px 24px rgb(13 11 97 / 10%);
+  --shadow-lg: 0 16px 40px rgb(13 11 97 / 16%);
+  --shadow-card: 0 8px 24px rgb(13 11 97 / 10%);
+  --shadow-glow-teal: 0 0 20px rgb(71 139 141 / 35%);
+  --shadow-glow-gold: 0 0 20px rgb(228 211 41 / 35%);
   --focus-ring: 0 0 0 3px rgb(71 139 141 / 18%);
+  --focus-ring-soft: 0 0 0 4px rgb(71 139 141 / 14%);
+
+  /* Degradados de marca */
+  --bg-gradient-primary: linear-gradient(135deg, #0D0B61 0%, #294669 100%);
+  --bg-gradient-accent: linear-gradient(135deg, #478B8D 0%, #294669 100%);
+  --bg-gradient-teal: linear-gradient(135deg, #5AA3A5 0%, #478B8D 55%, #3C7B7D 100%);
+
+  /* Movimiento */
+  --transition-smooth: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: all 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }

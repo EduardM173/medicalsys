@@ -99,7 +99,7 @@ function TicketUi({ data, emitted = false }) {
       <div className="ticket-qr">
         {emitted && data.qrPayload ? (
           <>
-            <QRCodeSVG value={data.qrPayload} size={104} level="M" includeMargin={false} />
+            <div className="ticket-qr-frame"><QRCodeSVG value={data.qrPayload} size={104} level="M" includeMargin={false} /></div>
             <small>Verifique con el SIAT escaneando el QR</small>
           </>
         ) : (
@@ -168,6 +168,38 @@ export function BillingPreparationPage() {
     const unitCents = Math.round(Number(service?.precioBase || 0) * 100);
     return total + unitCents * Number(item.cantidad || 0);
   }, 0);
+
+  const liveTicketData = useMemo(() => {
+    if (preview) return preview;
+    const patient = patients.find((option) => String(option.id) === form.pacienteId);
+    const conceptos = items.map((item) => {
+      const service = servicesById.get(String(item.servicioId));
+      const unit = Number(service?.precioBase || 0);
+      const cantidad = Number(item.cantidad || 0);
+      return {
+        servicioId: item.servicioId,
+        descripcion: service?.nombre || '—',
+        codigo: service?.codigo || '',
+        cantidad,
+        precioUnitario: unit,
+        subtotal: unit * cantidad
+      };
+    });
+    return {
+      numeroFactura: 'Pendiente',
+      configuracion: null,
+      receptor: {
+        nitCi: form.nitCi || patient?.documentoIdentidad || '',
+        complemento: form.complemento || '',
+        razonSocial: form.razonSocial
+          || (patient ? `${patient.nombres} ${patient.apellidos}`.trim() : ''),
+        email: form.email
+      },
+      metodoPago: form.metodoPago,
+      conceptos,
+      total: localTotalCents / 100
+    };
+  }, [preview, patients, form, items, servicesById, localTotalCents]);
 
   function markChanged() {
     setPreview(null);
@@ -331,7 +363,7 @@ export function BillingPreparationPage() {
 
   return (
     <main className="billing-page">
-      <header className="billing-header billing-header-hero">
+      <header className="billing-header billing-header-hero animate-fade-in">
         <div>
           <span className="billing-eyebrow">FACTURACIÓN · HU-22</span>
           <h1>Emitir factura computarizada</h1>
@@ -345,10 +377,12 @@ export function BillingPreparationPage() {
       {loading ? (
         <section className="billing-card billing-message">Cargando pacientes y servicios...</section>
       ) : (
-        <form onSubmit={handleSubmit}>
-          <section className="billing-card">
-            <div className="billing-section-heading">
-              <span>1</span>
+        <div className="billing-layout">
+          <section className="billing-left">
+            <form className="billing-form-card ui-card animate-fade-in" onSubmit={handleSubmit}>
+              <section className="billing-card">
+                <div className="billing-section-heading">
+                  <span>1</span>
               <div><h2>Paciente y atención</h2><p>La cita es opcional y puede precargar su servicio.</p></div>
             </div>
             <div className="billing-grid">
@@ -430,44 +464,28 @@ export function BillingPreparationPage() {
 
           {error && <p className="billing-alert error" role="alert">{error}</p>}
           <div className="billing-actions"><Button disabled={submitting} type="submit">{submitting ? 'Validando...' : 'Preparar vista previa'}</Button></div>
-        </form>
-      )}
+            </form>
+          </section>
 
-      {preview && (
-        <section aria-live="polite" className="billing-prepared">
-          <div className="billing-prepared-banner">
-            <div><span>PREPARACIÓN VALIDADA</span><h2>Factura preparada como borrador</h2><small>Nº {preview.numeroFactura}</small></div>
-            <span className="billing-prepared-badge">No emitida</span>
-          </div>
-
-          <div className="billing-prepared-columns">
-            <div className="billing-prepared-summary">
-              <div className="billing-preview-meta">
-                <div><span>Paciente</span><strong>{preview.paciente.nombre}</strong><small>CI {preview.paciente.documentoIdentidad}{preview.paciente.complemento ? ` ${preview.paciente.complemento}` : ''}</small></div>
-                <div><span>Receptor</span><strong>{preview.receptor.razonSocial}</strong><small>NIT/CI {preview.receptor.nitCi || 'Sin dato'}</small></div>
-                <div><span>Método de pago</span><strong>{paymentLabel(preview.metodoPago)}</strong><small>{preview.cita ? `Cita #${preview.cita.id}` : 'Sin cita relacionada'}</small></div>
-              </div>
-              <div className="billing-table-wrap">
-                <table className="billing-table preview-table"><thead><tr><th>Concepto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>
-                  {preview.conceptos.map((item) => <tr key={item.servicioId}><td><strong>{item.descripcion}</strong><small>{item.codigo}</small></td><td>{item.cantidad}</td><td>{formatMoney(item.precioUnitario)}</td><td><strong>{formatMoney(item.subtotal)}</strong></td></tr>)}
-                </tbody></table>
-              </div>
-              <div className="billing-preview-total billing-preview-total-gold"><span>Total validado por el servidor</span><strong>{formatMoney(preview.total)}</strong></div>
-              <p className="billing-warning">{preview.advertencia}</p>
+          <aside className="billing-ticket-deck animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <div className="billing-deck-head">
+              <span>Ticket fiscal · 80 mm</span>
+              {preview ? <em>Preparada · Nº {preview.numeroFactura}</em> : <em>Previsualización en tiempo real</em>}
             </div>
-
-            <div className="billing-prepared-ticket" ref={ticketRef}>
-              <h3>Previsualización · Ticket fiscal (80 mm)</h3>
-              <TicketUi data={preview} emitted={false} />
+            <div className="billing-deck-inner">
+              <div ref={ticketRef}>
+                <TicketUi data={liveTicketData} emitted={false} />
+              </div>
             </div>
-          </div>
-
-          <div className="billing-emit-actions">
-            <Button disabled={emitting} onClick={handleEmit} type="button" variant="teal">
-              {emitting ? 'Autorizando con el SIN...' : 'Emitir factura computarizada'}
-            </Button>
-          </div>
-        </section>
+            {preview && (
+              <div className="billing-emit-actions">
+                <Button disabled={emitting} onClick={handleEmit} type="button" variant="teal">
+                  {emitting ? 'Autorizando con el SIN...' : 'Emitir factura computarizada'}
+                </Button>
+              </div>
+            )}
+          </aside>
+        </div>
       )}
 
       {emittedInvoice && (
@@ -484,8 +502,8 @@ export function BillingPreparationPage() {
             </div>
 
             <div className="billing-modal-actions">
-              <Button onClick={handlePrint} type="button" variant="primary">Imprimir / Descargar PDF</Button>
-              <Button onClick={copyCuf} type="button" variant="secondary">{copied ? 'CUF copiado ✓' : 'Copiar CUF'}</Button>
+              <Button onClick={handlePrint} type="button" variant="teal">Imprimir Ticket</Button>
+              <Button onClick={copyCuf} type="button" variant="gold">{copied ? 'CUF copiado ✓' : 'Copiar CUF'}</Button>
               <Button onClick={closeSuccessModal} type="button" variant="ghost">Cerrar</Button>
             </div>
           </div>

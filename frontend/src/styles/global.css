@@ -36,9 +36,10 @@ input,
 textarea,
 select {
   color: var(--color-text-primary);
-  background: var(--color-surface);
+  background: #FBFCFE;
   border: 1px solid var(--color-border);
   border-radius: 10px;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
 }
 
 input,
@@ -46,12 +47,84 @@ select {
   min-height: var(--input-height);
 }
 
+input:hover,
+textarea:hover,
+select:hover {
+  border-color: rgb(41 70 105 / 45%);
+}
+
 input:focus,
 textarea:focus,
 select:focus {
+  background: var(--color-surface);
   border-color: var(--color-primary);
-  box-shadow: var(--focus-ring);
+  box-shadow: var(--focus-ring-soft);
   outline: none;
+}
+
+/* ---------- Sistema de animación UI ---------- */
+@keyframes fadeInSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    box-shadow: var(--shadow-glow-teal);
+  }
+  50% {
+    box-shadow: 0 0 30px rgb(71 139 141 / 60%);
+  }
+}
+
+@keyframes modalPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(24px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes badgeShine {
+  0%,
+  100% {
+    box-shadow: 0 0 6px rgb(228 211 41 / 30%);
+  }
+  50% {
+    box-shadow: 0 0 18px rgb(228 211 41 / 65%);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeInSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.pulse-glow {
+  animation: pulseGlow 2.4s ease-in-out infinite;
+}
+
+/* Tarjeta base con profundidad */
+.ui-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-md);
+  transition: var(--transition-smooth);
+}
+
+.ui-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-3px);
 }
 
 .app-main {
@@ -66,9 +139,9 @@ select:focus {
   padding: 40px;
   text-align: center;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-md);
 }
 
 .welcome-card h1 {
@@ -93,7 +166,7 @@ select:focus {
   color: var(--color-success);
 }
 
-/* Botones — paleta corporativa HU-22 */
+/* Botones — paleta corporativa con profundidad y microinteracciones */
 .button {
   display: inline-flex;
   align-items: center;
@@ -104,19 +177,23 @@ select:focus {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-semibold);
   color: var(--color-surface);
-  background: var(--color-primary);
+  background: var(--bg-gradient-teal);
   border: 1px solid transparent;
   border-radius: 10px;
   cursor: pointer;
   gap: 8px;
   text-decoration: none;
-  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  transition: var(--transition-smooth);
 }
 
 .button:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-  box-shadow: 0 6px 16px rgb(71 139 141 / 28%);
-  transform: translateY(-1px);
+  background: var(--bg-gradient-teal);
+  box-shadow: var(--shadow-glow-teal), 0 8px 20px rgb(71 139 141 / 30%);
+  transform: translateY(-2px);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 .button:disabled {
@@ -126,43 +203,45 @@ select:focus {
 
 .button:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring);
+  box-shadow: var(--focus-ring), var(--shadow-glow-teal);
 }
 
 .button-secondary {
   color: var(--color-steel);
   background: var(--color-surface);
-  border-color: var(--color-border);
+  border-color: var(--color-border-card);
+  box-shadow: var(--shadow-sm);
 }
 
 .button-secondary:hover:not(:disabled) {
   color: var(--color-navy);
   background: var(--color-background);
   border-color: var(--color-steel);
-  box-shadow: none;
+  box-shadow: var(--shadow-md);
 }
 
 .button-gold {
   color: var(--color-navy);
-  background: var(--color-gold);
-  border-color: var(--color-gold);
+  background: linear-gradient(135deg, #F0E34F 0%, #E4D329 100%);
+  border-color: #E4D329;
 }
 
 .button-gold:hover:not(:disabled) {
-  background: #EFE24A;
-  border-color: #EFE24A;
-  box-shadow: 0 6px 16px rgb(228 211 41 / 35%);
+  background: linear-gradient(135deg, #F5EA67 0%, #E4D329 100%);
+  border-color: #E4D329;
+  box-shadow: var(--shadow-glow-gold), 0 8px 20px rgb(228 211 41 / 35%);
 }
 
 .button-teal {
   color: var(--color-surface);
-  background: var(--color-teal);
+  background: var(--bg-gradient-teal);
   border-color: var(--color-teal);
 }
 
 .button-teal:hover:not(:disabled) {
-  background: #3C7B7D;
-  border-color: #3C7B7D;
+  background: var(--bg-gradient-teal);
+  border-color: var(--color-teal);
+  box-shadow: var(--shadow-glow-teal), 0 8px 20px rgb(71 139 141 / 30%);
 }
 
 .button-ghost {
@@ -174,5 +253,5 @@ select:focus {
 .button-ghost:hover:not(:disabled) {
   color: var(--color-surface);
   background: var(--color-teal);
-  box-shadow: none;
+  box-shadow: var(--shadow-glow-teal);
 }
