@@ -19,7 +19,6 @@ import { RoomsPage } from './pages/RoomsPage';
 import { SchedulesPage } from './pages/SchedulesPage';
 import { UsersPage } from './pages/UsersPage';
 import { WhatsAppNotificationsPage } from './pages/WhatsAppNotificationsPage';
-
 import { SecurityPage } from './pages/SecurityPage';
 
 function App() {
