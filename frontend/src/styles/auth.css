@@ -15,40 +15,40 @@
   overflow: hidden;
 }
 
-.circle-bg-1,
-.circle-bg-2 {
+.login-orb-1 {
   position: absolute;
+  width: 300px;
+  height: 300px;
   border-radius: 50%;
-  filter: blur(50px);
-  opacity: 0.25;
-  animation: floatAnimation 8s ease-in-out infinite alternate;
+  background: radial-gradient(circle, rgba(71, 139, 141, 0.5) 0%, rgba(13, 11, 97, 0) 70%);
+  filter: blur(40px);
+  top: 15%;
+  left: 10%;
+  animation: orbFloat1 10s infinite alternate ease-in-out;
   pointer-events: none;
 }
 
-.circle-bg-1 {
-  width: 250px;
-  height: 250px;
-  background: radial-gradient(circle, #478B8D 0%, #294669 100%);
-  top: 10%;
-  left: 10%;
+.login-orb-2 {
+  position: absolute;
+  width: 350px;
+  height: 350px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(228, 211, 41, 0.35) 0%, rgba(41, 70, 105, 0) 70%);
+  filter: blur(50px);
+  bottom: 10%;
+  right: 15%;
+  animation: orbFloat2 12s infinite alternate ease-in-out;
+  pointer-events: none;
 }
 
-.circle-bg-2 {
-  width: 320px;
-  height: 320px;
-  background: radial-gradient(circle, #E4D329 0%, #0D0B61 100%);
-  bottom: 15%;
-  right: 10%;
-  animation-delay: -4s;
+@keyframes orbFloat1 {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(30px, -40px) scale(1.15); }
 }
 
-@keyframes floatAnimation {
-  0% {
-    transform: translateY(0px) scale(1);
-  }
-  100% {
-    transform: translateY(-25px) scale(1.08);
-  }
+@keyframes orbFloat2 {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-40px, 30px) scale(1.1); }
 }
 
 .login-brand .brand-mark,
@@ -109,9 +109,14 @@
   width: min(100%, 460px);
   padding: 40px;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(41, 70, 105, 0.12);
+  border-radius: var(--radius-card);
+  box-shadow: 0 24px 60px -12px rgba(13, 11, 97, 0.18), 0 10px 24px -8px rgba(13, 11, 97, 0.08);
+}
+
+.login-card input:focus {
+  border-color: var(--color-teal);
+  box-shadow: 0 0 0 4px rgba(71, 139, 141, 0.16), var(--shadow-glow-teal);
 }
 
 .login-heading {

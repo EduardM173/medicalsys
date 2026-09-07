@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '../components/Button';
+import { PageContext } from '../components/PageContext';
 import {
   ApiError,
   emitBilling,
   getAppointments,
+  getBillingSummary,
   getPatients,
   getServices,
   prepareBilling
@@ -125,6 +127,7 @@ export function BillingPreparationPage() {
   const [emittedInvoice, setEmittedInvoice] = useState(null);
   const [copied, setCopied] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [summary, setSummary] = useState({ total: 0, pending: 0, emittedToday: 0 });
   const ticketRef = useRef(null);
   const [form, setForm] = useState({
     pacienteId: '',
@@ -141,13 +144,15 @@ export function BillingPreparationPage() {
     let active = true;
     async function loadOptions() {
       try {
-        const [patientsResponse, servicesResponse] = await Promise.all([
+        const [patientsResponse, servicesResponse, summaryResponse] = await Promise.all([
           getPatients(),
-          getServices()
+          getServices(),
+          getBillingSummary()
         ]);
         if (!active) return;
         setPatients(patientsResponse.patients);
         setServices(servicesResponse.services);
+        setSummary(summaryResponse.summary);
       } catch (requestError) {
         if (active) setError(requestError.message || 'No fue posible cargar los datos de facturación.');
       } finally {
@@ -363,16 +368,21 @@ export function BillingPreparationPage() {
 
   return (
     <main className="billing-page">
-      <header className="billing-header billing-header-hero animate-fade-in">
-        <div>
-          <span className="billing-eyebrow">Módulo de Facturación</span>
-          <h1>Emitir factura computarizada</h1>
-          <p>Prepare, valide y emita la factura con respaldo del SIN/SIAT.</p>
-        </div>
-        <span className={`billing-status${emittedInvoice || (preview && preview.estado === 'EMITIDA') ? ' billing-status-emitida' : ''}`}>
-          {emittedInvoice || (preview && preview.estado === 'EMITIDA') ? 'Factura Emitida y Autorizada' : 'Borrador de Factura'}
-        </span>
-      </header>
+      <PageContext
+        actions={
+          <span className={`billing-status${emittedInvoice || (preview && preview.estado === 'EMITIDA') ? ' billing-status-emitida' : ''}`}>
+            {emittedInvoice || (preview && preview.estado === 'EMITIDA') ? 'Factura Emitida y Autorizada' : 'Borrador de Factura'}
+          </span>
+        }
+        breadcrumbs={[{ label: 'Inicio', to: '/dashboard' }, { label: 'Facturación' }]}
+        kpis={[
+          { icon: 'Σ', label: 'Facturas registradas', value: summary.total, tone: 'navy' },
+          { icon: '!', label: 'Pendientes de emisión', value: summary.pending, tone: 'gold' },
+          { icon: '✓', label: 'Emitidas hoy', value: summary.emittedToday, tone: 'teal' }
+        ]}
+        subtitle="Prepare, valide y emita la factura con respaldo del SIN/SIAT."
+        title="Emitir factura computarizada"
+      />
 
       {loading ? (
         <section className="billing-card billing-message">Cargando pacientes y servicios...</section>

@@ -409,4 +409,17 @@ async function emitirFacturaComputarizada(idFactura, userId) {
   };
 }
 
-module.exports = { BillingError, paymentMethods, prepareInvoice, emitirFacturaComputarizada };
+async function getBillingSummary() {
+  const now = new Date();
+  const laPazStartOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 4, 0, 0));
+  const [total, pending, emittedToday] = await Promise.all([
+    prisma.factura.count(),
+    prisma.factura.count({ where: { estado: 'BORRADOR' } }),
+    prisma.factura.count({
+      where: { estado: 'EMITIDA', fecha_emision: { gte: laPazStartOfDay } }
+    })
+  ]);
+  return { summary: { total, pending, emittedToday } };
+}
+
+module.exports = { BillingError, getBillingSummary, paymentMethods, prepareInvoice, emitirFacturaComputarizada };

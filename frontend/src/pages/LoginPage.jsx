@@ -103,8 +103,8 @@ export function LoginPage() {
   return (
     <main className="login-layout">
       <section className="login-brand" aria-label="MedicalSys">
-        <div className="circle-bg-1" aria-hidden="true" />
-        <div className="circle-bg-2" aria-hidden="true" />
+        <div className="login-orb-1" aria-hidden="true" />
+        <div className="login-orb-2" aria-hidden="true" />
         <div className="brand-mark">M+</div>
         <h1>MedicalSys</h1>
         <h2>Gestión Médica Hospitalaria</h2>

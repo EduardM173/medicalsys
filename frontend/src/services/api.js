@@ -225,6 +225,11 @@ export function prepareBilling(data) {
   });
 }
 
+// KPIs de facturación: total registradas, pendientes de emisión y emitidas hoy.
+export function getBillingSummary() {
+  return request('/billing/summary');
+}
+
 // HU-22: emite una factura computarizada previamente preparada (BORRADOR).
 export function emitBilling(id) {
   return request(`/billing/${id}/emit`, {

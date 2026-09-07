@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
+import { HashBox } from '../components/HashBox';
+import { PageContext } from '../components/PageContext';
 import { getConsents } from '../services/api';
 import '../styles/consents.css';
 
@@ -19,6 +21,15 @@ const STATUS_LABELS = {
   FIRMADO: 'Firmado',
   ANULADO: 'Anulado'
 };
+
+function isSameUtcDay(value) {
+  if (!value) return false;
+  const date = new Date(value);
+  const now = new Date();
+  return date.getUTCFullYear() === now.getUTCFullYear()
+    && date.getUTCMonth() === now.getUTCMonth()
+    && date.getUTCDate() === now.getUTCDate();
+}
 
 function isPending(status) {
   return status === 'GENERADO' || status === 'PENDIENTE_FIRMA';
@@ -58,16 +69,24 @@ export function ConsentHistoryPage() {
     return () => { active = false; };
   }, []);
 
+  const pendingCount = consents.filter((consent) => isPending(consent.status)).length;
+  const signedTodayCount = consents.filter(
+    (consent) => consent.status === 'FIRMADO' && isSameUtcDay(consent.signedAt)
+  ).length;
+
   return (
     <main className="consent-page consent-history-page">
-      <header className="consent-header consent-detail-header">
-        <div>
-          <span className="login-kicker">Gestión documental</span>
-          <h1>Historial de Consentimientos Informados</h1>
-          <p>Consulte los consentimientos generados, su estado de firma y la huella criptográfica.</p>
-        </div>
-        <Button onClick={() => navigate('/consentimientos/nuevo')}>+ Nuevo consentimiento</Button>
-      </header>
+      <PageContext
+        actions={<Button onClick={() => navigate('/consentimientos/nuevo')}>+ Nuevo consentimiento</Button>}
+        breadcrumbs={[{ label: 'Inicio', to: '/dashboard' }, { label: 'Consentimientos' }]}
+        kpis={[
+          { icon: 'Σ', label: 'Total registrados', value: consents.length, tone: 'navy' },
+          { icon: '!', label: 'Pendientes de firma', value: pendingCount, tone: 'gold' },
+          { icon: '✓', label: 'Firmados hoy', value: signedTodayCount, tone: 'teal' }
+        ]}
+        subtitle="Consulte los consentimientos generados, su estado de firma y la huella criptográfica."
+        title="Historial de Consentimientos Informados"
+      />
 
       {loading ? (
         <section className="consent-state">Cargando historial de consentimientos...</section>
@@ -110,7 +129,7 @@ export function ConsentHistoryPage() {
                     <td><span className={statusClass(consent.status)}>{STATUS_LABELS[consent.status] || consent.status}</span></td>
                     <td>
                       {consent.signatureHash ? (
-                        <code className="consent-history-hash" title={consent.signatureHash}>{consent.signatureHash}</code>
+                        <HashBox hash={consent.signatureHash} />
                       ) : (
                         <small className="consent-history-hash-empty">Pendiente de firma</small>
                       )}
