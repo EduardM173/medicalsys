@@ -1,4 +1,5 @@
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const apiUrl = import.meta.env.VITE_API_URL
+  || `${window.location.protocol}//${window.location.hostname}:3000/api`;
 
 export class ApiError extends Error {
   constructor(status, message) {
@@ -29,6 +30,7 @@ async function request(path, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    if (path !== '/auth/me' && [401, 403].includes(response.status)) window.dispatchEvent(new Event('permissions-changed'));
     throw new ApiError(response.status, data.message || 'No fue posible procesar la solicitud.');
   }
 
@@ -204,6 +206,14 @@ export function updateAppointment(id, changes) {
   return request(`/appointments/${id}`, { method: 'PATCH', body: JSON.stringify(changes) });
 }
 
+// HU-21: obtiene una vista previa validada; no crea ni emite una factura.
+export function prepareBilling(data) {
+  return request('/billing/prepare', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
 // ==========================================
 // Documentos Clínicos y Exámenes (HU-13 / HU-18)
 // ==========================================
@@ -298,5 +308,54 @@ export function updateRoomReservation(id, data) {
 export function cancelRoomReservation(id) {
   return request(`/rooms/reservations/${id}`, {
     method: 'DELETE'
+  });
+}
+export function getSecurityMatrix() { return request('/security'); }
+export function getSecurityAudit() { return request('/security/audit'); }
+export function createSecurityRole(data) {
+  return request('/security/roles', { method: 'POST', body: JSON.stringify(data) });
+}
+export function updateSecurityRole(role, permissions) {
+  return request('/security/roles/' + encodeURIComponent(role), { method: 'PUT', body: JSON.stringify({ permissions }) });
+}
+export function getTemporaryGrants() { return request('/security/temporary-grants'); }
+export function grantTemporaryPermission(data) {
+  return request('/security/temporary-grants', { method: 'POST', body: JSON.stringify(data) });
+}
+export function revokeTemporaryGrant(id) {
+  return request('/security/temporary-grants/' + encodeURIComponent(id), { method: 'DELETE' });
+}
+export function getUserRoles() { return request('/users/roles/catalog'); }
+
+// ==========================================
+// HU-24 / HU-25: Notificaciones de citas por WhatsApp
+// ==========================================
+
+export function getConfirmationCandidates() {
+  return request('/notifications/confirmations/candidates');
+}
+
+export function sendAppointmentConfirmation(citaId) {
+  return request('/notifications/confirmations', {
+    method: 'POST',
+    body: JSON.stringify({ citaId })
+  });
+}
+
+export function getReminderCandidates() {
+  return request('/notifications/reminders/candidates');
+}
+
+export function sendAppointmentReminder(citaId) {
+  return request('/notifications/reminders', {
+    method: 'POST',
+    body: JSON.stringify({ citaId })
+  });
+}
+
+export function runAppointmentReminders(citaIds) {
+  return request('/notifications/reminders/run', {
+    method: 'POST',
+    body: JSON.stringify({ citaIds })
   });
 }

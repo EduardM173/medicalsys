@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { AttentionModal } from '../components/AttentionModal';
+import { can } from '../security/permissions';
 import { useAuth } from '../contexts/AuthContext';
 import { getMedicalHistory } from '../services/api';
 import '../styles/medical-history.css';
@@ -45,7 +46,7 @@ export function MedicalHistoryPage() {
   const { patientId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isDoctor = user?.rol === 'MEDICO' || user?.rol === 'ADMINISTRADOR';
+  const isDoctor = can(user, 'attention.write');
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -136,9 +137,9 @@ export function MedicalHistoryPage() {
               + Registrar Atención Médica
             </Button>
           )}
-          <Button className="history-back" onClick={() => navigate(`/pacientes/${patientId}/documentos`)}>
+          {can(user, 'documents.read') && <Button className="history-back" onClick={() => navigate(`/pacientes/${patientId}/documentos`)}>
             Documentos clínicos
-          </Button>
+          </Button>}
           <Button className="history-back" onClick={() => navigate('/pacientes')}>
             ← Volver
           </Button>
@@ -294,7 +295,7 @@ export function MedicalHistoryPage() {
         </>
       )}
 
-      {showAttentionModal && (
+      {isDoctor && showAttentionModal && (
         <AttentionModal
           patientId={patientId}
           onCancel={() => setShowAttentionModal(false)}

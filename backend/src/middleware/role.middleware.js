@@ -1,21 +1,13 @@
-function authorize(allowedRoles, message) {
-  return function authorizeRole(request, response, next) {
-    if (!request.user || !allowedRoles.includes(request.user.rol)) {
-      return response.status(403).json({
-        message
-      });
+const { permissionForRequest } = require('../security/permissions');
+// Legacy router signatures remain supported; the central catalog is authoritative.
+function requireRole() {
+  return function authorize(request, response, next) {
+    const permission = permissionForRequest(request);
+    if (!permission || !request.user?.permissions?.includes(permission)) {
+      return response.status(403).json({ message: 'No tiene permisos para realizar esta operación.' });
     }
-
     return next();
   };
 }
-
-function requireRole(...allowedRoles) {
-  return authorize(allowedRoles, 'No tiene permisos para realizar esta operación.');
-}
-
-requireRole.withMessage = function requireRoleWithMessage(message, ...allowedRoles) {
-  return authorize(allowedRoles, message);
-};
-
+requireRole.withMessage = () => requireRole();
 module.exports = requireRole;

@@ -1,8 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { Prisma } = require('@prisma/client');
 const prisma = require('../config/prisma');
-
-const allowedRoles = ['ADMINISTRADOR', 'MEDICO', 'RECEPCIONISTA', 'PACIENTE'];
+const { recordAudit, permissionsForRole, permissionsForUser } = require('./security.service');
 const allowedStatuses = ['ACTIVO', 'INACTIVO', 'SUSPENDIDO'];
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const passwordMaxLength = 128;
@@ -88,7 +87,7 @@ function validatePassword(value) {
 
 function validateRole(roleInput) {
   const role = typeof roleInput === 'string' ? roleInput.trim().toUpperCase() : '';
-  if (!allowedRoles.includes(role)) {
+  if (!/^[A-Z][A-Z0-9_]{0,29}$/.test(role)) {
     throw new UserError(400, 'Rol no válido.');
   }
   return role;
@@ -109,32 +108,33 @@ function parseUserId(value) {
   return BigInt(value);
 }
 
-async function findRole(roleCode) {
-  const role = await prisma.rol.findUnique({ where: { codigo: roleCode } });
+async function findRole(roleCode, db = prisma) {
+  const role = await db.rol.findUnique({ where: { codigo: roleCode } });
   if (!role || !role.activo) {
     throw new UserError(400, 'Rol no válido.');
   }
   return role;
 }
 
-async function createUser(input) {
+async function createUser(input, db = prisma) {
   const nombres = requiredText(input.nombres, 'Nombres');
   const apellidos = requiredText(input.apellidos, 'Apellidos');
   const email = normalizeEmail(input.email);
   const password = validatePassword(input.password);
+  if (input.passwordConfirmation !== password) throw new UserError(400, 'Las contraseñas no coinciden.');
   const roleCode = validateRole(input.rol);
   const telefono = normalizePhone(input.telefono);
 
-  const existingUser = await prisma.usuario.findUnique({ where: { email } });
+  const existingUser = await db.usuario.findUnique({ where: { email } });
   if (existingUser) {
     throw new UserError(409, 'El correo electrónico ya está registrado.');
   }
 
-  const role = await findRole(roleCode);
+  const role = await findRole(roleCode, db);
   const passwordHash = await bcrypt.hash(password, 12);
 
   try {
-    const user = await prisma.usuario.create({
+    const user = await db.usuario.create({
       data: {
         nombres,
         apellidos,
@@ -163,6 +163,11 @@ async function listUsers() {
   return users.map(toSafeUser);
 }
 
+async function listRoles() {
+  const roles = await prisma.rol.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } });
+  return roles.map((role) => ({ code: role.codigo, name: role.nombre, description: role.descripcion }));
+}
+
 async function getUserById(idInput) {
   const id = parseUserId(idInput);
   const user = await prisma.usuario.findUnique({
@@ -175,9 +180,9 @@ async function getUserById(idInput) {
   return toSafeUser(user);
 }
 
-async function updateUser(idInput, input) {
+async function updateUser(idInput, input, db = prisma) {
   const id = parseUserId(idInput);
-  const existingUser = await prisma.usuario.findUnique({ where: { id_usuario: id } });
+  const existingUser = await db.usuario.findUnique({ where: { id_usuario: id } });
   if (!existingUser) {
     throw new UserError(404, 'Usuario no encontrado.');
   }
@@ -188,7 +193,7 @@ async function updateUser(idInput, input) {
   if (input.telefono !== undefined) data.telefono = normalizePhone(input.telefono);
   if (input.estado !== undefined) data.estado = validateStatus(input.estado);
   if (input.rol !== undefined) {
-    const role = await findRole(validateRole(input.rol));
+    const role = await findRole(validateRole(input.rol), db);
     data.id_rol = role.id_rol;
   }
 
@@ -196,7 +201,7 @@ async function updateUser(idInput, input) {
     throw new UserError(400, 'No se enviaron campos para actualizar.');
   }
 
-  const user = await prisma.usuario.update({
+  const user = await db.usuario.update({
     where: { id_usuario: id },
     data,
     select: safeUserSelect
@@ -204,25 +209,65 @@ async function updateUser(idInput, input) {
   return toSafeUser(user);
 }
 
-async function deactivateUser(idInput) {
+async function deactivateUser(idInput, db = prisma) {
   const id = parseUserId(idInput);
-  const existingUser = await prisma.usuario.findUnique({ where: { id_usuario: id } });
+  const existingUser = await db.usuario.findUnique({ where: { id_usuario: id } });
   if (!existingUser) {
     throw new UserError(404, 'Usuario no encontrado.');
   }
-  await prisma.usuario.update({
+  await db.usuario.update({
     where: { id_usuario: id },
     data: { estado: 'INACTIVO', fecha_actualizacion: new Date() }
   });
 }
 
+async function mutateUser(action, idInput, input, actor) {
+  return prisma.$transaction(async (db) => {
+    await db.$executeRaw`SELECT pg_advisory_xact_lock(742106)`;
+    const account = await db.usuario.findUnique({ where: { id_usuario: BigInt(actor.id) }, include: { rol: true } });
+    const actorPermissions = account && account.estado === 'ACTIVO' && account.rol.activo
+      ? await permissionsForUser(account.id_usuario, account.rol.codigo, db) : [];
+    if (!actorPermissions.includes('users.manage')) throw new UserError(403, 'No tiene permisos para administrar usuarios.');
+    const id = idInput ? parseUserId(idInput) : null;
+    if (id === BigInt(actor.id) && (action === 'DEACTIVATE' || input.rol !== undefined || input.estado !== undefined)) {
+      throw new UserError(400, 'No puede cambiar su propio rol o estado desde esta pantalla.');
+    }
+    const before = id ? await db.usuario.findUnique({ where: { id_usuario: id }, select: safeUserSelect }) : null;
+    if (!actorPermissions.includes('security.manage')) {
+      const targetRoles = [before?.rol.codigo, input.rol].filter(Boolean);
+      for (const targetRole of targetRoles) {
+        const targetPermissions = await permissionsForRole(targetRole, db);
+        if (targetPermissions.some((permission) => !actorPermissions.includes(permission))) {
+          throw new UserError(403, 'Se requiere administrar seguridad para asignar o modificar accesos superiores a los propios.');
+        }
+      }
+    }
+    if (id && input.rol && before && input.rol !== before.rol.codigo) {
+      const [doctor, patient] = await Promise.all([
+        db.medico.findUnique({ where: { id_usuario: id } }),
+        db.paciente.findUnique({ where: { id_usuario: id } })
+      ]);
+      if (doctor || patient) throw new UserError(400, 'El usuario tiene un perfil médico o de paciente vinculado; no se puede cambiar su rol.');
+    }
+    let result;
+    if (action === 'CREATE') result = await createUser(input, db);
+    else if (action === 'UPDATE') result = await updateUser(idInput, input, db);
+    else await deactivateUser(idInput, db);
+    await recordAudit(db, actor.id, 'USER_' + action, idInput || result.id, {
+      before: before ? { rol: before.rol.codigo, estado: before.estado } : null,
+      after: result ? { rol: result.rol, estado: result.estado } : { estado: 'INACTIVO' }
+    });
+    return result;
+  }, { timeout: 15000 });
+}
 module.exports = {
-  allowedRoles,
+  mutateUser,
   allowedStatuses,
   createUser,
   deactivateUser,
   getUserById,
   listUsers,
+  listRoles,
   updateUser,
   UserError,
   validatePassword
