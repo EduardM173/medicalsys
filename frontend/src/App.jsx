@@ -9,6 +9,7 @@ import { BillingPreparationPage } from './pages/BillingPreparationPage';
 import { AgendaPage } from './pages/AgendaPage';
 import { ConsentDetailPage } from './pages/ConsentDetailPage';
 import { ConsentFormPage } from './pages/ConsentFormPage';
+import { ConsentHistoryPage } from './pages/ConsentHistoryPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DoctorsPage } from './pages/DoctorsPage';
 import { DocumentsPage } from './pages/DocumentsPage';
@@ -34,6 +35,7 @@ function App() {
       <Route element={<AuthorizedRoute permission="billing.prepare" />}><Route path="/facturacion/preparar" element={<BillingPreparationPage />} /></Route>
       <Route element={<AuthorizedRoute permission="notifications.manage" />}><Route path="/whatsapp" element={<WhatsAppNotificationsPage />} /></Route>
       <Route element={<AuthorizedRoute permission="agenda.read" />}><Route path="/agenda" element={<AgendaPage />} /></Route>
+      <Route element={<AuthorizedRoute permission="consents.manage" />}><Route path="/consentimientos" element={<ConsentHistoryPage />} /></Route>
       <Route element={<AuthorizedRoute permission="consents.manage" />}><Route path="/consentimientos/nuevo" element={<ConsentFormPage />} /></Route>
       <Route element={<AuthorizedRoute permission="consents.manage" />}><Route path="/consentimientos/:consentId" element={<ConsentDetailPage />} /></Route>
       <Route element={<AuthorizedRoute permission="doctors.write" />}><Route path="/admin/medicos" element={<DoctorsPage />} /></Route>

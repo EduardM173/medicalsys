@@ -5,12 +5,58 @@
 }
 
 .login-brand {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: clamp(40px, 8vw, 96px);
   color: var(--color-surface);
-  background: var(--color-navy);
+  background: var(--bg-gradient-primary);
+  overflow: hidden;
+}
+
+.login-orb-1 {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(71, 139, 141, 0.5) 0%, rgba(13, 11, 97, 0) 70%);
+  filter: blur(40px);
+  top: 15%;
+  left: 10%;
+  animation: orbFloat1 10s infinite alternate ease-in-out;
+  pointer-events: none;
+}
+
+.login-orb-2 {
+  position: absolute;
+  width: 350px;
+  height: 350px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(228, 211, 41, 0.35) 0%, rgba(41, 70, 105, 0) 70%);
+  filter: blur(50px);
+  bottom: 10%;
+  right: 15%;
+  animation: orbFloat2 12s infinite alternate ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes orbFloat1 {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(30px, -40px) scale(1.15); }
+}
+
+@keyframes orbFloat2 {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-40px, 30px) scale(1.1); }
+}
+
+.login-brand .brand-mark,
+.login-brand h1,
+.login-brand h2,
+.login-brand p {
+  position: relative;
+  z-index: 1;
 }
 
 .brand-mark {
@@ -23,6 +69,7 @@
   font-weight: var(--font-weight-bold);
   background: var(--color-surface);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
   place-items: center;
 }
 
@@ -62,9 +109,14 @@
   width: min(100%, 460px);
   padding: 40px;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(41, 70, 105, 0.12);
+  border-radius: var(--radius-card);
+  box-shadow: 0 24px 60px -12px rgba(13, 11, 97, 0.18), 0 10px 24px -8px rgba(13, 11, 97, 0.08);
+}
+
+.login-card input:focus {
+  border-color: var(--color-teal);
+  box-shadow: 0 0 0 4px rgba(71, 139, 141, 0.16), var(--shadow-glow-teal);
 }
 
 .login-heading {
@@ -125,6 +177,110 @@
   background: transparent;
   border: 0;
   cursor: pointer;
+}
+
+.login-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -4px 0 20px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.login-remember {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  gap: 8px;
+}
+
+.login-remember input {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  accent-color: var(--color-teal);
+  cursor: pointer;
+}
+
+.login-forgot-link {
+  padding: 0;
+  color: var(--color-teal);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-semibold);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.login-forgot-link:hover {
+  color: var(--color-navy);
+  text-decoration: underline;
+}
+
+/* Modal de recuperación de contraseña */
+.forgot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+  background: rgb(13 11 97 / 58%);
+  backdrop-filter: blur(4px);
+  animation: fadeInSlideUp 0.25s ease;
+}
+
+.forgot-modal {
+  width: min(100%, 440px);
+  padding: 30px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-card);
+  border-radius: var(--radius-card);
+  box-shadow: 0 24px 64px rgb(9 7 74 / 45%);
+  animation: modalPop 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.forgot-heading {
+  margin-bottom: 24px;
+}
+
+.forgot-heading h2 {
+  margin: 8px 0 4px;
+  color: var(--color-navy);
+  font-size: var(--font-size-section);
+}
+
+.forgot-heading p {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.forgot-success {
+  margin: 0 0 20px;
+  padding: 12px;
+  color: var(--color-success);
+  font-size: var(--font-size-label);
+  background: var(--color-success-soft);
+  border: 1px solid var(--color-teal);
+  border-radius: var(--radius-sm);
+}
+
+.forgot-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.forgot-actions .button {
+  flex: 1 1 0;
+  width: auto;
 }
 
 .button {

@@ -15,7 +15,13 @@ const consentSelect = {
   firma_storage_key: true,
   firma_hash_sha256: true,
   paciente: {
-    select: { id_paciente: true, nombres: true, apellidos: true }
+    select: {
+      id_paciente: true,
+      nombres: true,
+      apellidos: true,
+      documento_identidad: true,
+      complemento: true
+    }
   },
   medico: {
     select: {
@@ -78,7 +84,9 @@ function toDoctor(doctor) {
 function toPatient(patient) {
   return {
     id: Number(patient.id_paciente),
-    fullName: `${patient.nombres} ${patient.apellidos}`.trim()
+    fullName: `${patient.nombres} ${patient.apellidos}`.trim(),
+    documentNumber: patient.documento_identidad || '',
+    complement: patient.complemento || ''
   };
 }
 
@@ -253,6 +261,23 @@ async function signConsent(userIdInput, consentIdInput, signatureData) {
   return toConsent(result);
 }
 
+async function getConsentHistory(userIdInput, filters = {}) {
+  const doctor = await findAuthenticatedDoctor(userIdInput);
+
+  const where = { id_medico: doctor.id_medico };
+  if (filters.estado && ['GENERADO', 'PENDIENTE_FIRMA', 'FIRMADO', 'ANULADO'].includes(filters.estado)) {
+    where.estado = filters.estado;
+  }
+
+  const consents = await prisma.consentimiento_informado.findMany({
+    where,
+    orderBy: { fecha_generacion: 'desc' },
+    select: consentSelect
+  });
+
+  return { consents: consents.map(toConsent) };
+}
+
 async function getConsentOptions(userIdInput) {
   const doctor = await findAuthenticatedDoctor(userIdInput);
   const [patients, appointments] = await Promise.all([
@@ -290,6 +315,7 @@ module.exports = {
   ConsentError,
   createConsent,
   getConsentById,
+  getConsentHistory,
   getConsentOptions,
   signConsent
 };

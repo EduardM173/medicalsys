@@ -1,33 +1,39 @@
 :root {
-  /* Marca */
-  --color-navy: #10294b;
-  --color-navy-dark: #0b203d;
+  /* Marca — Paleta corporativa HU-22 */
+  --color-navy: #0D0B61;       /* Azul Noche: sidebar, headers principales, textos destacados */
+  --color-navy-dark: #09074A;
+  --color-steel: #294669;      /* Azul Acero: tarjetas, cabeceras de tablas, estados secundarios */
+  --color-teal: #478B8D;       /* Verde Menta / Teal: botones CTA, bordes activos, badges positivos */
+  --color-teal-soft: #E3F0F0;
+  --color-gold: #E4D329;       /* Dorado: alertas, importes destacados, bordes de validación */
+  --color-gold-soft: #FBF9DE;
 
   /* Acciones */
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-blue-soft: #eaf2ff;
+  --color-primary: #478B8D;
+  --color-primary-hover: #3D7B7D;
+  --color-blue-soft: #E9EEF4;
 
   /* Superficies */
-  --color-background: #f6f8fc;
-  --color-surface: #ffffff;
+  --color-background: #F5F7FB;
+  --color-surface: #FFFFFF;
 
   /* Texto */
-  --color-text-primary: #16345c;
-  --color-text-secondary: #7182a1;
-  --color-text-muted: #94a3b8;
+  --color-text-primary: #10294B;
+  --color-text-secondary: #62718F;
+  --color-text-muted: #94A3B8;
 
   /* Bordes */
-  --color-border: #dce5f0;
+  --color-border: #DCE4EF;
 
   /* Estados */
-  --color-success: #00b878;
-  --color-success-soft: #e7f8f1;
-  --color-warning: #f5a623;
-  --color-warning-soft: #fff5db;
-  --color-danger: #ef4444;
-  --color-danger-soft: #feecec;
-  --color-info: #2784d9;
+  --color-success: #478B8D;
+  --color-success-soft: #E3F0F0;
+  --color-warning: #E4D329;
+  --color-warning-strong: #8A7600;
+  --color-warning-soft: #FBF9DE;
+  --color-danger: #EF4444;
+  --color-danger-soft: #FEEBEB;
+  --color-info: #294669;
 
   /* Tipografía */
   --font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -41,11 +47,30 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
+  /* Bordes de tarjetas y contenedores */
+  --color-border-card: rgb(41 70 105 / 12%);
+
   /* Formas y elevación */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
+  --radius-card: 16px;
   --input-height: 42px;
-  --shadow-card: 0 12px 32px rgb(16 41 75 / 8%);
-  --focus-ring: 0 0 0 3px rgb(37 99 235 / 10%);
+  --shadow-sm: 0 2px 8px rgb(13 11 97 / 6%);
+  --shadow-md: 0 8px 24px rgb(13 11 97 / 10%);
+  --shadow-lg: 0 16px 40px rgb(13 11 97 / 16%);
+  --shadow-card: 0 8px 24px rgb(13 11 97 / 10%);
+  --shadow-glow-teal: 0 0 20px rgb(71 139 141 / 35%);
+  --shadow-glow-gold: 0 0 20px rgb(228 211 41 / 35%);
+  --focus-ring: 0 0 0 3px rgb(71 139 141 / 18%);
+  --focus-ring-soft: 0 0 0 4px rgb(71 139 141 / 14%);
+
+  /* Degradados de marca */
+  --bg-gradient-primary: linear-gradient(135deg, #0D0B61 0%, #294669 100%);
+  --bg-gradient-accent: linear-gradient(135deg, #478B8D 0%, #294669 100%);
+  --bg-gradient-teal: linear-gradient(135deg, #5AA3A5 0%, #478B8D 55%, #3C7B7D 100%);
+
+  /* Movimiento */
+  --transition-smooth: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: all 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }

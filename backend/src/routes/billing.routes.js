@@ -6,6 +6,8 @@ const requireRole = require('../middleware/role.middleware');
 const router = Router();
 
 router.use(requireAuth, requireRole('RECEPCIONISTA', 'ADMINISTRADOR'));
+router.get('/summary', billingController.getSummary);
 router.post('/prepare', billingController.prepareInvoice);
+router.post('/:id/emit', billingController.emitInvoice);
 
 module.exports = router;

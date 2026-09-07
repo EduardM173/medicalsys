@@ -1,5 +1,6 @@
 const { Prisma } = require('@prisma/client');
 const prisma = require('../config/prisma');
+const SinFacturacionProvider = require('./sin/sin.service');
 
 const paymentMethods = ['EFECTIVO', 'QR', 'TARJETA', 'TRANSFERENCIA', 'OTRO'];
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -43,6 +44,35 @@ function optionalText(value, fieldName, maxLength) {
 
 function money(value) {
   return new Prisma.Decimal(value).toDecimalPlaces(2).toFixed(2);
+}
+
+async function ensureActiveClinicConfig() {
+  let configuration = await prisma.configuracion_clinica.findFirst({
+    where: { activa: true }
+  });
+  if (!configuration) {
+    configuration = await prisma.configuracion_clinica.create({
+      data: {
+        nombre_comercial: 'MedicalSys Centro Médico',
+        razon_social: 'MEDICALSYS S.R.L.',
+        nit: '1023942027',
+        direccion: 'Av. Arce Nro. 2300, La Paz',
+        telefono: '+591 2 244 0000',
+        email: 'facturacion@medicalsys.bo',
+        ciudad: 'La Paz',
+        pais: 'Bolivia',
+        activa: true
+      }
+    });
+  }
+  return configuration;
+}
+
+async function generateNumeroFactura(configuration) {
+  const count = await prisma.factura.count();
+  const anio = new Date().getFullYear();
+  const secuencia = String(count + 1).padStart(8, '0');
+  return `${configuration.nit} 0 0${configuration.id_configuracion}-${anio}${secuencia}`.slice(0, 60);
 }
 
 async function prepareInvoice(input = {}) {
@@ -168,10 +198,53 @@ async function prepareInvoice(input = {}) {
     throw new BillingError(400, 'El método de pago no es válido.');
   }
 
+  const clinicConfig = await ensureActiveClinicConfig();
+  const numeroFactura = await generateNumeroFactura(clinicConfig);
+
+  const factura = await prisma.factura.create({
+    data: {
+      id_configuracion_clinica: clinicConfig.id_configuracion,
+      id_paciente: patientId,
+      id_cita: appointment ? appointment.id_cita : null,
+      numero_factura: numeroFactura,
+      nit_ci: document,
+      complemento: complement,
+      razon_social: businessName,
+      email_receptor: email,
+      metodo_pago: input.metodoPago,
+      subtotal: money(subtotal),
+      total: money(subtotal),
+      estado: 'BORRADOR',
+      sin_estado: 'NO_ENVIADA',
+      detalle_factura: {
+        create: concepts.map((concept) => ({
+          id_servicio: BigInt(concept.servicioId),
+          descripcion: concept.descripcion,
+          cantidad: concept.cantidad,
+          precio_unitario: concept.precioUnitario,
+          subtotal: concept.subtotal
+        }))
+      }
+    },
+    select: { id_factura: true, numero_factura: true }
+  });
+
   return {
-    estrategia: 'VISTA_PREVIA_VALIDADA',
-    persistida: false,
-    estado: 'PREPARACION',
+    estrategia: 'PREPARADA_Y_PERSISTIDA',
+    persistida: true,
+    id: Number(factura.id_factura),
+    numeroFactura: factura.numero_factura,
+    estado: 'BORRADOR',
+    configuracion: {
+      nombreComercial: clinicConfig.nombre_comercial,
+      razonSocial: clinicConfig.razon_social,
+      nit: clinicConfig.nit,
+      direccion: clinicConfig.direccion,
+      telefono: clinicConfig.telefono,
+      email: clinicConfig.email,
+      ciudad: clinicConfig.ciudad,
+      pais: clinicConfig.pais
+    },
     paciente: {
       id: Number(patient.id_paciente),
       nombre: `${patient.nombres} ${patient.apellidos}`.trim(),
@@ -201,8 +274,152 @@ async function prepareInvoice(input = {}) {
     conceptos: concepts,
     subtotal: money(subtotal),
     total: money(subtotal),
-    advertencia: 'Vista previa no emitida. No reserva número de factura ni realiza operaciones con el SIN.'
+    advertencia: 'Factura preparada como borrador. Aún no contacta al SIN ni reserva una autorización definitiva.'
   };
 }
 
-module.exports = { BillingError, paymentMethods, prepareInvoice };
+async function emitirFacturaComputarizada(idFactura, userId) {
+  const facturaId = parseId(idFactura, 'factura');
+
+  const factura = await prisma.factura.findUnique({
+    where: { id_factura: facturaId },
+    include: {
+      detalle_factura: {
+        include: {
+          servicio_medico: { select: { id_servicio: true, codigo: true, nombre: true } }
+        }
+      },
+      configuracion_clinica: true,
+      paciente: {
+        select: {
+          id_paciente: true,
+          nombres: true,
+          apellidos: true,
+          documento_identidad: true,
+          complemento: true
+        }
+      },
+      usuario: { select: { nombres: true, apellidos: true } }
+    }
+  });
+
+  if (!factura) {
+    throw new BillingError(404, 'Factura no encontrada.');
+  }
+
+  // MED-189/MED-196: idempotencia de emisión.
+  if (factura.estado === 'EMITIDA') {
+    throw new BillingError(400, 'La factura ya fue emitida; no se permite una segunda emisión.');
+  }
+  if (factura.estado === 'ANULADA') {
+    throw new BillingError(400, 'La factura está anulada y no puede emitirse.');
+  }
+
+  // MED-191: validación de datos del receptor y de ítems antes de emitir.
+  if (!factura.razon_social || !factura.nit_ci) {
+    throw new BillingError(400, 'La factura debe contar con receptor (NIT/CI y razón social) para ser emitida.');
+  }
+  if (!factura.detalle_factura || factura.detalle_factura.length === 0) {
+    throw new BillingError(400, 'La factura debe contener al menos un ítem detallado para ser emitida.');
+  }
+
+  // MED-188: el adaptador SIN genera CUF, cadena QR y timestamp de emisión.
+  const resultado = await SinFacturacionProvider.emitir({
+    factura,
+    configuracion: factura.configuracion_clinica
+  });
+  if (!resultado.success) {
+    throw new BillingError(502, resultado.errorMessage || 'El SIN rechazó la factura.');
+  }
+
+  const fechaEmision = resultado.fechaEmision || new Date();
+
+  const emitida = await prisma.factura.update({
+    where: { id_factura: facturaId },
+    data: {
+      estado: 'EMITIDA',
+      sin_estado: resultado.sinEstado,
+      cuf: resultado.cuf,
+      qr_payload: resultado.qrPayload,
+      codigo_autorizacion: resultado.codigoAutorizacion,
+      sin_referencia: resultado.sinReferencia,
+      fecha_emision: fechaEmision,
+      emitida_por: userId ? BigInt(userId) : null
+    },
+    include: {
+      detalle_factura: {
+        include: {
+          servicio_medico: { select: { id_servicio: true, codigo: true, nombre: true } }
+        }
+      },
+      configuracion_clinica: true,
+      paciente: {
+        select: {
+          id_paciente: true,
+          nombres: true,
+          apellidos: true,
+          documento_identidad: true,
+          complemento: true
+        }
+      }
+    }
+  });
+
+  const configuracion = emitida.configuracion_clinica;
+  return {
+    id: Number(emitida.id_factura),
+    numeroFactura: emitida.numero_factura,
+    estado: emitida.estado,
+    sinEstado: emitida.sin_estado,
+    cuf: emitida.cuf,
+    qrPayload: emitida.qr_payload,
+    codigoAutorizacion: emitida.codigo_autorizacion,
+    sinReferencia: emitida.sin_referencia,
+    fechaEmision: emitida.fecha_emision.toISOString(),
+    metodoPago: emitida.metodo_pago,
+    subtotal: money(emitida.subtotal),
+    total: money(emitida.total),
+    emitidaPor: {
+      nombre: `${factura.usuario?.nombres || ''} ${factura.usuario?.apellidos || ''}`.trim() || null
+    },
+    configuracion: {
+      nombreComercial: configuracion.nombre_comercial,
+      razonSocial: configuracion.razon_social,
+      nit: configuracion.nit,
+      direccion: configuracion.direccion,
+      telefono: configuracion.telefono,
+      email: configuracion.email,
+      ciudad: configuracion.ciudad,
+      pais: configuracion.pais
+    },
+    receptor: {
+      nitCi: emitida.nit_ci,
+      complemento: emitida.complemento,
+      razonSocial: emitida.razon_social,
+      email: emitida.email_receptor
+    },
+    conceptos: emitida.detalle_factura.map((item) => ({
+      servicioId: Number(item.id_servicio),
+      codigo: item.servicio_medico?.codigo || '',
+      descripcion: item.descripcion,
+      cantidad: item.cantidad,
+      precioUnitario: money(item.precio_unitario),
+      subtotal: money(item.subtotal)
+    }))
+  };
+}
+
+async function getBillingSummary() {
+  const now = new Date();
+  const laPazStartOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 4, 0, 0));
+  const [total, pending, emittedToday] = await Promise.all([
+    prisma.factura.count(),
+    prisma.factura.count({ where: { estado: 'BORRADOR' } }),
+    prisma.factura.count({
+      where: { estado: 'EMITIDA', fecha_emision: { gte: laPazStartOfDay } }
+    })
+  ]);
+  return { summary: { total, pending, emittedToday } };
+}
+
+module.exports = { BillingError, getBillingSummary, paymentMethods, prepareInvoice, emitirFacturaComputarizada };

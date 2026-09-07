@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { SignatureCanvas } from '../components/SignatureCanvas';
+import { HashBox } from '../components/HashBox';
 import { getConsent, signConsent } from '../services/api';
 import '../styles/consents.css';
 
@@ -102,7 +103,10 @@ export function ConsentDetailPage() {
           <h1>{consent.folio}</h1>
           <p>Documento generado y registrado en MedicalSys</p>
         </div>
-        <Button onClick={() => navigate('/consentimientos/nuevo')}>+ Nuevo consentimiento</Button>
+        <div className="consent-header-actions">
+          <Button onClick={() => navigate('/consentimientos')} type="button" variant="ghost">← Historial</Button>
+          <Button onClick={() => navigate('/consentimientos/nuevo')}>+ Nuevo consentimiento</Button>
+        </div>
       </header>
 
       <section className="consent-detail-card">
@@ -147,7 +151,7 @@ export function ConsentDetailPage() {
                 </div>
                 <div>
                   <dt>Huella criptográfica SHA-256</dt>
-                  <dd><code className="signature-hash">{consent.signatureHash || '—'}</code></dd>
+                  <dd>{consent.signatureHash ? <HashBox hash={consent.signatureHash} /> : '—'}</dd>
                 </div>
               </dl>
             </div>

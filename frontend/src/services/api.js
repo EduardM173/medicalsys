@@ -48,6 +48,13 @@ export function loginRequest(credentials) {
   });
 }
 
+export function forgotPasswordRequest(email) {
+  return request('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  });
+}
+
 export function getMe() {
   return request('/auth/me');
 }
@@ -153,6 +160,10 @@ export function getConsent(id) {
   return request(`/consents/${id}`);
 }
 
+export function getConsents() {
+  return request('/consents');
+}
+
 export function signConsent(consentId, signatureData) {
   return request(`/consents/${consentId}/sign`, {
     method: 'POST',
@@ -206,11 +217,23 @@ export function updateAppointment(id, changes) {
   return request(`/appointments/${id}`, { method: 'PATCH', body: JSON.stringify(changes) });
 }
 
-// HU-21: obtiene una vista previa validada; no crea ni emite una factura.
+// HU-21: valida y persiste la factura como borrador (BORRADOR); no la emite.
 export function prepareBilling(data) {
   return request('/billing/prepare', {
     method: 'POST',
     body: JSON.stringify(data)
+  });
+}
+
+// KPIs de facturación: total registradas, pendientes de emisión y emitidas hoy.
+export function getBillingSummary() {
+  return request('/billing/summary');
+}
+
+// HU-22: emite una factura computarizada previamente preparada (BORRADOR).
+export function emitBilling(id) {
+  return request(`/billing/${id}/emit`, {
+    method: 'POST'
   });
 }
 

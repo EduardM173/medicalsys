@@ -1,0 +1,207 @@
+/* ════════════════════════════════════════════════════════════════════
+   Diseño SaaS de datos: tablas, badges translúcidos y huellas SHA-256
+   Paleta oficial · #0D0B61 · #294669 · #478B8D · #E4D329
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── Encabezado de tablas · Azul Acero con texto blanco ── */
+table:not(.ticket-items) thead th {
+  background: var(--color-steel) !important;
+  color: #FFFFFF !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  text-transform: uppercase;
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* ── Cuerpo de tabla · zebra sutil ── */
+table:not(.ticket-items) tbody tr:nth-child(even) {
+  background-color: rgba(41, 70, 105, 0.02);
+}
+
+/* ── Filas interactivas · hover con borde teal ── */
+table:not(.ticket-items) tbody tr:hover {
+  background-color: rgba(71, 139, 141, 0.06);
+}
+
+table:not(.ticket-items) tbody tr:hover td:first-child,
+table:not(.ticket-items) tbody tr:hover th:first-child {
+  box-shadow: inset 3px 0 0 var(--color-teal);
+}
+
+/* ── Separadores finos ── */
+table:not(.ticket-items) th,
+table:not(.ticket-items) td {
+  border-bottom: 1px solid rgba(41, 70, 105, 0.1);
+}
+
+/* ── Contenedor de datos flotante (card depth) ── */
+.table-wrapper,
+.billing-table-wrap,
+.consent-history-table-wrap,
+.whatsapp-table-wrapper {
+  background: var(--color-surface);
+  border: 1px solid rgba(41, 70, 105, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px -5px rgba(13, 11, 97, 0.08), 0 4px 6px -2px rgba(13, 11, 97, 0.03);
+}
+
+.billing-table-wrap .billing-table th,
+.consent-history-table-wrap .consent-history-table th {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Pill badges translúcidas · Estados de plataforma
+   ════════════════════════════════════════════════════════════════════ */
+
+.status-badge,
+.role-badge,
+.appointment-status,
+.agenda-status,
+.whatsapp-status,
+.consent-status,
+.billing-status,
+.reservation-status-tag,
+.room-type-badge,
+.document-type-badge,
+.whatsapp-result {
+  display: inline-block;
+  padding: 4px 11px !important;
+  font-size: 0.75rem !important;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border: 1px solid transparent !important;
+  border-radius: 9999px !important;
+}
+
+/* Firmado / Emitido / Completado · Teal translúcido */
+.status-firmado,
+.consent-status.status-firmado,
+.ch-status-firmado,
+.status-completada,
+.status-confirmada,
+.billing-status-emitida,
+.reservation-status-tag.finalizada,
+.whatsapp-result-success {
+  color: var(--color-teal) !important;
+  background: rgba(71, 139, 141, 0.15) !important;
+  border-color: rgba(71, 139, 141, 0.3) !important;
+}
+
+/* Pendiente / Generado · Dorado translúcido con punto parpadeante */
+.status-generado,
+.ch-status-generado,
+.status-pendiente_firma,
+.ch-status-pendiente-firma,
+.status-programada,
+.status-en_consulta,
+.reservation-status-tag.activa,
+.whatsapp-result-pending {
+  color: var(--color-navy) !important;
+  background: rgba(228, 211, 41, 0.18) !important;
+  border-color: rgba(228, 211, 41, 0.5) !important;
+}
+
+.status-generado,
+.ch-status-generado,
+.billing-status:not(.billing-status-emitida),
+.status-programada {
+  position: relative;
+  padding-left: 26px;
+}
+
+.status-generado::before,
+.ch-status-generado::before,
+.billing-status:not(.billing-status-emitida)::before,
+.status-programada::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 11px;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  background: var(--color-gold);
+  border-radius: 50%;
+  animation: pillBlink 1.6s ease-in-out infinite;
+}
+
+@keyframes pillBlink {
+  0% { box-shadow: 0 0 0 0 rgba(228, 211, 41, 0.6); }
+  70% { box-shadow: 0 0 0 6px rgba(228, 211, 41, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(228, 211, 41, 0); }
+}
+
+/* Anulado / Cancelado / Errores · Rojo translúcido */
+.status-anulado,
+.ch-status-anulado,
+.status-cancelada,
+.status-inactivo,
+.status-suspendido,
+.reservation-status-tag.cancelada,
+.whatsapp-result-error,
+.whatsapp-result-duplicate {
+  color: var(--color-danger) !important;
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Visor de huella criptográfica SHA-256 / CUF
+   ════════════════════════════════════════════════════════════════════ */
+
+.hash-box {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.hash-box code {
+  display: block;
+  max-width: 230px;
+  padding: 6px 42px 6px 10px;
+  color: #294669;
+  font-family: "Fira Code", "Cascadia Code", Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: #f1f5f9;
+  border: 1px solid rgba(41, 70, 105, 0.15);
+  border-radius: 6px;
+}
+
+.hash-copy {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  padding: 3px 9px;
+  color: var(--color-steel);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: var(--color-surface);
+  border: 1px solid rgba(41, 70, 105, 0.2);
+  border-radius: 5px;
+  cursor: pointer;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: var(--transition-smooth);
+}
+
+.hash-box:hover .hash-copy,
+.hash-copy:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hash-copy:hover {
+  color: var(--color-teal);
+  border-color: var(--color-teal);
+  box-shadow: var(--shadow-glow-teal);
+}
