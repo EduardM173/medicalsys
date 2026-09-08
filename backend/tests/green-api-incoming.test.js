@@ -2,7 +2,7 @@ const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 
 const patient = { id_paciente: 8n };
-const outbound = { id_notificacion: 50n, id_cita: 11n };
+const outbound = { id_notificacion: 50n, id_cita: 11n, tipo: 'RECORDATORIO_CITA' };
 const created = [];
 const appointmentUpdates = [];
 const notificationUpdates = [];
@@ -23,7 +23,7 @@ const db = {
       if (where.proveedor_referencia?.startsWith('GREENAPI-IN:')) {
         return alreadySeen ? { id_notificacion: 99n } : null;
       }
-      return where.tipo === 'CONFIRMACION_CITA' ? outbound : null;
+      return where.tipo?.in?.includes('RECORDATORIO_CITA') ? outbound : null;
     },
     create: async ({ data }) => { created.push(data); return data; },
     update: async (args) => { notificationUpdates.push(args); return args.data; }

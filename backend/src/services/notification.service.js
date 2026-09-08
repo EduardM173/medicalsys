@@ -247,10 +247,10 @@ function quotedProviderReference(payload) {
     || null;
 }
 
-async function findPendingConfirmationForPatient(patientId, providerReference) {
+async function findPendingNotificationForPatient(patientId, providerReference) {
   const baseWhere = {
     id_paciente: patientId,
-    tipo: 'CONFIRMACION_CITA',
+    tipo: { in: ['CONFIRMACION_CITA', 'RECORDATORIO_CITA'] },
     direccion: 'SALIENTE',
     estado: { in: ['ENVIADA', 'ENTREGADA', 'LEIDA'] },
     cita: {
@@ -268,8 +268,9 @@ async function findPendingConfirmationForPatient(patientId, providerReference) {
     if (quoted) return quoted;
   }
 
-  // Si el usuario responde sin citar el mensaje, se elige la confirmación
-  // pendiente más reciente de ese paciente. Solo se usa para citas futuras.
+  // Si el usuario responde sin citar el mensaje, se elige la confirmación o
+  // recordatorio pendiente más reciente de ese paciente. Solo se usa para
+  // citas futuras.
   return prisma.notificacion.findFirst({
     where: baseWhere,
     orderBy: { fecha_creacion: 'desc' },
@@ -311,7 +312,7 @@ async function processGreenApiIncomingNotification(payload) {
 
   const patient = patients[0];
   const confirmation = isPositiveConfirmation(text)
-    ? await findPendingConfirmationForPatient(patient.id_paciente, quotedProviderReference(payload))
+    ? await findPendingNotificationForPatient(patient.id_paciente, quotedProviderReference(payload))
     : null;
   const receivedAt = Number.isFinite(Number(payload.timestamp))
     ? new Date(Number(payload.timestamp) * 1000)

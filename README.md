@@ -300,7 +300,7 @@ GREENAPI_API_TOKEN_INSTANCE=su_token_secreto
 
 En la consola de Green API deje `webhookUrl` vacío y active **incomingWebhook**. Al iniciar el backend, MedicalSys consulta la cola HTTP de Green API cada pocos segundos; por tanto no necesita exponer el computador con ngrok durante el desarrollo. Green API entrega los eventos de la cola en orden y exige eliminarlos después de procesarlos.
 
-Cuando un paciente con número registrado responda exactamente `SI` o `SÍ` a una confirmación, MedicalSys registra el mensaje entrante y cambia a `CONFIRMADA` únicamente su confirmación futura pendiente más reciente. Una respuesta en un grupo, de un número no asociado a un único paciente, repetida o diferente de `SI` no modifica ninguna cita. Si se responde citando el mensaje original, se prioriza esa confirmación concreta.
+Cuando un paciente con número registrado responda exactamente `SI` o `SÍ` a una confirmación o recordatorio, MedicalSys registra el mensaje entrante y cambia a `CONFIRMADA` únicamente la cita futura pendiente más reciente. Una respuesta en un grupo, de un número no asociado a un único paciente, repetida o diferente de `SI` no modifica ninguna cita. Si se responde citando el mensaje original, se prioriza esa notificación concreta.
 
 ```powershell
 cd backend
