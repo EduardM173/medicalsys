@@ -403,3 +403,78 @@ export function getNotificationHistory({ patientId, appointmentId } = {}) {
   const query = params.toString();
   return request(`/notifications${query ? `?${query}` : ''}`);
 }
+
+// ==========================================
+// HU-27: Campañas y Promociones de Salud
+// ==========================================
+
+export function getCampaigns({ search, estado } = {}) {
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  if (estado) params.set('estado', estado);
+  const query = params.toString();
+  return request(`/campaigns${query ? `?${query}` : ''}`);
+}
+
+export function getCampaign(id) {
+  return request(`/campaigns/${id}`);
+}
+
+export function createCampaign(campaign) {
+  return request('/campaigns', {
+    method: 'POST',
+    body: JSON.stringify(campaign)
+  });
+}
+
+export function updateCampaign(id, campaign) {
+  return request(`/campaigns/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(campaign)
+  });
+}
+
+export function deleteCampaign(id) {
+  return request(`/campaigns/${id}`, {
+    method: 'DELETE'
+  });
+}
+
+// ==========================================
+// HU-28: Fidelización de Pacientes
+// ==========================================
+
+export function getLoyaltyPatients({ search, estado, nivel, soloMiembros } = {}) {
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  if (estado) params.set('estado', estado);
+  if (nivel) params.set('nivel', nivel);
+  if (soloMiembros) params.set('soloMiembros', 'true');
+  const query = params.toString();
+  return request(`/loyalty/patients${query ? `?${query}` : ''}`);
+}
+
+export function getLoyaltyStats() {
+  return request('/loyalty/stats');
+}
+
+export function enrollLoyaltyPatient(data) {
+  return request('/loyalty/enroll', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export function updateLoyaltyPatient(patientId, data) {
+  return request(`/loyalty/patients/${patientId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  });
+}
+
+export function removeLoyaltyPatient(patientId) {
+  return request(`/loyalty/patients/${patientId}`, {
+    method: 'DELETE'
+  });
+}
+

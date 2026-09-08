@@ -23,6 +23,8 @@ import { UsersPage } from './pages/UsersPage';
 import { WhatsAppNotificationsPage } from './pages/WhatsAppNotificationsPage';
 import { NotificationHistoryPage } from './pages/NotificationHistoryPage';
 import { SecurityPage } from './pages/SecurityPage';
+import { CampaignsPage } from './pages/CampaignsPage';
+import { LoyaltyPage } from './pages/LoyaltyPage';
 
 function App() {
   return <BrowserRouter><AuthProvider><Routes>
@@ -49,6 +51,8 @@ function App() {
       <Route element={<AuthorizedRoute permission="users.manage" />}><Route path="/admin/usuarios" element={<UsersPage />} /></Route>
       <Route element={<AuthorizedRoute permission="schedules.write" />}><Route path="/admin/horarios-medicos" element={<SchedulesPage />} /></Route>
       <Route element={<AuthorizedRoute permission="security.manage" />}><Route path="/admin/seguridad" element={<SecurityPage />} /></Route>
+      <Route element={<AuthorizedRoute permission="campaigns.manage" />}><Route path="/campanias" element={<CampaignsPage />} /></Route>
+      <Route element={<AuthorizedRoute permission="loyalty.manage" />}><Route path="/fidelizacion" element={<LoyaltyPage />} /></Route>
     </Route></Route>
     <Route path="*" element={<Navigate replace to="/dashboard" />} />
   </Routes></AuthProvider></BrowserRouter>;
