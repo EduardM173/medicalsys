@@ -68,6 +68,41 @@ class GreenApiWhatsappProvider {
 
     return { success: true, providerReference: data.idMessage || null };
   }
+
+  async receiveNotification() {
+    if (!this.isConfigured()) return null;
+
+    const url = `${this.apiUrl}/waInstance${this.idInstance}/receiveNotification/${this.apiTokenInstance}?receiveTimeout=5`;
+    let response;
+    try {
+      response = await fetch(url);
+    } catch (_error) {
+      throw new Error('No fue posible consultar mensajes entrantes en Green API.');
+    }
+
+    // Una cola vacía puede devolver una respuesta sin JSON. No es un error.
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(data?.message || 'Green API rechazó la consulta de mensajes entrantes.');
+    }
+    return data?.receiptId && data?.body ? data : null;
+  }
+
+  async deleteNotification(receiptId) {
+    if (!this.isConfigured() || !receiptId) return false;
+    const url = `${this.apiUrl}/waInstance${this.idInstance}/deleteNotification/${this.apiTokenInstance}/${receiptId}`;
+    let response;
+    try {
+      response = await fetch(url, { method: 'DELETE' });
+    } catch (_error) {
+      throw new Error('No fue posible confirmar el procesamiento del mensaje en Green API.');
+    }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.result !== true) {
+      throw new Error(data?.message || 'Green API no confirmó la eliminación del mensaje procesado.');
+    }
+    return true;
+  }
 }
 
 module.exports = GreenApiWhatsappProvider;

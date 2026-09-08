@@ -700,6 +700,96 @@ async function seedIssuedInvoices({ patientA, patientB, issuedBy }) {
   return [invoiceA, invoiceB];
 }
 
+async function createSeedNotification(data) {
+  const existing = await prisma.notificacion.findFirst({
+    where: { proveedor_referencia: data.proveedor_referencia }
+  });
+  if (existing) return existing;
+  return prisma.notificacion.create({ data });
+}
+
+function seedPhone(patient) {
+  const phone = String(patient.telefono || '').replace(/\D/g, '');
+  return phone.startsWith('591') ? `+${phone}` : `+591${phone}`;
+}
+
+async function seedNotificationHistory({ patientA, patientB, appointments, issuedBy }) {
+  const [appointmentA1, appointmentB1, appointmentA2] = appointments;
+  const phoneA = seedPhone(patientA);
+  const phoneB = seedPhone(patientB);
+  const base = {
+    usuario_emisor: issuedBy,
+    direccion: 'SALIENTE',
+    canal: 'WHATSAPP'
+  };
+  return Promise.all([
+    createSeedNotification({
+      ...base,
+      id_paciente: patientA.id_paciente,
+      id_cita: appointmentA1.id_cita,
+      tipo: 'CONFIRMACION_CITA',
+      telefono_destino: phoneA,
+      mensaje: 'Confirmación de cita entregada para prueba HU-26.',
+      fecha_envio: new Date('2026-09-01T13:00:00.000Z'),
+      fecha_entrega: new Date('2026-09-01T13:01:00.000Z'),
+      estado: 'ENTREGADA',
+      proveedor_referencia: 'SEED-HU26-A1-CONF',
+      fecha_creacion: new Date('2026-09-01T13:00:00.000Z')
+    }),
+    createSeedNotification({
+      ...base,
+      id_paciente: patientA.id_paciente,
+      id_cita: appointmentA1.id_cita,
+      tipo: 'RECORDATORIO_CITA',
+      telefono_destino: phoneA,
+      mensaje: 'Recordatorio de cita leído para prueba HU-26.',
+      fecha_envio: new Date('2026-09-01T14:00:00.000Z'),
+      fecha_entrega: new Date('2026-09-01T14:01:00.000Z'),
+      fecha_lectura: new Date('2026-09-01T14:05:00.000Z'),
+      estado: 'LEIDA',
+      proveedor_referencia: 'SEED-HU26-A1-REM',
+      fecha_creacion: new Date('2026-09-01T14:00:00.000Z')
+    }),
+    createSeedNotification({
+      ...base,
+      id_paciente: patientA.id_paciente,
+      id_cita: appointmentA1.id_cita,
+      tipo: 'RECORDATORIO_CITA',
+      telefono_destino: phoneA,
+      mensaje: 'Intento de recordatorio fallido para prueba HU-26.',
+      fecha_programada: new Date('2026-09-01T15:00:00.000Z'),
+      estado: 'FALLIDA',
+      proveedor_referencia: 'SEED-HU26-A1-FAIL',
+      fecha_creacion: new Date('2026-09-01T15:00:00.000Z')
+    }),
+    createSeedNotification({
+      ...base,
+      id_paciente: patientA.id_paciente,
+      id_cita: appointmentA2.id_cita,
+      tipo: 'CONFIRMACION_CITA',
+      telefono_destino: phoneA,
+      mensaje: 'Confirmación enviada para la segunda cita de prueba HU-26.',
+      fecha_envio: new Date('2026-08-31T16:00:00.000Z'),
+      estado: 'ENVIADA',
+      proveedor_referencia: 'SEED-HU26-A2-CONF',
+      fecha_creacion: new Date('2026-08-31T16:00:00.000Z')
+    }),
+    createSeedNotification({
+      ...base,
+      id_paciente: patientB.id_paciente,
+      id_cita: appointmentB1.id_cita,
+      tipo: 'CONFIRMACION_CITA',
+      telefono_destino: phoneB,
+      mensaje: 'Confirmación entregada al segundo paciente para prueba HU-26.',
+      fecha_envio: new Date('2026-09-01T13:30:00.000Z'),
+      fecha_entrega: new Date('2026-09-01T13:31:00.000Z'),
+      estado: 'ENTREGADA',
+      proveedor_referencia: 'SEED-HU26-B1-CONF',
+      fecha_creacion: new Date('2026-09-01T13:30:00.000Z')
+    })
+  ]);
+}
+
 async function main() {
   await require('../scripts/setup-security')();
   await require('../scripts/seed-security')();
@@ -799,6 +889,13 @@ async function main() {
     issuedBy: receptionist.id_usuario
   });
 
+  const notificationHistory = await seedNotificationHistory({
+    patientA: clinicalData.patientWithHistory,
+    patientB: documentData.secondPatient,
+    appointments: agendaData.appointments,
+    issuedBy: receptionist.id_usuario
+  });
+
   await upsertRooms();
 
   console.log(
@@ -812,6 +909,7 @@ async function main() {
       + `horarios ${schedules.length}, citas ${agendaData.appointments.length} (${clinicDateText()} y ${clinicDateText(1)}), `
       + `consentimientos ${consents.map((consent) => `${consent.folio}=/consentimientos/${consent.id_consentimiento}`).join(', ')}.`
       + ` facturas HU-23 ${invoices.map((invoice) => invoice.numero_factura).join(', ')}.`
+      + ` notificaciones HU-26 ${notificationHistory.length}.`
   );
 }
 

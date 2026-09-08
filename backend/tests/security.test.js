@@ -53,7 +53,8 @@ const endpoints = [
   ['PATCH', '/api/schedules/1', 'schedules.write'], ['GET', '/api/services', 'services.read'],
   ['POST', '/api/billing/prepare', 'billing.prepare'],
   ['GET', '/api/billing/invoices', 'billing.read'],
-  ['GET', '/api/billing/invoices/1', 'billing.read']
+  ['GET', '/api/billing/invoices/1', 'billing.read'],
+  ['GET', '/api/notifications?patientId=1', 'notifications.manage']
 ];
 
 test('matriz por HTTP, revocación y sesiones vigentes', async () => {

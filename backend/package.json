@@ -8,6 +8,8 @@
     "security:seed": "node scripts/seed-security.js",
     "test:security": "node --test tests/security.test.js",
     "test:billing": "node --test tests/billing-query.test.js",
+    "test:notifications": "node --test tests/notification-history.test.js",
+    "test:whatsapp-incoming": "node --test tests/green-api-incoming.test.js",
     "security:setup": "node scripts/setup-security.js",
     "security:grant-notifications": "node scripts/grant-notifications-permission.js",
     "dev": "nodemon src/server.js",

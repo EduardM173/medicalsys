@@ -10,6 +10,7 @@ export const modules = [
   ['billing.read', '/facturacion', 'Consultar Facturas', 'Emitidas y resultado SIN', 'F'],
   ['billing.prepare', '/facturacion/preparar', 'Preparar Factura', 'Receptor, conceptos y total', 'F'],
   ['notifications.manage', '/whatsapp', 'WhatsApp de Citas', 'Confirmaciones y recordatorios', 'W'],
+  ['notifications.manage', '/notificaciones', 'Historial Notificaciones', 'Resultados por paciente y cita', 'N'],
   ['agenda.read', '/agenda', 'Agenda Médica', 'Mis citas programadas', 'A'],
   ['consents.manage', '/consentimientos', 'Consentimientos', 'Historial, generación y firma', 'C'],
   ['patients.read', '/pacientes', 'Pacientes', 'Registro y consulta', 'P'],
