@@ -1,6 +1,6 @@
 const roles = ['ADMINISTRADOR', 'OSI', 'MEDICO', 'RECEPCIONISTA', 'PACIENTE'];
 const defaultAssignments = {
-  ADMINISTRADOR: ['users.manage', 'security.manage', 'patients.read', 'patients.write', 'history.read', 'attention.write', 'documents.read', 'documents.write', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'doctors.write', 'schedules.read', 'schedules.write', 'services.read', 'billing.read', 'billing.prepare', 'notifications.manage'],
+  ADMINISTRADOR: ['users.manage', 'security.manage', 'patients.read', 'patients.write', 'history.read', 'attention.write', 'documents.read', 'documents.write', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'doctors.write', 'schedules.read', 'schedules.write', 'services.read', 'billing.read', 'billing.prepare', 'notifications.manage', 'campaigns.manage', 'loyalty.manage'],
   OSI: ['users.manage', 'security.manage'],
   MEDICO: ['patients.read', 'history.read', 'attention.write', 'documents.read', 'documents.write', 'agenda.read', 'consents.manage', 'rooms.read', 'schedules.read'],
   RECEPCIONISTA: ['patients.read', 'patients.write', 'documents.read', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'schedules.read', 'services.read', 'billing.read', 'billing.prepare', 'notifications.manage'],
@@ -27,7 +27,9 @@ const catalog = [
   ['services.read', 'Consultar catálogo de servicios', []],
   ['billing.read', 'Consultar facturas emitidas', ['patients.read']],
   ['billing.prepare', 'Preparar factura', ['patients.read', 'services.read', 'appointments.manage']],
-  ['notifications.manage', 'Enviar confirmaciones y recordatorios de citas por WhatsApp', ['appointments.manage']]
+  ['notifications.manage', 'Enviar confirmaciones y recordatorios de citas por WhatsApp', ['appointments.manage']],
+  ['campaigns.manage', 'Crear y gestionar campañas y promociones de salud', []],
+  ['loyalty.manage', 'Gestionar fidelización de pacientes', ['patients.read']]
 ].map(([code, label, requires]) => ({ code, label, requires }));
 function defaults(role) { return [...(defaultAssignments[role] || [])]; }
 function permissionForRequest(request) {
@@ -49,6 +51,8 @@ function permissionForRequest(request) {
   if (read && /^\/api\/billing\/invoices(?:\/[^/]+)?$/.test(path)) return 'billing.read';
   if (/^\/api\/billing(?:\/|$)/.test(path)) return 'billing.prepare';
   if (/^\/api\/notifications(?:\/|$)/.test(path)) return 'notifications.manage';
+  if (/^\/api\/campaigns(?:\/|$)/.test(path)) return 'campaigns.manage';
+  if (/^\/api\/loyalty(?:\/|$)/.test(path)) return 'loyalty.manage';
   return null;
 }
 module.exports = { roles, catalog, defaults, permissionForRequest };
