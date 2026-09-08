@@ -171,6 +171,10 @@ Inicie sesión como administrador y pruebe:
 | Horarios médicos | `/admin/horarios-medicos` | Seleccionar médico, agregar horarios, editar y habilitar/deshabilitar disponibilidad. |
 | Gestión de pacientes | `/pacientes` | Buscar, registrar, consultar y editar pacientes. |
 | Agenda de citas | `/citas` | Reservar una cita (paciente, médico, servicio, fecha/hora) y consultar las citas del día. Disponible para Administrador y Recepcionista. |
+| HU-21 Preparar factura | `/facturacion/preparar` | Seleccionar paciente y cita opcional, agregar servicios reales, ajustar cantidades y validar la vista previa. No crea ni emite una factura y está disponible para Administrador y Recepcionista. |
+| HU-23 Consultar facturas | `/facturacion` | Buscar facturas emitidas por número o receptor y filtrar por paciente o fecha; abra una fila para comprobar sus conceptos, importes y estado SIN. Disponible para Administrador y Recepcionista. |
+| HU-26 Historial de notificaciones | `/notificaciones` | Seleccionar el paciente `4892104`, consultar sus cuatro registros y filtrar por una cita. Incluye confirmaciones, recordatorios y un intento fallido. |
+| WhatsApp de citas | `/whatsapp` | Enviar confirmaciones y recordatorios. Cuando Green API está configurada, una respuesta `SI` del paciente confirma su cita pendiente. |
 
 Inicie sesión con `medico@medicalsys.test` para probar los módulos clínicos:
 
@@ -219,6 +223,11 @@ GET  /api/services
 POST /api/appointments
 GET  /api/appointments?fecha=YYYY-MM-DD&medicoId=&pacienteId=&estado=
 GET  /api/appointments/:id
+
+GET  /api/billing/invoices?search=&patientId=&date=YYYY-MM-DD
+GET  /api/billing/invoices/:id
+
+GET  /api/notifications?patientId=ID&appointmentId=ID_OPCIONAL
 ```
 
 Los endpoints de usuarios y horarios requieren sesión con rol `ADMINISTRADOR`. La creación y edición de médicos también requiere `ADMINISTRADOR`, pero la consulta (`GET /api/doctors`) está disponible además para `RECEPCIONISTA`, ya que la necesita para reservar citas. Los endpoints de citas y de servicios (`/api/appointments`, `/api/services`) requieren `RECEPCIONISTA` o `ADMINISTRADOR`. Sin sesión responden `401`; un rol sin permiso recibe `403` en esas operaciones.
@@ -254,6 +263,50 @@ Compruebe que el backend siga ejecutándose en el puerto 3000, que `backend/.env
 
 Revise que el servicio PostgreSQL esté iniciado, que exista la base `medicalsys` y que el usuario, contraseña y puerto de `DATABASE_URL` sean correctos.
 
+### HU-23: Consultar una factura emitida
+
+Ejecute `npm run prisma:seed` desde `backend`. El seed crea de forma idempotente las facturas simuladas `TEST-FACT-HU23-001` y `TEST-FACT-HU23-002`, con pacientes y conceptos diferentes. Inicie sesión como Administrador o Recepcionista y abra `/facturacion`.
+
+La consulta muestra únicamente facturas con estado `EMITIDA`. Permite buscar por número o razón social y filtrar por paciente o fecha exacta. El detalle presenta los datos históricos persistidos del receptor, conceptos, cantidades, precios, subtotal, total, forma de pago y estado de integración SIN. La etiqueta `SIMULACIÓN` indica expresamente que los comprobantes de prueba no fueron aceptados por el SIN. El acceso de solo consulta usa el permiso independiente `billing.read`, configurable desde la matriz de Roles y Seguridad; preparar o emitir continúa requiriendo `billing.prepare`.
+
+Para ejecutar las pruebas específicas:
+
+```powershell
+cd backend
+npm run test:billing
+```
+
+### HU-26: Historial de notificaciones
+
+Ejecute `npm run prisma:seed` desde `backend` e inicie sesión con `recepcionista@medicalsys.test`. En `/notificaciones`, el paciente con CI `4892104` tiene cuatro registros distribuidos en dos citas; una de ellas incluye una confirmación entregada, un recordatorio leído y un recordatorio fallido. El paciente `6047331` permite comprobar el aislamiento y `5938217` el estado sin notificaciones. Los cinco fixtures usan referencias `SEED-HU26-*` y no se duplican al repetir la semilla.
+
+La consulta reutiliza `notifications.manage`, filtra en PostgreSQL por paciente y cita, devuelve solo `CONFIRMACION_CITA` y `RECORDATORIO_CITA`, y ordena por `fecha_creacion` descendente. No envía, reenvía, edita ni elimina notificaciones.
+
+```powershell
+cd backend
+npm run test:notifications
+```
+
+### Respuestas automáticas por WhatsApp (Green API)
+
+Para pruebas locales, configure las credenciales de su instancia autorizada solo en `backend/.env`:
+
+```env
+WHATSAPP_PROVIDER=GREEN_API
+GREENAPI_API_URL=https://xxxx.api.greenapi.com
+GREENAPI_ID_INSTANCE=su_id_de_instancia
+GREENAPI_API_TOKEN_INSTANCE=su_token_secreto
+```
+
+En la consola de Green API deje `webhookUrl` vacío y active **incomingWebhook**. Al iniciar el backend, MedicalSys consulta la cola HTTP de Green API cada pocos segundos; por tanto no necesita exponer el computador con ngrok durante el desarrollo. Green API entrega los eventos de la cola en orden y exige eliminarlos después de procesarlos.
+
+Cuando un paciente con número registrado responda exactamente `SI` o `SÍ` a una confirmación o recordatorio, MedicalSys registra el mensaje entrante y cambia a `CONFIRMADA` únicamente la cita futura pendiente más reciente. Una respuesta en un grupo, de un número no asociado a un único paciente, repetida o diferente de `SI` no modifica ninguna cita. Si se responde citando el mensaje original, se prioriza esa notificación concreta.
+
+```powershell
+cd backend
+npm run test:whatsapp-incoming
+```
+
 ## Arquitectura
 
 ```text
@@ -261,3 +314,44 @@ React → Routes → Controllers → Services → Prisma → PostgreSQL
 ```
 
 Las rutas definen endpoints y middlewares, los controladores construyen respuestas HTTP y los servicios contienen validaciones y reglas de negocio. React solo consume la API; no consulta PostgreSQL directamente.
+
+## Hotfix: OSI, roles y mínimo privilegio
+
+Al instalar esta rama o actualizar desde una versión anterior, ejecute desde `backend`:
+
+```powershell
+npm run security:setup
+npm run security:seed
+```
+
+`security:setup` agrega de forma idempotente el rol OSI y las tablas `security_role_policy`, `security_user_grant` y `security_audit`. No borra datos ni cambia permisos guardados. Es obligatorio antes de iniciar esta versión del backend. Estas tablas se administran con el script SQL de seguridad; no requieren regenerar el cliente Prisma. No utilice `db push` para instalar este cambio.
+
+`security:seed` es opcional y exclusivo de desarrollo: crea `osi@medicalsys.test` con contraseña `MedicalSys2026!` únicamente si no existe. No restablece contraseñas, roles ni estados de cuentas existentes. El seed general también incluye este paso.
+
+Entre como OSI y abra **Roles y Seguridad** (`/admin/seguridad`):
+
+- Matriz dinámica de roles y permisos por función; todas las casillas son configurables.
+- Creación de roles personalizados, disponibles de inmediato al crear o editar usuarios.
+- Permisos temporales por usuario con vencimiento obligatorio, revocación y auditoría.
+- Dependencias verificadas: por ejemplo, reservar requiere consultar salas.
+- Auditoría de los últimos 100 cambios de usuarios y permisos realizados mediante la API, sin contraseñas.
+- OSI y Administrador pueden gestionar seguridad inicialmente; cualquier ampliación posterior queda registrada en auditoría.
+
+En **Gestión de Usuarios** hay búsqueda por nombre/correo y filtros por rol y estado. El rol de una cuenta nueva debe seleccionarse explícitamente. Se valida la confirmación de contraseña en la API. No se puede modificar el propio rol/estado; tampoco reasignar el rol de usuarios que ya tienen un perfil médico o de paciente vinculado. Un gestor sin permiso de seguridad no puede asignar ni modificar accesos superiores a los propios.
+
+La API consulta el rol, estado y permisos vigentes en cada petición; un JWT antiguo no conserva privilegios revocados. La interfaz actualiza la sesión al recuperar el foco, cada 30 segundos y al recibir un rechazo de acceso. Los módulos, rutas y acciones se ocultan según los permisos efectivos.
+
+Para salas/quirófanos, Médico conserva consulta pero no ve Nueva Reserva, Reservar, Cancelar ni el modal. Administrador y Recepcionista disponen de esas acciones mientras tengan `rooms.write`. OSI y Paciente no acceden a salas.
+
+El catálogo central está en `backend/src/security/permissions.js`. Los permisos iniciales conservan las responsabilidades funcionales existentes, pero OSI puede ampliar o revocar permisos desde la matriz. Para incorporar una nueva función, defina su permiso y su ruta en ese catálogo; las rutas protegidas sin permiso reconocido se rechazan.
+
+Comprobaciones reproducibles:
+
+```powershell
+# En backend
+npm run test:security
+# En frontend
+npm run build
+```
+
+La suite de seguridad prueba 33 rutas con los cinco roles usando una base simulada, además de revocación, suspensión, rol desactivado, dependencias, autoedición y escalamiento. La verificación local también incluyó login OSI contra PostgreSQL y revisión de la interfaz con OSI, Médico y Recepcionista.

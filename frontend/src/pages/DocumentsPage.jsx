@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { DocumentUploadModal } from '../components/DocumentUploadModal';
+import { can } from '../security/permissions';
 import { useAuth } from '../contexts/AuthContext';
 import { deleteClinicalDocument, getClinicalDocumentFile, getClinicalDocuments } from '../services/api';
 import '../styles/documents.css';
@@ -42,7 +43,7 @@ export function DocumentsPage() {
   const [error, setError] = useState('');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
 
-  const isDoctorOrAdmin = user?.rol === 'MEDICO' || user?.rol === 'ADMINISTRADOR';
+  const isDoctorOrAdmin = can(user, 'documents.write');
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
@@ -141,9 +142,9 @@ export function DocumentsPage() {
               + Adjuntar Documento
             </Button>
           )}
-          <Button variant="secondary" onClick={() => navigate(`/historial-clinico/${patientId}`)}>
+          {can(user, 'history.read') && <Button variant="secondary" onClick={() => navigate(`/historial-clinico/${patientId}`)}>
             Historial clínico
-          </Button>
+          </Button>}
           <Button variant="secondary" onClick={() => navigate('/pacientes')}>
             ← Volver
           </Button>
@@ -222,12 +223,12 @@ export function DocumentsPage() {
         )}
       </section>
 
-      <DocumentUploadModal
+      {isDoctorOrAdmin && <DocumentUploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
         patientId={patientId}
         onDocumentUploaded={loadDocuments}
-      />
+      />}
     </main>
   );
 }

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AttentionModal } from '../components/AttentionModal';
+import { useAuth } from '../contexts/AuthContext';
+import { can } from '../security/permissions';
 import { getMyAgenda } from '../services/api';
 import '../styles/agenda.css';
 
@@ -52,6 +54,7 @@ function changeDate(value, days) {
 }
 
 export function AgendaPage() {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDate, setSelectedDate] = useState(() => {
     const queryDate = searchParams.get('date');
@@ -179,7 +182,7 @@ export function AgendaPage() {
             {agenda.appointments.map((appointment) => {
               const cancelled = appointment.status === 'CANCELADA';
               const isCompleted = appointment.status === 'COMPLETADA';
-              const canAttend = !cancelled && !isCompleted;
+              const canAttend = can(user, 'attention.write') && !cancelled && !isCompleted;
 
               return (
                 <article className={`agenda-appointment${cancelled ? ' cancelled' : ''}`} key={appointment.id}>
@@ -211,7 +214,7 @@ export function AgendaPage() {
         ) : null}
       </section>
 
-      {activeAttentionModal && (
+      {can(user, 'attention.write') && activeAttentionModal && (
         <AttentionModal
           appointmentId={activeAttentionModal.appointmentId}
           initialData={activeAttentionModal.initialData}

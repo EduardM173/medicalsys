@@ -605,7 +605,293 @@ async function seedConsents({ doctorId, patientAId, patientBId, appointments }) 
   ]);
 }
 
+async function createIssuedTestInvoice({ number, configurationId, patientId, issuedBy, date, receiver, paymentMethod, items }) {
+  const existing = await prisma.factura.findUnique({ where: { numero_factura: number } });
+  if (existing) return existing;
+  const subtotal = items.reduce((sum, item) => sum + Number(item.subtotal), 0).toFixed(2);
+  return prisma.factura.create({
+    data: {
+      id_configuracion_clinica: configurationId,
+      id_paciente: patientId,
+      emitida_por: issuedBy,
+      numero_factura: number,
+      fecha_emision: date,
+      nit_ci: receiver.nitCi,
+      complemento: receiver.complemento || '',
+      razon_social: receiver.razonSocial,
+      email_receptor: receiver.email,
+      metodo_pago: paymentMethod,
+      subtotal,
+      total: subtotal,
+      estado: 'EMITIDA',
+      sin_estado: 'SIMULADA',
+      detalle_factura: {
+        create: items.map((item) => ({
+          id_servicio: item.serviceId,
+          descripcion: item.description,
+          cantidad: item.quantity,
+          precio_unitario: item.unitPrice,
+          subtotal: item.subtotal
+        }))
+      }
+    }
+  });
+}
+
+async function seedIssuedInvoices({ patientA, patientB, issuedBy }) {
+  const configuration = await prisma.configuracion_clinica.upsert({
+    where: { nit: '1023942027' },
+    update: {},
+    create: {
+      nombre_comercial: 'MedicalSys Centro Médico',
+      razon_social: 'MEDICALSYS S.R.L.',
+      nit: '1023942027',
+      direccion: 'Av. Arce Nro. 2300, La Paz',
+      telefono: '+591 2 244 0000',
+      email: 'facturacion@medicalsys.bo',
+      ciudad: 'La Paz',
+      pais: 'Bolivia',
+      activa: true
+    }
+  });
+  const invoiceServices = await prisma.servicio_medico.findMany({
+    where: { codigo: { in: ['CONS-ESP', 'ECO-PEL', 'CIR-GEN'] } },
+    select: { id_servicio: true, codigo: true }
+  });
+  const byCode = new Map(invoiceServices.map((service) => [service.codigo, service]));
+  if (!byCode.has('CONS-ESP') || !byCode.has('ECO-PEL') || !byCode.has('CIR-GEN')) {
+    throw new Error('No se encontraron los servicios requeridos para las facturas HU-23.');
+  }
+  const invoiceA = await createIssuedTestInvoice({
+    number: 'TEST-FACT-HU23-001',
+    configurationId: configuration.id_configuracion,
+    patientId: patientA.id_paciente,
+    issuedBy,
+    date: new Date('2026-09-05T14:30:00-04:00'),
+    receiver: {
+      nitCi: patientA.documento_identidad,
+      complemento: patientA.complemento,
+      razonSocial: 'Alejandro Morales Quiroga',
+      email: 'alejandro.facturacion@medicalsys.test'
+    },
+    paymentMethod: 'EFECTIVO',
+    items: [
+      { serviceId: byCode.get('CONS-ESP').id_servicio, description: 'Consulta Especializada', quantity: 1, unitPrice: '150.00', subtotal: '150.00' },
+      { serviceId: byCode.get('ECO-PEL').id_servicio, description: 'Chequeo Ecográfico Pélvico', quantity: 1, unitPrice: '120.00', subtotal: '120.00' }
+    ]
+  });
+  const invoiceB = await createIssuedTestInvoice({
+    number: 'TEST-FACT-HU23-002',
+    configurationId: configuration.id_configuracion,
+    patientId: patientB.id_paciente,
+    issuedBy,
+    date: new Date('2026-09-06T10:15:00-04:00'),
+    receiver: {
+      nitCi: patientB.documento_identidad,
+      complemento: patientB.complemento,
+      razonSocial: 'Camila Vargas Salazar',
+      email: 'camila.facturacion@medicalsys.test'
+    },
+    paymentMethod: 'QR',
+    items: [
+      { serviceId: byCode.get('CIR-GEN').id_servicio, description: 'Cirugía General', quantity: 1, unitPrice: '800.00', subtotal: '800.00' }
+    ]
+  });
+  return [invoiceA, invoiceB];
+}
+
+async function createSeedNotification(data) {
+  const existing = await prisma.notificacion.findFirst({
+    where: { proveedor_referencia: data.proveedor_referencia }
+  });
+  if (existing) return existing;
+  return prisma.notificacion.create({ data });
+}
+
+function seedPhone(patient) {
+  const phone = String(patient.telefono || '').replace(/\D/g, '');
+  return phone.startsWith('591') ? `+${phone}` : `+591${phone}`;
+}
+
+async function seedNotificationHistory({ patientA, patientB, appointments, issuedBy }) {
+  const [appointmentA1, appointmentB1, appointmentA2] = appointments;
+  const phoneA = seedPhone(patientA);
+  const phoneB = seedPhone(patientB);
+  const base = {
+    usuario_emisor: issuedBy,
+    direccion: 'SALIENTE',
+    canal: 'WHATSAPP'
+  };
+  return Promise.all([
+    createSeedNotification({
+      ...base,
+      id_paciente: patientA.id_paciente,
+      id_cita: appointmentA1.id_cita,
+      tipo: 'CONFIRMACION_CITA',
+      telefono_destino: phoneA,
+      mensaje: 'Confirmación de cita entregada para prueba HU-26.',
+      fecha_envio: new Date('2026-09-01T13:00:00.000Z'),
+      fecha_entrega: new Date('2026-09-01T13:01:00.000Z'),
+      estado: 'ENTREGADA',
+      proveedor_referencia: 'SEED-HU26-A1-CONF',
+      fecha_creacion: new Date('2026-09-01T13:00:00.000Z')
+    }),
+    createSeedNotification({
+      ...base,
+      id_paciente: patientA.id_paciente,
+      id_cita: appointmentA1.id_cita,
+      tipo: 'RECORDATORIO_CITA',
+      telefono_destino: phoneA,
+      mensaje: 'Recordatorio de cita leído para prueba HU-26.',
+      fecha_envio: new Date('2026-09-01T14:00:00.000Z'),
+      fecha_entrega: new Date('2026-09-01T14:01:00.000Z'),
+      fecha_lectura: new Date('2026-09-01T14:05:00.000Z'),
+      estado: 'LEIDA',
+      proveedor_referencia: 'SEED-HU26-A1-REM',
+      fecha_creacion: new Date('2026-09-01T14:00:00.000Z')
+    }),
+    createSeedNotification({
+      ...base,
+      id_paciente: patientA.id_paciente,
+      id_cita: appointmentA1.id_cita,
+      tipo: 'RECORDATORIO_CITA',
+      telefono_destino: phoneA,
+      mensaje: 'Intento de recordatorio fallido para prueba HU-26.',
+      fecha_programada: new Date('2026-09-01T15:00:00.000Z'),
+      estado: 'FALLIDA',
+      proveedor_referencia: 'SEED-HU26-A1-FAIL',
+      fecha_creacion: new Date('2026-09-01T15:00:00.000Z')
+    }),
+    createSeedNotification({
+      ...base,
+      id_paciente: patientA.id_paciente,
+      id_cita: appointmentA2.id_cita,
+      tipo: 'CONFIRMACION_CITA',
+      telefono_destino: phoneA,
+      mensaje: 'Confirmación enviada para la segunda cita de prueba HU-26.',
+      fecha_envio: new Date('2026-08-31T16:00:00.000Z'),
+      estado: 'ENVIADA',
+      proveedor_referencia: 'SEED-HU26-A2-CONF',
+      fecha_creacion: new Date('2026-08-31T16:00:00.000Z')
+    }),
+    createSeedNotification({
+      ...base,
+      id_paciente: patientB.id_paciente,
+      id_cita: appointmentB1.id_cita,
+      tipo: 'CONFIRMACION_CITA',
+      telefono_destino: phoneB,
+      mensaje: 'Confirmación entregada al segundo paciente para prueba HU-26.',
+      fecha_envio: new Date('2026-09-01T13:30:00.000Z'),
+      fecha_entrega: new Date('2026-09-01T13:31:00.000Z'),
+      estado: 'ENTREGADA',
+      proveedor_referencia: 'SEED-HU26-B1-CONF',
+      fecha_creacion: new Date('2026-09-01T13:30:00.000Z')
+    })
+  ]);
+}
+
+async function seedCampaignsAndLoyalty({ adminId, patients }) {
+  const today = new Date();
+  const nextMonth = new Date();
+  nextMonth.setDate(today.getDate() + 30);
+  const prevMonth = new Date();
+  prevMonth.setDate(today.getDate() - 30);
+
+  const campaignsData = [
+    {
+      nombre: 'Jornada Preventiva de Salud Cardiovascular & Hipertensión',
+      descripcion: 'Campaña integral de detección temprana de factores de riesgo coronario, medición de presión arterial y electrocardiograma con arancel preferencial.',
+      fecha_inicio: prevMonth,
+      fecha_fin: nextMonth,
+      estado: 'ACTIVA',
+      tipo_promocion: 'DESCUENTO_CONSULTA',
+      descuento_porcentaje: 20.00,
+      publico_objetivo: 'Pacientes mayores de 40 años o con antecedentes de hipertensión arterial',
+      presupuesto: 2500.00,
+      creada_por: adminId
+    },
+    {
+      nombre: 'Chequeo Pediátrico Integral Vuelta a Clases',
+      descripcion: 'Evaluación de agudeza visual, audiometría, curva de crecimiento y esquema de vacunación completo para el inicio del año escolar.',
+      fecha_inicio: today,
+      fecha_fin: nextMonth,
+      estado: 'PROGRAMADA',
+      tipo_promocion: 'PAQUETE_PREVENTIVO',
+      descuento_porcentaje: 15.00,
+      publico_objetivo: 'Pacientes en edad escolar (de 4 a 14 años)',
+      presupuesto: 1800.00,
+      creada_por: adminId
+    },
+    {
+      nombre: 'Campaña Odontológica Preventiva 2026',
+      descripcion: 'Profilaxis dental y fluorización para toda la familia.',
+      fecha_inicio: null,
+      fecha_fin: null,
+      estado: 'BORRADOR',
+      tipo_promocion: 'JORNADA_GRATUITA',
+      descuento_porcentaje: 50.00,
+      publico_objetivo: 'Comunidad general y grupos familiares',
+      presupuesto: 3000.00,
+      creada_por: adminId
+    }
+  ];
+
+  const campaigns = [];
+  for (const c of campaignsData) {
+    let existing = await prisma.campania.findFirst({
+      where: { nombre: c.nombre }
+    });
+    if (!existing) {
+      existing = await prisma.campania.create({ data: c });
+    } else {
+      existing = await prisma.campania.update({
+        where: { id_campania: existing.id_campania },
+        data: c
+      });
+    }
+    campaigns.push(existing);
+  }
+
+  const loyaltyData = [
+    {
+      id_paciente: patients[0].id_paciente,
+      estado: 'ACTIVO',
+      nivel: 'PREMIUM',
+      puntos_acumulados: 350,
+      notas: 'Paciente frecuente del programa cardiovascular. Cumplimiento ejemplar.'
+    },
+    {
+      id_paciente: patients[1].id_paciente,
+      estado: 'ACTIVO',
+      nivel: 'FRECUENTE',
+      puntos_acumulados: 120,
+      notas: 'Inscrita en módulo de consulta general y controles preventivos.'
+    },
+    {
+      id_paciente: patients[2].id_paciente,
+      estado: 'SUSPENDIDO',
+      nivel: 'ESTANDAR',
+      puntos_acumulados: 40,
+      notas: 'Pausa temporal solicitada por viaje prolongado.'
+    }
+  ];
+
+  const loyaltyMembers = [];
+  for (const l of loyaltyData) {
+    const member = await prisma.fidelizacion_paciente.upsert({
+      where: { id_paciente: l.id_paciente },
+      update: l,
+      create: l
+    });
+    loyaltyMembers.push(member);
+  }
+
+  return { campaigns, loyaltyMembers };
+}
+
 async function main() {
+  await require('../scripts/setup-security')();
+  await require('../scripts/seed-security')();
   const rolesByCode = {};
   for (const [codigo, nombre, descripcion] of roles) {
     rolesByCode[codigo] = await upsertRole(codigo, nombre, descripcion);
@@ -696,7 +982,29 @@ async function main() {
     await upsertService(codigo, nombre, tipo, duracionMinutos, precioBase);
   }
 
+  const invoices = await seedIssuedInvoices({
+    patientA: clinicalData.patientWithHistory,
+    patientB: documentData.secondPatient,
+    issuedBy: receptionist.id_usuario
+  });
+
+  const notificationHistory = await seedNotificationHistory({
+    patientA: clinicalData.patientWithHistory,
+    patientB: documentData.secondPatient,
+    appointments: agendaData.appointments,
+    issuedBy: receptionist.id_usuario
+  });
+
   await upsertRooms();
+
+  const { campaigns, loyaltyMembers } = await seedCampaignsAndLoyalty({
+    adminId: admin.id_usuario,
+    patients: [
+      clinicalData.patientWithHistory,
+      clinicalData.patientWithoutHistory,
+      documentData.secondPatient
+    ]
+  });
 
   console.log(
     `Seed listo: administrador ${admin.email}, médicos ${doctor.email} y ${secondDoctor.email}, `
@@ -708,6 +1016,10 @@ async function main() {
       + `salas iniciales 4, `
       + `horarios ${schedules.length}, citas ${agendaData.appointments.length} (${clinicDateText()} y ${clinicDateText(1)}), `
       + `consentimientos ${consents.map((consent) => `${consent.folio}=/consentimientos/${consent.id_consentimiento}`).join(', ')}.`
+      + ` facturas HU-23 ${invoices.map((invoice) => invoice.numero_factura).join(', ')}.`
+      + ` notificaciones HU-26 ${notificationHistory.length}.`
+      + ` campañas HU-27 ${campaigns.length}.`
+      + ` fidelización HU-28 ${loyaltyMembers.length}.`
   );
 }
 

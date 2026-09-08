@@ -47,6 +47,10 @@ model campania {
   fecha_inicio        DateTime?       @db.Timestamptz(6)
   fecha_fin           DateTime?       @db.Timestamptz(6)
   estado              estado_campania @default(BORRADOR)
+  tipo_promocion      String?         @default("GENERAL") @db.VarChar(50)
+  descuento_porcentaje Decimal?       @default(0) @db.Decimal(5, 2)
+  publico_objetivo    String?         @db.VarChar(200)
+  presupuesto         Decimal?        @default(0) @db.Decimal(10, 2)
   fecha_creacion      DateTime        @default(now()) @db.Timestamptz(6)
   fecha_actualizacion DateTime        @default(now()) @db.Timestamptz(6)
   usuario             usuario?        @relation(fields: [creada_por], references: [id_usuario], map: "fk_campania_creada_por")
@@ -288,6 +292,7 @@ model paciente {
   factura                  factura[]
   historia_clinica         historia_clinica?
   notificacion             notificacion[]
+  fidelizacion             fidelizacion_paciente?
   usuario                  usuario?                   @relation(fields: [id_usuario], references: [id_usuario], map: "fk_paciente_usuario")
 
   @@unique([documento_identidad, complemento], map: "uq_paciente_documento")
@@ -489,3 +494,31 @@ enum tipo_servicio {
   EXAMEN
   OTRO
 }
+
+model fidelizacion_paciente {
+  id_fidelizacion     BigInt              @id @default(autoincrement())
+  id_paciente         BigInt              @unique
+  estado              estado_fidelizacion @default(ACTIVO)
+  nivel               nivel_fidelizacion  @default(ESTANDAR)
+  puntos_acumulados   Int                 @default(0)
+  fecha_inscripcion   DateTime            @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion DateTime            @default(now()) @db.Timestamptz(6)
+  notas               String?
+  paciente            paciente            @relation(fields: [id_paciente], references: [id_paciente], onDelete: Cascade, map: "fk_fidelizacion_paciente")
+
+  @@index([estado], map: "idx_fidelizacion_estado")
+  @@index([nivel], map: "idx_fidelizacion_nivel")
+}
+
+enum estado_fidelizacion {
+  ACTIVO
+  INACTIVO
+  SUSPENDIDO
+}
+
+enum nivel_fidelizacion {
+  ESTANDAR
+  FRECUENTE
+  PREMIUM
+}
+

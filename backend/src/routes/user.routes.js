@@ -8,6 +8,7 @@ const router = Router();
 router.use(requireAuth, requireRole('ADMINISTRADOR'));
 router.post('/', userController.createUser);
 router.get('/', userController.listUsers);
+router.get('/roles/catalog', userController.listRoles);
 router.get('/:id', userController.getUser);
 router.patch('/:id', userController.updateUser);
 router.delete('/:id', userController.deactivateUser);

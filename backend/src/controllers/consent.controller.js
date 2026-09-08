@@ -1,5 +1,14 @@
 const consentService = require('../services/consent.service');
 
+async function getConsents(request, response, next) {
+  try {
+    const result = await consentService.getConsentHistory(request.user.id, request.query);
+    response.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getConsentOptions(request, response, next) {
   try {
     const options = await consentService.getConsentOptions(request.user.id);
@@ -43,5 +52,5 @@ async function signConsent(request, response, next) {
   }
 }
 
-module.exports = { createConsent, getConsent, getConsentOptions, signConsent };
+module.exports = { createConsent, getConsent, getConsentOptions, getConsents, signConsent };
 

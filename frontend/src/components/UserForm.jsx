@@ -3,13 +3,6 @@ import { ApiError } from '../services/api';
 import { Button } from './Button';
 import { Input } from './Input';
 
-const roles = [
-  ['ADMINISTRADOR', 'Administrador'],
-  ['MEDICO', 'Médico'],
-  ['RECEPCIONISTA', 'Recepcionista'],
-  ['PACIENTE', 'Paciente']
-];
-
 const statuses = [
   ['ACTIVO', 'Activo'],
   ['INACTIVO', 'Inactivo'],
@@ -33,7 +26,7 @@ function getPasswordStrength(password, completedRequirements) {
   return { label: 'Muy fuerte', level: 4 };
 }
 
-export function UserForm({ initialUser = null, onCancel, onSave }) {
+export function UserForm({ initialUser = null, isSelf = false, onCancel, onSave, roles = [] }) {
   const editing = Boolean(initialUser);
   const [form, setForm] = useState({
     nombres: initialUser?.nombres || '',
@@ -42,7 +35,7 @@ export function UserForm({ initialUser = null, onCancel, onSave }) {
     telefono: initialUser?.telefono || '',
     password: '',
     passwordConfirmation: '',
-    rol: initialUser?.rol || 'RECEPCIONISTA',
+    rol: initialUser?.rol || '',
     estado: initialUser?.estado || 'ACTIVO'
   });
   const [submitting, setSubmitting] = useState(false);
@@ -81,8 +74,7 @@ export function UserForm({ initialUser = null, onCancel, onSave }) {
             nombres: form.nombres,
             apellidos: form.apellidos,
             telefono: form.telefono,
-            rol: form.rol,
-            estado: form.estado
+            ...(!isSelf ? { rol: form.rol, estado: form.estado } : {})
           }
         : form;
       await onSave(payload);
@@ -192,14 +184,15 @@ export function UserForm({ initialUser = null, onCancel, onSave }) {
         )}
         <div className="form-field">
           <label htmlFor="user-role">Rol *</label>
-          <select id="user-role" onChange={(event) => setField('rol', event.target.value)} value={form.rol}>
-            {roles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          <select disabled={isSelf} required id="user-role" onChange={(event) => setField('rol', event.target.value)} value={form.rol}>
+            <option value="" disabled>Seleccione un rol</option>
+            {roles.map((role) => <option key={role.code} value={role.code}>{role.name}</option>)}
           </select>
         </div>
         {editing && (
           <div className="form-field">
             <label htmlFor="user-status">Estado *</label>
-            <select id="user-status" onChange={(event) => setField('estado', event.target.value)} value={form.estado}>
+            <select disabled={isSelf} id="user-status" onChange={(event) => setField('estado', event.target.value)} value={form.estado}>
               {statuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </div>

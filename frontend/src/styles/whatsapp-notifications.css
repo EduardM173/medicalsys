@@ -1,0 +1,54 @@
+.whatsapp-page { min-height: 100vh; padding: 40px clamp(20px, 5vw, 72px); background: var(--color-background); }
+.whatsapp-header, .whatsapp-tabs, .whatsapp-panel { width: min(100%, 1200px); margin-right: auto; margin-left: auto; }
+.whatsapp-header { margin-bottom: 24px; }
+.whatsapp-header h1 { margin: 8px 0 4px; color: var(--color-navy); font-size: var(--font-size-title); }
+.whatsapp-header p { margin: 0; color: var(--color-text-secondary); }
+
+.whatsapp-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+.whatsapp-tab { padding: 10px 18px; color: var(--color-text-secondary); font-weight: var(--font-weight-semibold); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 999px; cursor: pointer; }
+.whatsapp-tab.active { color: #fff; background: var(--color-primary); border-color: var(--color-primary); }
+.whatsapp-tab:hover:not(.active) { background: var(--color-blue-soft); }
+
+.whatsapp-panel { padding: 28px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.whatsapp-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; gap: 20px; }
+.whatsapp-panel-heading h2 { margin: 0 0 4px; color: var(--color-navy); font-size: var(--font-size-section); }
+.whatsapp-panel-heading p { margin: 0; color: var(--color-text-secondary); }
+.whatsapp-count { padding: 6px 12px; color: var(--color-primary); font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); background: var(--color-blue-soft); border-radius: 999px; white-space: nowrap; }
+
+.whatsapp-bulk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-bottom: 18px; }
+.whatsapp-bulk-actions .button { width: auto; }
+.whatsapp-bulk-summary { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+
+.whatsapp-empty { margin: 0; padding: 36px 16px; color: var(--color-text-secondary); text-align: center; }
+
+.whatsapp-table-wrapper { overflow-x: auto; }
+.whatsapp-table { width: 100%; border-collapse: collapse; }
+.whatsapp-table th { padding: 10px 12px; color: var(--color-text-secondary); font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); text-align: left; white-space: nowrap; border-bottom: 1px solid var(--color-border); }
+.whatsapp-table td { padding: 12px; font-size: var(--font-size-body); vertical-align: middle; border-bottom: 1px solid var(--color-border); }
+.whatsapp-table tbody tr:last-child td { border-bottom: 0; }
+
+.whatsapp-status { padding: 4px 10px; font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); border-radius: 999px; white-space: nowrap; }
+.status-programada { color: var(--color-info); background: var(--color-blue-soft); }
+.status-confirmada { color: var(--color-success); background: var(--color-success-soft); }
+.status-en_consulta { color: var(--color-warning); background: var(--color-warning-soft); }
+
+.whatsapp-warning { color: var(--color-danger); font-size: var(--font-size-caption); }
+
+.whatsapp-send-button { width: auto; white-space: nowrap; }
+
+.whatsapp-result-pending { color: var(--color-text-muted); }
+.whatsapp-result { display: inline-block; padding: 4px 10px; font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); border-radius: 999px; }
+.whatsapp-result-success { color: var(--color-success); background: var(--color-success-soft); }
+.whatsapp-result-error { color: var(--color-danger); background: var(--color-danger-soft); white-space: normal; }
+.whatsapp-result-duplicate { color: var(--color-warning); background: var(--color-warning-soft); }
+.whatsapp-duplicate-tag { display: block; margin-top: 4px; color: var(--color-text-muted); font-size: var(--font-size-caption); }
+
+.notice { max-width: 1200px; margin: 0 auto 20px; padding: 12px 16px; border-radius: var(--radius-sm); }
+.success-notice { color: var(--color-success); background: var(--color-success-soft); }
+.error-notice { color: var(--color-danger); background: var(--color-danger-soft); }
+
+@media (max-width: 640px) {
+  .whatsapp-page { padding: 24px 16px; }
+  .whatsapp-panel { padding: 20px; }
+  .whatsapp-panel-heading { flex-direction: column; }
+}

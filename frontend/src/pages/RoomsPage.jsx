@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { can } from '../security/permissions';
 import { Button } from '../components/Button';
 import { RoomReservationModal } from '../components/RoomReservationModal';
 import { cancelRoomReservation, getRoomReservations, getRooms } from '../services/api';
@@ -14,6 +16,8 @@ function formatDate(isoString) {
 }
 
 export function RoomsPage() {
+  const { user } = useAuth();
+  const canReserve = can(user, 'rooms.write');
   const [activeTab, setActiveTab] = useState('rooms'); // 'rooms' | 'reservations'
   const [rooms, setRooms] = useState([]);
   const [reservations, setReservations] = useState([]);
@@ -48,6 +52,7 @@ export function RoomsPage() {
   }, []);
 
   async function handleCancelReservation(reservationId) {
+    if (!canReserve) return;
     if (!window.confirm('¿Está seguro de que desea cancelar esta reserva de sala?')) return;
     try {
       await cancelRoomReservation(reservationId);
@@ -60,6 +65,7 @@ export function RoomsPage() {
   }
 
   function handleOpenBooking(room = null) {
+    if (!canReserve) return;
     setSelectedRoomForBooking(room);
     setIsModalOpen(true);
   }
@@ -83,7 +89,7 @@ export function RoomsPage() {
           <p>Disponibilidad y asignación de espacios físicos a citas médicas (HU-17)</p>
         </div>
         <div className="rooms-actions">
-          <Button onClick={() => handleOpenBooking(null)}>+ Nueva Reserva</Button>
+          {canReserve && <Button onClick={() => handleOpenBooking(null)}>+ Nueva Reserva</Button>}
         </div>
       </header>
 
@@ -179,14 +185,14 @@ export function RoomsPage() {
                       </small>
                     )}
 
-                    <Button
+                    {canReserve && <Button
                       variant="secondary"
                       onClick={() => handleOpenBooking(room)}
                       disabled={room.estado !== 'DISPONIBLE'}
                       style={{ padding: '6px 12px', fontSize: '0.8rem' }}
                     >
                       Reservar
-                    </Button>
+                    </Button>}
                   </div>
                 </article>
               );
@@ -216,7 +222,7 @@ export function RoomsPage() {
                     <th>Horario Inicio</th>
                     <th>Horario Fin</th>
                     <th>Estado</th>
-                    <th>Acciones</th>
+                    {canReserve && <th>Acciones</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -246,7 +252,7 @@ export function RoomsPage() {
                           {res.estado}
                         </span>
                       </td>
-                      <td>
+                      {canReserve && <td>
                         {res.estado === 'ACTIVA' && (
                           <Button
                             variant="danger"
@@ -256,7 +262,7 @@ export function RoomsPage() {
                             Cancelar
                           </Button>
                         )}
-                      </td>
+                      </td>}
                     </tr>
                   ))}
                 </tbody>
@@ -266,13 +272,13 @@ export function RoomsPage() {
         </section>
       )}
 
-      <RoomReservationModal
+      {canReserve && <RoomReservationModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         selectedRoom={selectedRoomForBooking}
         rooms={rooms}
         onReservationCreated={handleReservationCreated}
-      />
+      />}
     </main>
   );
 }

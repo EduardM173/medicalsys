@@ -1,23 +1,24 @@
 const jwt = require('jsonwebtoken');
-
-function requireAuth(request, response, next) {
-  const token = request.cookies.medicalsys_session;
-
-  if (!token) {
-    return response.status(401).json({ message: 'Autenticación requerida.' });
-  }
-
+const prisma = require('../config/prisma');
+const { permissionsForUser } = require('../services/security.service');
+async function requireAuth(request, response, next) {
+  let payload;
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    request.user = {
-      id: payload.sub,
-      idUsuario: payload.sub,
-      rol: payload.rol
-    };
-    return next();
+    payload = jwt.verify(request.cookies.medicalsys_session, process.env.JWT_SECRET);
+    if (!/^\d+$/.test(payload.sub)) throw new Error('Invalid subject');
   } catch (_error) {
     return response.status(401).json({ message: 'Autenticación requerida.' });
   }
+  try {
+    const user = await prisma.usuario.findUnique({ where: { id_usuario: BigInt(payload.sub) }, include: { rol: true } });
+    if (!user || user.estado !== 'ACTIVO' || !user.rol.activo) {
+      return response.status(401).json({ message: 'Sesión sin acceso habilitado.' });
+    }
+    request.user = {
+      id: String(user.id_usuario), idUsuario: String(user.id_usuario), rol: user.rol.codigo,
+      permissions: await permissionsForUser(user.id_usuario, user.rol.codigo)
+    };
+    return next();
+  } catch (error) { return next(error); }
 }
-
 module.exports = requireAuth;

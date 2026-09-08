@@ -1,4 +1,5 @@
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const apiUrl = import.meta.env.VITE_API_URL
+  || `${window.location.protocol}//${window.location.hostname}:3000/api`;
 
 export class ApiError extends Error {
   constructor(status, message) {
@@ -29,6 +30,7 @@ async function request(path, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    if (path !== '/auth/me' && [401, 403].includes(response.status)) window.dispatchEvent(new Event('permissions-changed'));
     throw new ApiError(response.status, data.message || 'No fue posible procesar la solicitud.');
   }
 
@@ -43,6 +45,13 @@ export function loginRequest(credentials) {
   return request('/auth/login', {
     method: 'POST',
     body: JSON.stringify(credentials)
+  });
+}
+
+export function forgotPasswordRequest(email) {
+  return request('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email })
   });
 }
 
@@ -151,6 +160,10 @@ export function getConsent(id) {
   return request(`/consents/${id}`);
 }
 
+export function getConsents() {
+  return request('/consents');
+}
+
 export function signConsent(consentId, signatureData) {
   return request(`/consents/${consentId}/sign`, {
     method: 'POST',
@@ -202,6 +215,39 @@ export function createAppointment(appointment) {
 // HU-15: actualización de una cita (reprogramación y/o cambio de estado, incluida cancelación lógica).
 export function updateAppointment(id, changes) {
   return request(`/appointments/${id}`, { method: 'PATCH', body: JSON.stringify(changes) });
+}
+
+// HU-21: valida y persiste la factura como borrador (BORRADOR); no la emite.
+export function prepareBilling(data) {
+  return request('/billing/prepare', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+// KPIs de facturación: total registradas, pendientes de emisión y emitidas hoy.
+export function getBillingSummary() {
+  return request('/billing/summary');
+}
+
+// HU-22: emite una factura computarizada previamente preparada (BORRADOR).
+export function emitBilling(id) {
+  return request(`/billing/${id}/emit`, {
+    method: 'POST'
+  });
+}
+
+export function getIssuedInvoices(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.search) params.set('search', filters.search);
+  if (filters.patientId) params.set('patientId', filters.patientId);
+  if (filters.date) params.set('date', filters.date);
+  const query = params.toString();
+  return request(`/billing/invoices${query ? `?${query}` : ''}`);
+}
+
+export function getIssuedInvoice(id) {
+  return request(`/billing/invoices/${encodeURIComponent(id)}`);
 }
 
 // ==========================================
@@ -300,3 +346,135 @@ export function cancelRoomReservation(id) {
     method: 'DELETE'
   });
 }
+export function getSecurityMatrix() { return request('/security'); }
+export function getSecurityAudit() { return request('/security/audit'); }
+export function createSecurityRole(data) {
+  return request('/security/roles', { method: 'POST', body: JSON.stringify(data) });
+}
+export function updateSecurityRole(role, permissions) {
+  return request('/security/roles/' + encodeURIComponent(role), { method: 'PUT', body: JSON.stringify({ permissions }) });
+}
+export function getTemporaryGrants() { return request('/security/temporary-grants'); }
+export function grantTemporaryPermission(data) {
+  return request('/security/temporary-grants', { method: 'POST', body: JSON.stringify(data) });
+}
+export function revokeTemporaryGrant(id) {
+  return request('/security/temporary-grants/' + encodeURIComponent(id), { method: 'DELETE' });
+}
+export function getUserRoles() { return request('/users/roles/catalog'); }
+
+// ==========================================
+// HU-24 / HU-25: Notificaciones de citas por WhatsApp
+// ==========================================
+
+export function getConfirmationCandidates() {
+  return request('/notifications/confirmations/candidates');
+}
+
+export function sendAppointmentConfirmation(citaId) {
+  return request('/notifications/confirmations', {
+    method: 'POST',
+    body: JSON.stringify({ citaId })
+  });
+}
+
+export function getReminderCandidates() {
+  return request('/notifications/reminders/candidates');
+}
+
+export function sendAppointmentReminder(citaId) {
+  return request('/notifications/reminders', {
+    method: 'POST',
+    body: JSON.stringify({ citaId })
+  });
+}
+
+export function runAppointmentReminders(citaIds) {
+  return request('/notifications/reminders/run', {
+    method: 'POST',
+    body: JSON.stringify({ citaIds })
+  });
+}
+
+export function getNotificationHistory({ patientId, appointmentId } = {}) {
+  const params = new URLSearchParams();
+  if (patientId) params.set('patientId', patientId);
+  if (appointmentId) params.set('appointmentId', appointmentId);
+  const query = params.toString();
+  return request(`/notifications${query ? `?${query}` : ''}`);
+}
+
+// ==========================================
+// HU-27: Campañas y Promociones de Salud
+// ==========================================
+
+export function getCampaigns({ search, estado } = {}) {
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  if (estado) params.set('estado', estado);
+  const query = params.toString();
+  return request(`/campaigns${query ? `?${query}` : ''}`);
+}
+
+export function getCampaign(id) {
+  return request(`/campaigns/${id}`);
+}
+
+export function createCampaign(campaign) {
+  return request('/campaigns', {
+    method: 'POST',
+    body: JSON.stringify(campaign)
+  });
+}
+
+export function updateCampaign(id, campaign) {
+  return request(`/campaigns/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(campaign)
+  });
+}
+
+export function deleteCampaign(id) {
+  return request(`/campaigns/${id}`, {
+    method: 'DELETE'
+  });
+}
+
+// ==========================================
+// HU-28: Fidelización de Pacientes
+// ==========================================
+
+export function getLoyaltyPatients({ search, estado, nivel, soloMiembros } = {}) {
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  if (estado) params.set('estado', estado);
+  if (nivel) params.set('nivel', nivel);
+  if (soloMiembros) params.set('soloMiembros', 'true');
+  const query = params.toString();
+  return request(`/loyalty/patients${query ? `?${query}` : ''}`);
+}
+
+export function getLoyaltyStats() {
+  return request('/loyalty/stats');
+}
+
+export function enrollLoyaltyPatient(data) {
+  return request('/loyalty/enroll', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export function updateLoyaltyPatient(patientId, data) {
+  return request(`/loyalty/patients/${patientId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  });
+}
+
+export function removeLoyaltyPatient(patientId) {
+  return request(`/loyalty/patients/${patientId}`, {
+    method: 'DELETE'
+  });
+}
+

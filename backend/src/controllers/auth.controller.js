@@ -38,4 +38,13 @@ async function me(request, response, next) {
   }
 }
 
-module.exports = { login, logout, me };
+async function forgotPassword(request, response, next) {
+  try {
+    const result = await authService.forgotPassword(request.body.email);
+    response.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { forgotPassword, login, logout, me };
