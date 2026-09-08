@@ -395,3 +395,11 @@ export function runAppointmentReminders(citaIds) {
     body: JSON.stringify({ citaIds })
   });
 }
+
+export function getNotificationHistory({ patientId, appointmentId } = {}) {
+  const params = new URLSearchParams();
+  if (patientId) params.set('patientId', patientId);
+  if (appointmentId) params.set('appointmentId', appointmentId);
+  const query = params.toString();
+  return request(`/notifications${query ? `?${query}` : ''}`);
+}

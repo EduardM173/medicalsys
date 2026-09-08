@@ -21,6 +21,7 @@ import { RoomsPage } from './pages/RoomsPage';
 import { SchedulesPage } from './pages/SchedulesPage';
 import { UsersPage } from './pages/UsersPage';
 import { WhatsAppNotificationsPage } from './pages/WhatsAppNotificationsPage';
+import { NotificationHistoryPage } from './pages/NotificationHistoryPage';
 import { SecurityPage } from './pages/SecurityPage';
 
 function App() {
@@ -39,6 +40,7 @@ function App() {
         <Route path="/facturacion/:invoiceId" element={<BillingInvoicesPage />} />
       </Route>
       <Route element={<AuthorizedRoute permission="notifications.manage" />}><Route path="/whatsapp" element={<WhatsAppNotificationsPage />} /></Route>
+      <Route element={<AuthorizedRoute permission="notifications.manage" />}><Route path="/notificaciones" element={<NotificationHistoryPage />} /></Route>
       <Route element={<AuthorizedRoute permission="agenda.read" />}><Route path="/agenda" element={<AgendaPage />} /></Route>
       <Route element={<AuthorizedRoute permission="consents.manage" />}><Route path="/consentimientos" element={<ConsentHistoryPage />} /></Route>
       <Route element={<AuthorizedRoute permission="consents.manage" />}><Route path="/consentimientos/nuevo" element={<ConsentFormPage />} /></Route>

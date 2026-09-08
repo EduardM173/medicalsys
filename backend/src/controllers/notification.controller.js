@@ -1,5 +1,17 @@
 const notificationService = require('../services/notification.service');
 
+async function getHistory(request, response, next) {
+  try {
+    const result = await notificationService.listPatientNotificationHistory({
+      patientId: request.query.patientId,
+      appointmentId: request.query.appointmentId
+    });
+    response.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 // HU-24
 async function getConfirmationCandidates(request, response, next) {
   try {
@@ -57,6 +69,7 @@ async function runReminders(request, response, next) {
 }
 
 module.exports = {
+  getHistory,
   getConfirmationCandidates,
   sendConfirmation,
   getReminderCandidates,

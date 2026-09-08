@@ -48,6 +48,20 @@ class WhatsappService {
     const provider = this.getActiveProvider();
     return provider.sendMessage({ to, body });
   }
+
+  // Green API permite consumir la cola de mensajes entrantes por HTTP. Esto
+  // funciona en desarrollo local sin exponer el backend con un túnel público.
+  async receiveIncomingNotification() {
+    const provider = this.getActiveProvider();
+    if (provider !== this.greenApiProvider) return null;
+    return provider.receiveNotification();
+  }
+
+  async acknowledgeIncomingNotification(receiptId) {
+    const provider = this.getActiveProvider();
+    if (provider !== this.greenApiProvider) return false;
+    return provider.deleteNotification(receiptId);
+  }
 }
 
 module.exports = new WhatsappService();

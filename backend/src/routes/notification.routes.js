@@ -10,6 +10,9 @@ const router = Router();
 // se mantienen solo por legibilidad, igual que en el resto de rutas.
 router.use(requireAuth, requireRole('RECEPCIONISTA', 'ADMINISTRADOR'));
 
+// HU-26: historial de confirmaciones y recordatorios por paciente/cita.
+router.get('/', notificationController.getHistory);
+
 // HU-24: Enviar confirmación de cita por WhatsApp
 router.get('/confirmations/candidates', notificationController.getConfirmationCandidates);
 router.post('/confirmations', notificationController.sendConfirmation);

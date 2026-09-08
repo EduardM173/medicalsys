@@ -173,6 +173,8 @@ Inicie sesión como administrador y pruebe:
 | Agenda de citas | `/citas` | Reservar una cita (paciente, médico, servicio, fecha/hora) y consultar las citas del día. Disponible para Administrador y Recepcionista. |
 | HU-21 Preparar factura | `/facturacion/preparar` | Seleccionar paciente y cita opcional, agregar servicios reales, ajustar cantidades y validar la vista previa. No crea ni emite una factura y está disponible para Administrador y Recepcionista. |
 | HU-23 Consultar facturas | `/facturacion` | Buscar facturas emitidas por número o receptor y filtrar por paciente o fecha; abra una fila para comprobar sus conceptos, importes y estado SIN. Disponible para Administrador y Recepcionista. |
+| HU-26 Historial de notificaciones | `/notificaciones` | Seleccionar el paciente `4892104`, consultar sus cuatro registros y filtrar por una cita. Incluye confirmaciones, recordatorios y un intento fallido. |
+| WhatsApp de citas | `/whatsapp` | Enviar confirmaciones y recordatorios. Cuando Green API está configurada, una respuesta `SI` del paciente confirma su cita pendiente. |
 
 Inicie sesión con `medico@medicalsys.test` para probar los módulos clínicos:
 
@@ -224,6 +226,8 @@ GET  /api/appointments/:id
 
 GET  /api/billing/invoices?search=&patientId=&date=YYYY-MM-DD
 GET  /api/billing/invoices/:id
+
+GET  /api/notifications?patientId=ID&appointmentId=ID_OPCIONAL
 ```
 
 Los endpoints de usuarios y horarios requieren sesión con rol `ADMINISTRADOR`. La creación y edición de médicos también requiere `ADMINISTRADOR`, pero la consulta (`GET /api/doctors`) está disponible además para `RECEPCIONISTA`, ya que la necesita para reservar citas. Los endpoints de citas y de servicios (`/api/appointments`, `/api/services`) requieren `RECEPCIONISTA` o `ADMINISTRADOR`. Sin sesión responden `401`; un rol sin permiso recibe `403` en esas operaciones.
@@ -272,6 +276,37 @@ cd backend
 npm run test:billing
 ```
 
+### HU-26: Historial de notificaciones
+
+Ejecute `npm run prisma:seed` desde `backend` e inicie sesión con `recepcionista@medicalsys.test`. En `/notificaciones`, el paciente con CI `4892104` tiene cuatro registros distribuidos en dos citas; una de ellas incluye una confirmación entregada, un recordatorio leído y un recordatorio fallido. El paciente `6047331` permite comprobar el aislamiento y `5938217` el estado sin notificaciones. Los cinco fixtures usan referencias `SEED-HU26-*` y no se duplican al repetir la semilla.
+
+La consulta reutiliza `notifications.manage`, filtra en PostgreSQL por paciente y cita, devuelve solo `CONFIRMACION_CITA` y `RECORDATORIO_CITA`, y ordena por `fecha_creacion` descendente. No envía, reenvía, edita ni elimina notificaciones.
+
+```powershell
+cd backend
+npm run test:notifications
+```
+
+### Respuestas automáticas por WhatsApp (Green API)
+
+Para pruebas locales, configure las credenciales de su instancia autorizada solo en `backend/.env`:
+
+```env
+WHATSAPP_PROVIDER=GREEN_API
+GREENAPI_API_URL=https://xxxx.api.greenapi.com
+GREENAPI_ID_INSTANCE=su_id_de_instancia
+GREENAPI_API_TOKEN_INSTANCE=su_token_secreto
+```
+
+En la consola de Green API deje `webhookUrl` vacío y active **incomingWebhook**. Al iniciar el backend, MedicalSys consulta la cola HTTP de Green API cada pocos segundos; por tanto no necesita exponer el computador con ngrok durante el desarrollo. Green API entrega los eventos de la cola en orden y exige eliminarlos después de procesarlos.
+
+Cuando un paciente con número registrado responda exactamente `SI` o `SÍ` a una confirmación, MedicalSys registra el mensaje entrante y cambia a `CONFIRMADA` únicamente su confirmación futura pendiente más reciente. Una respuesta en un grupo, de un número no asociado a un único paciente, repetida o diferente de `SI` no modifica ninguna cita. Si se responde citando el mensaje original, se prioriza esa confirmación concreta.
+
+```powershell
+cd backend
+npm run test:whatsapp-incoming
+```
+
 ## Arquitectura
 
 ```text
@@ -295,7 +330,7 @@ npm run security:seed
 
 Entre como OSI y abra **Roles y Seguridad** (`/admin/seguridad`):
 
-- Matriz dinámica de roles y 19 permisos por función; todas las casillas son configurables.
+- Matriz dinámica de roles y permisos por función; todas las casillas son configurables.
 - Creación de roles personalizados, disponibles de inmediato al crear o editar usuarios.
 - Permisos temporales por usuario con vencimiento obligatorio, revocación y auditoría.
 - Dependencias verificadas: por ejemplo, reservar requiere consultar salas.
