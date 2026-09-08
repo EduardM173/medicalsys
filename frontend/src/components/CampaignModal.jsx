@@ -16,13 +16,24 @@ const CAMPAIGN_STATUSES = [
   { value: 'CANCELADA', label: 'Cancelada' }
 ];
 
+const TARGET_SEGMENTS = [
+  'Público General (Todos los Pacientes)',
+  'Miembros del Programa de Fidelización (Bronce, Plata, Oro)',
+  'Exclusivo Pacientes VIP (Nivel Oro)',
+  'Pacientes Frecuentes (Nivel Plata)',
+  'Pacientes Mayores de 45 años o con Riesgo Cardiovascular',
+  'Población Pediátrica e Infantil (Chequeo Escolar)',
+  'Personalizado'
+];
+
 export function CampaignModal({ isOpen, onClose, campaign, onSave }) {
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
     tipoPromocion: 'GENERAL',
     descuentoPorcentaje: 0,
-    publicoObjetivo: '',
+    segmentoSeleccionado: TARGET_SEGMENTS[0],
+    publicoObjetivoPersonalizado: '',
     fechaInicio: '',
     fechaFin: '',
     estado: 'BORRADOR',
@@ -33,12 +44,16 @@ export function CampaignModal({ isOpen, onClose, campaign, onSave }) {
 
   useEffect(() => {
     if (campaign) {
+      const publico = campaign.publicoObjetivo || '';
+      const esPredefinido = TARGET_SEGMENTS.includes(publico);
+
       setFormData({
         nombre: campaign.nombre || '',
         descripcion: campaign.descripcion || '',
         tipoPromocion: campaign.tipoPromocion || 'GENERAL',
         descuentoPorcentaje: campaign.descuentoPorcentaje || 0,
-        publicoObjetivo: campaign.publicoObjetivo || '',
+        segmentoSeleccionado: esPredefinido ? publico : 'Personalizado',
+        publicoObjetivoPersonalizado: esPredefinido ? '' : publico,
         fechaInicio: campaign.fechaInicio ? campaign.fechaInicio.slice(0, 10) : '',
         fechaFin: campaign.fechaFin ? campaign.fechaFin.slice(0, 10) : '',
         estado: campaign.estado || 'BORRADOR',
@@ -50,7 +65,8 @@ export function CampaignModal({ isOpen, onClose, campaign, onSave }) {
         descripcion: '',
         tipoPromocion: 'GENERAL',
         descuentoPorcentaje: 0,
-        publicoObjetivo: '',
+        segmentoSeleccionado: TARGET_SEGMENTS[0],
+        publicoObjetivoPersonalizado: '',
         fechaInicio: '',
         fechaFin: '',
         estado: 'BORRADOR',
@@ -76,12 +92,20 @@ export function CampaignModal({ isOpen, onClose, campaign, onSave }) {
       return;
     }
 
+    const publicoFinal = formData.segmentoSeleccionado === 'Personalizado'
+      ? formData.publicoObjetivoPersonalizado.trim()
+      : formData.segmentoSeleccionado;
+
     setSubmitting(true);
     try {
       await onSave({
-        ...formData,
+        nombre: formData.nombre,
+        descripcion: formData.descripcion,
+        tipoPromocion: formData.tipoPromocion,
         descuentoPorcentaje: Number(formData.descuentoPorcentaje) || 0,
+        publicoObjetivo: publicoFinal,
         presupuesto: Number(formData.presupuesto) || 0,
+        estado: formData.estado,
         fechaInicio: formData.fechaInicio ? `${formData.fechaInicio}T00:00:00.000Z` : null,
         fechaFin: formData.fechaFin ? `${formData.fechaFin}T23:59:59.000Z` : null
       });
@@ -102,7 +126,7 @@ export function CampaignModal({ isOpen, onClose, campaign, onSave }) {
               {campaign ? 'Editar Campaña de Salud' : 'Nueva Campaña y Promoción de Salud'}
             </h2>
             <p style={{ margin: '4px 0 0', color: 'var(--color-text-muted, #64748b)', fontSize: '0.85rem' }}>
-              Defina los parámetros, beneficio y público de la campaña
+              Defina los parámetros clínicos, beneficio y público segmentado de la campaña
             </p>
           </div>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Cerrar modal">✕</button>
@@ -121,14 +145,14 @@ export function CampaignModal({ isOpen, onClose, campaign, onSave }) {
               className="ui-input"
               value={formData.nombre}
               onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-              placeholder="Ej. Jornada de Detección de Diabetes y Riesgo Cardiovascular"
+              placeholder="Ej. Jornada de Prevención Cardiovascular & Hipertensión"
               required
             />
           </div>
 
           <div className="form-group" style={{ marginBottom: '14px' }}>
             <label htmlFor="campo-descripcion" style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px' }}>
-              Descripción / Objetivo Clínico
+              Descripción / Mensaje para el Paciente
             </label>
             <textarea
               id="campo-descripcion"
@@ -136,7 +160,7 @@ export function CampaignModal({ isOpen, onClose, campaign, onSave }) {
               rows="3"
               value={formData.descripcion}
               onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-              placeholder="Detalle el objetivo, médicos participantes y servicios incluidos..."
+              placeholder="Detalle los servicios incluidos, indicaciones médicas y cómo reservar..."
             />
           </div>
 
@@ -174,18 +198,33 @@ export function CampaignModal({ isOpen, onClose, campaign, onSave }) {
             </div>
           </div>
 
+          {/* Segmentación vinculada a Fidelización */}
           <div className="form-group" style={{ marginBottom: '14px' }}>
-            <label htmlFor="campo-publico" style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px' }}>
-              Público Objetivo / Criterio de Segmentación
+            <label htmlFor="campo-segmento" style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px' }}>
+              🎯 Público Objetivo (Segmentación / Fidelización)
             </label>
-            <input
-              id="campo-publico"
-              type="text"
+            <select
+              id="campo-segmento"
               className="ui-input"
-              value={formData.publicoObjetivo}
-              onChange={(e) => setFormData({ ...formData, publicoObjetivo: e.target.value })}
-              placeholder="Ej. Pacientes mayores de 45 años, hipertensos o con diabetes"
-            />
+              value={formData.segmentoSeleccionado}
+              onChange={(e) => setFormData({ ...formData, segmentoSeleccionado: e.target.value })}
+            >
+              {TARGET_SEGMENTS.map((seg) => (
+                <option key={seg} value={seg}>{seg}</option>
+              ))}
+            </select>
+
+            {formData.segmentoSeleccionado === 'Personalizado' && (
+              <input
+                type="text"
+                className="ui-input"
+                style={{ marginTop: '8px' }}
+                value={formData.publicoObjetivoPersonalizado}
+                onChange={(e) => setFormData({ ...formData, publicoObjetivoPersonalizado: e.target.value })}
+                placeholder="Especifique el criterio o grupo de pacientes..."
+                required
+              />
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>

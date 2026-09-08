@@ -51,8 +51,9 @@ export function LoyaltyPage() {
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
-  const [removingPatient, setRemovingPatient] = useState(null);
-  const [removingLoading, setRemovingLoading] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [patientToRetire, setPatientToRetire] = useState(null);
+  const [retiring, setRetiring] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -110,19 +111,25 @@ export function LoyaltyPage() {
     await loadData();
   }
 
-  async function confirmRemove() {
-    if (!removingPatient) return;
-    setRemovingLoading(true);
+  function handleRequestRemove(patient) {
+    setPatientToRetire(patient);
+    setIsConfirmOpen(true);
+  }
+
+  async function handleConfirmRemove() {
+    if (!patientToRetire) return;
+    setRetiring(true);
     try {
-      await removeLoyaltyPatient(removingPatient.id);
-      setSuccessMsg(`El paciente ${removingPatient.nombres} ${removingPatient.apellidos} fue retirado del programa.`);
-      setRemovingPatient(null);
+      await removeLoyaltyPatient(patientToRetire.id);
+      setSuccessMsg(`El paciente ${patientToRetire.nombres} ${patientToRetire.apellidos} fue retirado del programa.`);
       setTimeout(() => setSuccessMsg(''), 4000);
+      setIsConfirmOpen(false);
+      setPatientToRetire(null);
       await loadData();
     } catch (err) {
       setError(err.message || 'No fue posible retirar al paciente.');
     } finally {
-      setRemovingLoading(false);
+      setRetiring(false);
     }
   }
 
@@ -138,7 +145,7 @@ export function LoyaltyPage() {
         actions={
           <div style={{ display: 'flex', gap: '10px' }}>
             <Link to="/pacientes" className="button button-secondary">
-              Directorio de Pacientes
+              Directorio Clínico de Pacientes
             </Link>
           </div>
         }
@@ -205,7 +212,13 @@ export function LoyaltyPage() {
           <select
             className="filter-select"
             value={selectedEstado}
-            onChange={(e) => setSelectedEstado(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSelectedEstado(val);
+              if (val === 'SIN_PROGRAMA') {
+                setSelectedNivel('');
+              }
+            }}
           >
             <option value="">Todos los Estados</option>
             <option value="ACTIVO">Solo Miembros Activos</option>
@@ -217,9 +230,10 @@ export function LoyaltyPage() {
           <select
             className="filter-select"
             value={selectedNivel}
+            disabled={selectedEstado === 'SIN_PROGRAMA'}
             onChange={(e) => setSelectedNivel(e.target.value)}
           >
-            <option value="">Todos los Niveles</option>
+            <option value="">{selectedEstado === 'SIN_PROGRAMA' ? 'Sin Nivel (No Afiliado)' : 'Todos los Niveles'}</option>
             <option value="PREMIUM">Oro (Premium)</option>
             <option value="FRECUENTE">Plata (Frecuente)</option>
             <option value="ESTANDAR">Bronce (Estándar)</option>
@@ -242,7 +256,7 @@ export function LoyaltyPage() {
             <h3>No se encontraron pacientes</h3>
             <p>
               {selectedEstado === 'SIN_PROGRAMA'
-                ? 'Todos los pacientes del directorio clínico ya forman parte del programa de fidelización.'
+                ? 'Todos los pacientes registrados en el directorio clínico ya forman parte del programa de fidelización, o no hay pacientes que coincidan con la búsqueda.'
                 : 'No existen registros que coincidan con los criterios de búsqueda aplicados.'}
             </p>
             <Link to="/pacientes" className="button" style={{ display: 'inline-block', marginTop: '1rem' }}>
@@ -325,7 +339,7 @@ export function LoyaltyPage() {
                               <button
                                 type="button"
                                 className="btn-action-text btn-danger"
-                                onClick={() => setRemovingPatient(p)}
+                                onClick={() => handleRequestRemove(p)}
                               >
                                 Retirar
                               </button>
@@ -357,13 +371,18 @@ export function LoyaltyPage() {
       />
 
       <ConfirmModal
-        isOpen={Boolean(removingPatient)}
-        onClose={() => setRemovingPatient(null)}
-        onConfirm={confirmRemove}
-        loading={removingLoading}
+        isOpen={isConfirmOpen}
+        onClose={() => {
+          if (!retiring) {
+            setIsConfirmOpen(false);
+            setPatientToRetire(null);
+          }
+        }}
+        onConfirm={handleConfirmRemove}
         title="¿Retirar Paciente del Programa?"
-        message={`¿Está seguro de que desea retirar a ${removingPatient?.nombres} ${removingPatient?.apellidos} del programa de fidelización? Esta acción no borrará su historial clínico, únicamente su membresía de fidelización.`}
+        message={`¿Está seguro de que desea retirar a ${patientToRetire?.nombres} ${patientToRetire?.apellidos} del programa de fidelización? Esta acción no borrará su historial clínico en MedicalSys, únicamente su membresía de fidelización.`}
         confirmText="Retirar del Programa"
+        loading={retiring}
       />
     </main>
   );
