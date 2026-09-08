@@ -172,6 +172,7 @@ Inicie sesión como administrador y pruebe:
 | Gestión de pacientes | `/pacientes` | Buscar, registrar, consultar y editar pacientes. |
 | Agenda de citas | `/citas` | Reservar una cita (paciente, médico, servicio, fecha/hora) y consultar las citas del día. Disponible para Administrador y Recepcionista. |
 | HU-21 Preparar factura | `/facturacion/preparar` | Seleccionar paciente y cita opcional, agregar servicios reales, ajustar cantidades y validar la vista previa. No crea ni emite una factura y está disponible para Administrador y Recepcionista. |
+| HU-23 Consultar facturas | `/facturacion` | Buscar facturas emitidas por número o receptor y filtrar por paciente o fecha; abra una fila para comprobar sus conceptos, importes y estado SIN. Disponible para Administrador y Recepcionista. |
 
 Inicie sesión con `medico@medicalsys.test` para probar los módulos clínicos:
 
@@ -220,6 +221,9 @@ GET  /api/services
 POST /api/appointments
 GET  /api/appointments?fecha=YYYY-MM-DD&medicoId=&pacienteId=&estado=
 GET  /api/appointments/:id
+
+GET  /api/billing/invoices?search=&patientId=&date=YYYY-MM-DD
+GET  /api/billing/invoices/:id
 ```
 
 Los endpoints de usuarios y horarios requieren sesión con rol `ADMINISTRADOR`. La creación y edición de médicos también requiere `ADMINISTRADOR`, pero la consulta (`GET /api/doctors`) está disponible además para `RECEPCIONISTA`, ya que la necesita para reservar citas. Los endpoints de citas y de servicios (`/api/appointments`, `/api/services`) requieren `RECEPCIONISTA` o `ADMINISTRADOR`. Sin sesión responden `401`; un rol sin permiso recibe `403` en esas operaciones.
@@ -254,6 +258,19 @@ Compruebe que el backend siga ejecutándose en el puerto 3000, que `backend/.env
 **Error de conexión de Prisma/PostgreSQL**
 
 Revise que el servicio PostgreSQL esté iniciado, que exista la base `medicalsys` y que el usuario, contraseña y puerto de `DATABASE_URL` sean correctos.
+
+### HU-23: Consultar una factura emitida
+
+Ejecute `npm run prisma:seed` desde `backend`. El seed crea de forma idempotente las facturas simuladas `TEST-FACT-HU23-001` y `TEST-FACT-HU23-002`, con pacientes y conceptos diferentes. Inicie sesión como Administrador o Recepcionista y abra `/facturacion`.
+
+La consulta muestra únicamente facturas con estado `EMITIDA`. Permite buscar por número o razón social y filtrar por paciente o fecha exacta. El detalle presenta los datos históricos persistidos del receptor, conceptos, cantidades, precios, subtotal, total, forma de pago y estado de integración SIN. La etiqueta `SIMULACIÓN` indica expresamente que los comprobantes de prueba no fueron aceptados por el SIN. El acceso de solo consulta usa el permiso independiente `billing.read`, configurable desde la matriz de Roles y Seguridad; preparar o emitir continúa requiriendo `billing.prepare`.
+
+Para ejecutar las pruebas específicas:
+
+```powershell
+cd backend
+npm run test:billing
+```
 
 ## Arquitectura
 

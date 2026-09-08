@@ -409,6 +409,157 @@ async function emitirFacturaComputarizada(idFactura, userId) {
   };
 }
 
+function parseInvoiceDate(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+    throw new BillingError(400, 'La fecha debe tener el formato YYYY-MM-DD.');
+  }
+  const [year, month, day] = String(value).split('-').map(Number);
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) {
+    throw new BillingError(400, 'La fecha no es válida.');
+  }
+  const start = new Date(`${value}T00:00:00-04:00`);
+  return { gte: start, lt: new Date(start.getTime() + 24 * 60 * 60 * 1000) };
+}
+
+function invoiceListItem(invoice) {
+  return {
+    id: Number(invoice.id_factura),
+    numeroFactura: invoice.numero_factura,
+    fechaEmision: invoice.fecha_emision.toISOString(),
+    paciente: {
+      id: Number(invoice.paciente.id_paciente),
+      nombre: `${invoice.paciente.nombres} ${invoice.paciente.apellidos}`.trim()
+    },
+    receptor: { razonSocial: invoice.razon_social, nitCi: invoice.nit_ci },
+    total: money(invoice.total),
+    estado: invoice.estado,
+    sinEstado: invoice.sin_estado
+  };
+}
+
+async function listIssuedInvoices(filters = {}) {
+  const search = typeof filters.search === 'string' ? normalizeText(filters.search) : '';
+  if (search.length > 100) throw new BillingError(400, 'La búsqueda supera la longitud permitida.');
+  const where = { estado: 'EMITIDA' };
+  if (filters.patientId !== undefined && filters.patientId !== null && filters.patientId !== '') {
+    where.id_paciente = parseId(filters.patientId, 'paciente');
+  }
+  const dateRange = parseInvoiceDate(filters.date);
+  if (dateRange) where.fecha_emision = dateRange;
+  if (search) {
+    where.OR = [
+      { numero_factura: { contains: search, mode: 'insensitive' } },
+      { razon_social: { contains: search, mode: 'insensitive' } },
+      { nit_ci: { contains: search, mode: 'insensitive' } }
+    ];
+  }
+  const invoices = await prisma.factura.findMany({
+    where,
+    orderBy: [{ fecha_emision: 'desc' }, { id_factura: 'desc' }],
+    take: 100,
+    select: {
+      id_factura: true,
+      numero_factura: true,
+      fecha_emision: true,
+      razon_social: true,
+      nit_ci: true,
+      total: true,
+      estado: true,
+      sin_estado: true,
+      paciente: { select: { id_paciente: true, nombres: true, apellidos: true } }
+    }
+  });
+  return { invoices: invoices.map(invoiceListItem) };
+}
+
+async function getIssuedInvoiceById(idInput) {
+  const invoiceId = parseId(idInput, 'factura');
+  const invoice = await prisma.factura.findFirst({
+    where: { id_factura: invoiceId, estado: 'EMITIDA' },
+    select: {
+      id_factura: true,
+      id_cita: true,
+      numero_factura: true,
+      fecha_emision: true,
+      nit_ci: true,
+      complemento: true,
+      razon_social: true,
+      email_receptor: true,
+      metodo_pago: true,
+      subtotal: true,
+      total: true,
+      estado: true,
+      sin_estado: true,
+      sin_referencia: true,
+      codigo_autorizacion: true,
+      cuf: true,
+      paciente: {
+        select: {
+          id_paciente: true,
+          nombres: true,
+          apellidos: true,
+          documento_identidad: true,
+          complemento: true
+        }
+      },
+      usuario: { select: { nombres: true, apellidos: true } },
+      detalle_factura: {
+        orderBy: { id_detalle: 'asc' },
+        select: {
+          id_detalle: true,
+          id_servicio: true,
+          descripcion: true,
+          cantidad: true,
+          precio_unitario: true,
+          subtotal: true
+        }
+      }
+    }
+  });
+  if (!invoice) throw new BillingError(404, 'Factura no encontrada.');
+  return {
+    invoice: {
+      id: Number(invoice.id_factura),
+      citaId: invoice.id_cita ? Number(invoice.id_cita) : null,
+      numeroFactura: invoice.numero_factura,
+      fechaEmision: invoice.fecha_emision.toISOString(),
+      paciente: {
+        id: Number(invoice.paciente.id_paciente),
+        nombre: `${invoice.paciente.nombres} ${invoice.paciente.apellidos}`.trim(),
+        documentoIdentidad: invoice.paciente.documento_identidad,
+        complemento: invoice.paciente.complemento
+      },
+      receptor: {
+        nitCi: invoice.nit_ci,
+        complemento: invoice.complemento,
+        razonSocial: invoice.razon_social,
+        email: invoice.email_receptor
+      },
+      metodoPago: invoice.metodo_pago,
+      subtotal: money(invoice.subtotal),
+      total: money(invoice.total),
+      estado: invoice.estado,
+      sinEstado: invoice.sin_estado,
+      sinReferencia: invoice.sin_referencia,
+      codigoAutorizacion: invoice.codigo_autorizacion,
+      cuf: invoice.cuf,
+      emitidaPor: invoice.usuario
+        ? `${invoice.usuario.nombres} ${invoice.usuario.apellidos}`.trim()
+        : null,
+      conceptos: invoice.detalle_factura.map((item) => ({
+        id: Number(item.id_detalle),
+        servicioId: item.id_servicio ? Number(item.id_servicio) : null,
+        descripcion: item.descripcion,
+        cantidad: item.cantidad,
+        precioUnitario: money(item.precio_unitario),
+        subtotal: money(item.subtotal)
+      }))
+    }
+  };
+}
+
 async function getBillingSummary() {
   const now = new Date();
   const laPazStartOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 4, 0, 0));
@@ -422,4 +573,12 @@ async function getBillingSummary() {
   return { summary: { total, pending, emittedToday } };
 }
 
-module.exports = { BillingError, getBillingSummary, paymentMethods, prepareInvoice, emitirFacturaComputarizada };
+module.exports = {
+  BillingError,
+  emitirFacturaComputarizada,
+  getBillingSummary,
+  getIssuedInvoiceById,
+  listIssuedInvoices,
+  paymentMethods,
+  prepareInvoice
+};

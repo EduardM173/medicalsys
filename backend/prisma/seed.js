@@ -605,6 +605,101 @@ async function seedConsents({ doctorId, patientAId, patientBId, appointments }) 
   ]);
 }
 
+async function createIssuedTestInvoice({ number, configurationId, patientId, issuedBy, date, receiver, paymentMethod, items }) {
+  const existing = await prisma.factura.findUnique({ where: { numero_factura: number } });
+  if (existing) return existing;
+  const subtotal = items.reduce((sum, item) => sum + Number(item.subtotal), 0).toFixed(2);
+  return prisma.factura.create({
+    data: {
+      id_configuracion_clinica: configurationId,
+      id_paciente: patientId,
+      emitida_por: issuedBy,
+      numero_factura: number,
+      fecha_emision: date,
+      nit_ci: receiver.nitCi,
+      complemento: receiver.complemento || '',
+      razon_social: receiver.razonSocial,
+      email_receptor: receiver.email,
+      metodo_pago: paymentMethod,
+      subtotal,
+      total: subtotal,
+      estado: 'EMITIDA',
+      sin_estado: 'SIMULADA',
+      detalle_factura: {
+        create: items.map((item) => ({
+          id_servicio: item.serviceId,
+          descripcion: item.description,
+          cantidad: item.quantity,
+          precio_unitario: item.unitPrice,
+          subtotal: item.subtotal
+        }))
+      }
+    }
+  });
+}
+
+async function seedIssuedInvoices({ patientA, patientB, issuedBy }) {
+  const configuration = await prisma.configuracion_clinica.upsert({
+    where: { nit: '1023942027' },
+    update: {},
+    create: {
+      nombre_comercial: 'MedicalSys Centro Médico',
+      razon_social: 'MEDICALSYS S.R.L.',
+      nit: '1023942027',
+      direccion: 'Av. Arce Nro. 2300, La Paz',
+      telefono: '+591 2 244 0000',
+      email: 'facturacion@medicalsys.bo',
+      ciudad: 'La Paz',
+      pais: 'Bolivia',
+      activa: true
+    }
+  });
+  const invoiceServices = await prisma.servicio_medico.findMany({
+    where: { codigo: { in: ['CONS-ESP', 'ECO-PEL', 'CIR-GEN'] } },
+    select: { id_servicio: true, codigo: true }
+  });
+  const byCode = new Map(invoiceServices.map((service) => [service.codigo, service]));
+  if (!byCode.has('CONS-ESP') || !byCode.has('ECO-PEL') || !byCode.has('CIR-GEN')) {
+    throw new Error('No se encontraron los servicios requeridos para las facturas HU-23.');
+  }
+  const invoiceA = await createIssuedTestInvoice({
+    number: 'TEST-FACT-HU23-001',
+    configurationId: configuration.id_configuracion,
+    patientId: patientA.id_paciente,
+    issuedBy,
+    date: new Date('2026-09-05T14:30:00-04:00'),
+    receiver: {
+      nitCi: patientA.documento_identidad,
+      complemento: patientA.complemento,
+      razonSocial: 'Alejandro Morales Quiroga',
+      email: 'alejandro.facturacion@medicalsys.test'
+    },
+    paymentMethod: 'EFECTIVO',
+    items: [
+      { serviceId: byCode.get('CONS-ESP').id_servicio, description: 'Consulta Especializada', quantity: 1, unitPrice: '150.00', subtotal: '150.00' },
+      { serviceId: byCode.get('ECO-PEL').id_servicio, description: 'Chequeo Ecográfico Pélvico', quantity: 1, unitPrice: '120.00', subtotal: '120.00' }
+    ]
+  });
+  const invoiceB = await createIssuedTestInvoice({
+    number: 'TEST-FACT-HU23-002',
+    configurationId: configuration.id_configuracion,
+    patientId: patientB.id_paciente,
+    issuedBy,
+    date: new Date('2026-09-06T10:15:00-04:00'),
+    receiver: {
+      nitCi: patientB.documento_identidad,
+      complemento: patientB.complemento,
+      razonSocial: 'Camila Vargas Salazar',
+      email: 'camila.facturacion@medicalsys.test'
+    },
+    paymentMethod: 'QR',
+    items: [
+      { serviceId: byCode.get('CIR-GEN').id_servicio, description: 'Cirugía General', quantity: 1, unitPrice: '800.00', subtotal: '800.00' }
+    ]
+  });
+  return [invoiceA, invoiceB];
+}
+
 async function main() {
   await require('../scripts/setup-security')();
   await require('../scripts/seed-security')();
@@ -698,6 +793,12 @@ async function main() {
     await upsertService(codigo, nombre, tipo, duracionMinutos, precioBase);
   }
 
+  const invoices = await seedIssuedInvoices({
+    patientA: clinicalData.patientWithHistory,
+    patientB: documentData.secondPatient,
+    issuedBy: receptionist.id_usuario
+  });
+
   await upsertRooms();
 
   console.log(
@@ -710,6 +811,7 @@ async function main() {
       + `salas iniciales 4, `
       + `horarios ${schedules.length}, citas ${agendaData.appointments.length} (${clinicDateText()} y ${clinicDateText(1)}), `
       + `consentimientos ${consents.map((consent) => `${consent.folio}=/consentimientos/${consent.id_consentimiento}`).join(', ')}.`
+      + ` facturas HU-23 ${invoices.map((invoice) => invoice.numero_factura).join(', ')}.`
   );
 }
 

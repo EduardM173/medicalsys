@@ -15,7 +15,7 @@ export function Sidebar() {
     <nav className="sidebar-nav" aria-label="Módulos del sistema">
       <span className="sidebar-section-label">Módulos del sistema</span>
       {modules.filter(([permission]) => can(user, permission)).map(([permission, path, title, description, icon]) =>
-        <NavLink key={permission} className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`} to={path}>
+        <NavLink key={path} className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`} to={path}>
           <span className="sidebar-item-icon" aria-hidden="true">{icon}</span>
           <span><strong>{title}</strong><small>{description}</small></span>
           <span className="sidebar-arrow" aria-hidden="true">›</span>

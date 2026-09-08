@@ -237,6 +237,19 @@ export function emitBilling(id) {
   });
 }
 
+export function getIssuedInvoices(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.search) params.set('search', filters.search);
+  if (filters.patientId) params.set('patientId', filters.patientId);
+  if (filters.date) params.set('date', filters.date);
+  const query = params.toString();
+  return request(`/billing/invoices${query ? `?${query}` : ''}`);
+}
+
+export function getIssuedInvoice(id) {
+  return request(`/billing/invoices/${encodeURIComponent(id)}`);
+}
+
 // ==========================================
 // Documentos Clínicos y Exámenes (HU-13 / HU-18)
 // ==========================================

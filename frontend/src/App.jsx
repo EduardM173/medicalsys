@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { AppointmentsPage } from './pages/AppointmentsPage';
 import { BillingPreparationPage } from './pages/BillingPreparationPage';
+import { BillingInvoicesPage } from './pages/BillingInvoicesPage';
 import { AgendaPage } from './pages/AgendaPage';
 import { ConsentDetailPage } from './pages/ConsentDetailPage';
 import { ConsentFormPage } from './pages/ConsentFormPage';
@@ -33,6 +34,10 @@ function App() {
       <Route element={<AuthorizedRoute permission="rooms.read" />}><Route path="/salas" element={<RoomsPage />} /></Route>
       <Route element={<AuthorizedRoute permission="appointments.manage" />}><Route path="/citas" element={<AppointmentsPage />} /></Route>
       <Route element={<AuthorizedRoute permission="billing.prepare" />}><Route path="/facturacion/preparar" element={<BillingPreparationPage />} /></Route>
+      <Route element={<AuthorizedRoute permission="billing.read" />}>
+        <Route path="/facturacion" element={<BillingInvoicesPage />} />
+        <Route path="/facturacion/:invoiceId" element={<BillingInvoicesPage />} />
+      </Route>
       <Route element={<AuthorizedRoute permission="notifications.manage" />}><Route path="/whatsapp" element={<WhatsAppNotificationsPage />} /></Route>
       <Route element={<AuthorizedRoute permission="agenda.read" />}><Route path="/agenda" element={<AgendaPage />} /></Route>
       <Route element={<AuthorizedRoute permission="consents.manage" />}><Route path="/consentimientos" element={<ConsentHistoryPage />} /></Route>
