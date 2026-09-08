@@ -14,5 +14,8 @@ export const modules = [
   ['agenda.read', '/agenda', 'Agenda Médica', 'Mis citas programadas', 'A'],
   ['consents.manage', '/consentimientos', 'Consentimientos', 'Historial, generación y firma', 'C'],
   ['patients.read', '/pacientes', 'Pacientes', 'Registro y consulta', 'P'],
-  ['rooms.read', '/salas', 'Salas y Quirófanos', 'Consulta de disponibilidad', 'S']
+  ['rooms.read', '/salas', 'Salas y Quirófanos', 'Consulta de disponibilidad', 'S'],
+  ['campaigns.manage', '/campanias', 'Campañas de Salud', 'Promociones y programas preventivos', 'C'],
+  ['loyalty.manage', '/fidelizacion', 'Fidelización', 'Padrón y estado de pacientes', 'L']
 ];
+
