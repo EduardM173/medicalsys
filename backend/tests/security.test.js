@@ -51,7 +51,9 @@ const endpoints = [
   ['GET', '/api/doctors', 'doctors.read'], ['POST', '/api/doctors', 'doctors.write'],
   ['GET', '/api/doctors/1/schedules/active', 'schedules.read'],
   ['PATCH', '/api/schedules/1', 'schedules.write'], ['GET', '/api/services', 'services.read'],
-  ['POST', '/api/billing/prepare', 'billing.prepare']
+  ['POST', '/api/billing/prepare', 'billing.prepare'],
+  ['GET', '/api/billing/invoices', 'billing.read'],
+  ['GET', '/api/billing/invoices/1', 'billing.read']
 ];
 
 test('matriz por HTTP, revocación y sesiones vigentes', async () => {
