@@ -852,6 +852,11 @@ async function seedCampaignsAndLoyalty({ adminId, patients }) {
     campaigns.push(existing);
   }
 
+  // Aseguramos que patients[1] (Lucía Fernández) quede sin afiliar para pruebas de afiliación
+  await prisma.fidelizacion_paciente.deleteMany({
+    where: { id_paciente: patients[1].id_paciente }
+  });
+
   const loyaltyData = [
     {
       id_paciente: patients[0].id_paciente,
@@ -859,13 +864,6 @@ async function seedCampaignsAndLoyalty({ adminId, patients }) {
       nivel: 'PREMIUM',
       puntos_acumulados: 350,
       notas: 'Paciente frecuente del programa cardiovascular. Cumplimiento ejemplar.'
-    },
-    {
-      id_paciente: patients[1].id_paciente,
-      estado: 'ACTIVO',
-      nivel: 'FRECUENTE',
-      puntos_acumulados: 120,
-      notas: 'Inscrita en módulo de consulta general y controles preventivos.'
     },
     {
       id_paciente: patients[2].id_paciente,

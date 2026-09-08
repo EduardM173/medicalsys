@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { PageContext } from '../components/PageContext';
 import { LoyaltyModal } from '../components/LoyaltyModal';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { getLoyaltyPatients, enrollLoyaltyPatient, updateLoyaltyPatient, removeLoyaltyPatient } from '../services/api';
 import '../styles/campaigns-loyalty.css';
 
@@ -46,9 +48,11 @@ export function LoyaltyPage() {
   const [selectedEstado, setSelectedEstado] = useState('');
   const [selectedNivel, setSelectedNivel] = useState('');
 
-  // Modal
+  // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [removingPatient, setRemovingPatient] = useState(null);
+  const [removingLoading, setRemovingLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -106,17 +110,19 @@ export function LoyaltyPage() {
     await loadData();
   }
 
-  async function handleRemove(patient) {
-    if (!window.confirm(`¿Está seguro de retirar a ${patient.nombres} ${patient.apellidos} del programa de fidelización?`)) {
-      return;
-    }
+  async function confirmRemove() {
+    if (!removingPatient) return;
+    setRemovingLoading(true);
     try {
-      await removeLoyaltyPatient(patient.id);
-      setSuccessMsg('El paciente fue retirado del programa.');
+      await removeLoyaltyPatient(removingPatient.id);
+      setSuccessMsg(`El paciente ${removingPatient.nombres} ${removingPatient.apellidos} fue retirado del programa.`);
+      setRemovingPatient(null);
       setTimeout(() => setSuccessMsg(''), 4000);
       await loadData();
     } catch (err) {
       setError(err.message || 'No fue posible retirar al paciente.');
+    } finally {
+      setRemovingLoading(false);
     }
   }
 
@@ -129,6 +135,13 @@ export function LoyaltyPage() {
         ]}
         title="Programa de Fidelización de Pacientes"
         subtitle="Identificación de miembros, categorías y actualización de estados"
+        actions={
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <Link to="/pacientes" className="button button-secondary">
+              Directorio de Pacientes
+            </Link>
+          </div>
+        }
       />
 
       {/* KPI Cards */}
@@ -227,7 +240,14 @@ export function LoyaltyPage() {
         ) : patients.length === 0 ? (
           <div className="empty-state">
             <h3>No se encontraron pacientes</h3>
-            <p>No existen registros que coincidan con los criterios de búsqueda aplicados.</p>
+            <p>
+              {selectedEstado === 'SIN_PROGRAMA'
+                ? 'Todos los pacientes del directorio clínico ya forman parte del programa de fidelización.'
+                : 'No existen registros que coincidan con los criterios de búsqueda aplicados.'}
+            </p>
+            <Link to="/pacientes" className="button" style={{ display: 'inline-block', marginTop: '1rem' }}>
+              + Ver Directorio Clínico de Pacientes
+            </Link>
           </div>
         ) : (
           <div className="table-responsive">
@@ -305,7 +325,7 @@ export function LoyaltyPage() {
                               <button
                                 type="button"
                                 className="btn-action-text btn-danger"
-                                onClick={() => handleRemove(p)}
+                                onClick={() => setRemovingPatient(p)}
                               >
                                 Retirar
                               </button>
@@ -334,6 +354,16 @@ export function LoyaltyPage() {
         onClose={() => setIsModalOpen(false)}
         patient={selectedPatient}
         onSave={handleSaveLoyalty}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(removingPatient)}
+        onClose={() => setRemovingPatient(null)}
+        onConfirm={confirmRemove}
+        loading={removingLoading}
+        title="¿Retirar Paciente del Programa?"
+        message={`¿Está seguro de que desea retirar a ${removingPatient?.nombres} ${removingPatient?.apellidos} del programa de fidelización? Esta acción no borrará su historial clínico, únicamente su membresía de fidelización.`}
+        confirmText="Retirar del Programa"
       />
     </main>
   );

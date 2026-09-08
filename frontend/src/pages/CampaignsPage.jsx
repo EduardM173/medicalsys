@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '../components/Button';
 import { PageContext } from '../components/PageContext';
 import { CampaignModal } from '../components/CampaignModal';
+import { CampaignPreviewModal } from '../components/CampaignPreviewModal';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { getCampaigns, createCampaign, updateCampaign, deleteCampaign } from '../services/api';
 import '../styles/campaigns-loyalty.css';
 
@@ -46,9 +48,12 @@ export function CampaignsPage() {
   const [search, setSearch] = useState('');
   const [selectedEstado, setSelectedEstado] = useState('');
 
-  // Modal
+  // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState(null);
+  const [previewCampaign, setPreviewCampaign] = useState(null);
+  const [deletingCampaign, setDeletingCampaign] = useState(null);
+  const [deletingLoading, setDeletingLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -106,17 +111,19 @@ export function CampaignsPage() {
     }
   }
 
-  async function handleDelete(campaign) {
-    if (!window.confirm(`¿Está seguro de eliminar o cancelar la campaña "${campaign.nombre}"?`)) {
-      return;
-    }
+  async function confirmDelete() {
+    if (!deletingCampaign) return;
+    setDeletingLoading(true);
     try {
-      const res = await deleteCampaign(campaign.id);
+      const res = await deleteCampaign(deletingCampaign.id);
       setSuccessMsg(res.message || 'Campaña procesada.');
+      setDeletingCampaign(null);
       setTimeout(() => setSuccessMsg(''), 4000);
       await loadData();
     } catch (err) {
       setError(err.message || 'No fue posible eliminar la campaña.');
+    } finally {
+      setDeletingLoading(false);
     }
   }
 
@@ -271,6 +278,15 @@ export function CampaignsPage() {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          className="btn-action-text"
+                          style={{ color: '#0284c7' }}
+                          onClick={() => setPreviewCampaign(c)}
+                          title="Ver cómo lo verán los pacientes"
+                        >
+                          👁️ Vista Previa
+                        </button>
                         {c.estado === 'BORRADOR' && (
                           <button
                             type="button"
@@ -302,7 +318,7 @@ export function CampaignsPage() {
                         <button
                           type="button"
                           className="btn-action-text btn-danger"
-                          onClick={() => handleDelete(c)}
+                          onClick={() => setDeletingCampaign(c)}
                         >
                           Eliminar
                         </button>
@@ -321,6 +337,21 @@ export function CampaignsPage() {
         onClose={() => setIsModalOpen(false)}
         campaign={editingCampaign}
         onSave={handleSaveCampaign}
+      />
+
+      <CampaignPreviewModal
+        isOpen={Boolean(previewCampaign)}
+        onClose={() => setPreviewCampaign(null)}
+        campaign={previewCampaign}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(deletingCampaign)}
+        onClose={() => setDeletingCampaign(null)}
+        onConfirm={confirmDelete}
+        loading={deletingLoading}
+        title="¿Eliminar o Cancelar Campaña?"
+        message={`¿Está seguro de que desea eliminar la campaña "${deletingCampaign?.nombre}"? Si ya posee comunicaciones o registros asociados, será dada de baja como CANCELADA para conservar la auditoría clínica.`}
       />
     </main>
   );
