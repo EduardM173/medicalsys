@@ -790,6 +790,105 @@ async function seedNotificationHistory({ patientA, patientB, appointments, issue
   ]);
 }
 
+async function seedCampaignsAndLoyalty({ adminId, patients }) {
+  const today = new Date();
+  const nextMonth = new Date();
+  nextMonth.setDate(today.getDate() + 30);
+  const prevMonth = new Date();
+  prevMonth.setDate(today.getDate() - 30);
+
+  const campaignsData = [
+    {
+      nombre: 'Jornada Preventiva de Salud Cardiovascular & Hipertensión',
+      descripcion: 'Campaña integral de detección temprana de factores de riesgo coronario, medición de presión arterial y electrocardiograma con arancel preferencial.',
+      fecha_inicio: prevMonth,
+      fecha_fin: nextMonth,
+      estado: 'ACTIVA',
+      tipo_promocion: 'DESCUENTO_CONSULTA',
+      descuento_porcentaje: 20.00,
+      publico_objetivo: 'Pacientes mayores de 40 años o con antecedentes de hipertensión arterial',
+      presupuesto: 2500.00,
+      creada_por: adminId
+    },
+    {
+      nombre: 'Chequeo Pediátrico Integral Vuelta a Clases',
+      descripcion: 'Evaluación de agudeza visual, audiometría, curva de crecimiento y esquema de vacunación completo para el inicio del año escolar.',
+      fecha_inicio: today,
+      fecha_fin: nextMonth,
+      estado: 'PROGRAMADA',
+      tipo_promocion: 'PAQUETE_PREVENTIVO',
+      descuento_porcentaje: 15.00,
+      publico_objetivo: 'Pacientes en edad escolar (de 4 a 14 años)',
+      presupuesto: 1800.00,
+      creada_por: adminId
+    },
+    {
+      nombre: 'Campaña Odontológica Preventiva 2026',
+      descripcion: 'Profilaxis dental y fluorización para toda la familia.',
+      fecha_inicio: null,
+      fecha_fin: null,
+      estado: 'BORRADOR',
+      tipo_promocion: 'JORNADA_GRATUITA',
+      descuento_porcentaje: 50.00,
+      publico_objetivo: 'Comunidad general y grupos familiares',
+      presupuesto: 3000.00,
+      creada_por: adminId
+    }
+  ];
+
+  const campaigns = [];
+  for (const c of campaignsData) {
+    let existing = await prisma.campania.findFirst({
+      where: { nombre: c.nombre }
+    });
+    if (!existing) {
+      existing = await prisma.campania.create({ data: c });
+    } else {
+      existing = await prisma.campania.update({
+        where: { id_campania: existing.id_campania },
+        data: c
+      });
+    }
+    campaigns.push(existing);
+  }
+
+  const loyaltyData = [
+    {
+      id_paciente: patients[0].id_paciente,
+      estado: 'ACTIVO',
+      nivel: 'PREMIUM',
+      puntos_acumulados: 350,
+      notas: 'Paciente frecuente del programa cardiovascular. Cumplimiento ejemplar.'
+    },
+    {
+      id_paciente: patients[1].id_paciente,
+      estado: 'ACTIVO',
+      nivel: 'FRECUENTE',
+      puntos_acumulados: 120,
+      notas: 'Inscrita en módulo de consulta general y controles preventivos.'
+    },
+    {
+      id_paciente: patients[2].id_paciente,
+      estado: 'SUSPENDIDO',
+      nivel: 'ESTANDAR',
+      puntos_acumulados: 40,
+      notas: 'Pausa temporal solicitada por viaje prolongado.'
+    }
+  ];
+
+  const loyaltyMembers = [];
+  for (const l of loyaltyData) {
+    const member = await prisma.fidelizacion_paciente.upsert({
+      where: { id_paciente: l.id_paciente },
+      update: l,
+      create: l
+    });
+    loyaltyMembers.push(member);
+  }
+
+  return { campaigns, loyaltyMembers };
+}
+
 async function main() {
   await require('../scripts/setup-security')();
   await require('../scripts/seed-security')();
@@ -898,6 +997,15 @@ async function main() {
 
   await upsertRooms();
 
+  const { campaigns, loyaltyMembers } = await seedCampaignsAndLoyalty({
+    adminId: admin.id_usuario,
+    patients: [
+      clinicalData.patientWithHistory,
+      clinicalData.patientWithoutHistory,
+      documentData.secondPatient
+    ]
+  });
+
   console.log(
     `Seed listo: administrador ${admin.email}, médicos ${doctor.email} y ${secondDoctor.email}, `
       + `recepcionista ${receptionist.email}, paciente ${patientUser.email}, usuario inactivo ${inactiveUser.email}, `
@@ -910,6 +1018,8 @@ async function main() {
       + `consentimientos ${consents.map((consent) => `${consent.folio}=/consentimientos/${consent.id_consentimiento}`).join(', ')}.`
       + ` facturas HU-23 ${invoices.map((invoice) => invoice.numero_factura).join(', ')}.`
       + ` notificaciones HU-26 ${notificationHistory.length}.`
+      + ` campañas HU-27 ${campaigns.length}.`
+      + ` fidelización HU-28 ${loyaltyMembers.length}.`
   );
 }
 
