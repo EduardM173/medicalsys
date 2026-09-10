@@ -1,4 +1,4 @@
-const prisma = require('../config/prisma');
+const repository = require('../repositories/service.repository');
 
 function toMedicalService(service) {
   return {
@@ -13,7 +13,7 @@ function toMedicalService(service) {
 }
 
 async function listServices() {
-  const services = await prisma.servicio_medico.findMany({
+  const services = await repository.servicio_medico.findMany({
     where: { activo: true },
     orderBy: { nombre: 'asc' }
   });

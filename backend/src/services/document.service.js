@@ -1,4 +1,4 @@
-const prisma = require('../config/prisma');
+const repository = require('../repositories/document.repository');
 const storageService = require('./storage.service');
 
 class DocumentError extends Error {
@@ -44,7 +44,7 @@ function toDocument(document) {
 
 async function listDocumentsByPatientId(patientIdInput) {
   const patientId = parseId(patientIdInput, 'paciente');
-  const patient = await prisma.paciente.findUnique({
+  const patient = await repository.paciente.findUnique({
     where: { id_paciente: patientId },
     select: {
       id_paciente: true,
@@ -90,7 +90,7 @@ async function listDocumentsByPatientId(patientIdInput) {
 
 async function getDocumentFileById(documentIdInput) {
   const documentId = parseId(documentIdInput, 'documento');
-  const document = await prisma.documento_clinico.findUnique({
+  const document = await repository.documento_clinico.findUnique({
     where: { id_documento: documentId },
     select: {
       nombre_archivo: true,

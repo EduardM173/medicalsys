@@ -1,6 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { Prisma } = require('@prisma/client');
-const prisma = require('../config/prisma');
+const repository = require('../repositories/user.repository');
 const { recordAudit, permissionsForRole, permissionsForUser } = require('./security.service');
 const allowedStatuses = ['ACTIVO', 'INACTIVO', 'SUSPENDIDO'];
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -108,7 +107,7 @@ function parseUserId(value) {
   return BigInt(value);
 }
 
-async function findRole(roleCode, db = prisma) {
+async function findRole(roleCode, db = repository) {
   const role = await db.rol.findUnique({ where: { codigo: roleCode } });
   if (!role || !role.activo) {
     throw new UserError(400, 'Rol no válido.');
@@ -116,7 +115,7 @@ async function findRole(roleCode, db = prisma) {
   return role;
 }
 
-async function createUser(input, db = prisma) {
+async function createUser(input, db = repository) {
   const nombres = requiredText(input.nombres, 'Nombres');
   const apellidos = requiredText(input.apellidos, 'Apellidos');
   const email = normalizeEmail(input.email);
@@ -148,7 +147,7 @@ async function createUser(input, db = prisma) {
     });
     return toSafeUser(user);
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    if (repository.isUniqueConstraintError(error)) {
       throw new UserError(409, 'El correo electrónico ya está registrado.');
     }
     throw error;
@@ -156,7 +155,7 @@ async function createUser(input, db = prisma) {
 }
 
 async function listUsers() {
-  const users = await prisma.usuario.findMany({
+  const users = await repository.usuario.findMany({
     orderBy: [{ apellidos: 'asc' }, { nombres: 'asc' }],
     select: safeUserSelect
   });
@@ -164,13 +163,13 @@ async function listUsers() {
 }
 
 async function listRoles() {
-  const roles = await prisma.rol.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } });
+  const roles = await repository.rol.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } });
   return roles.map((role) => ({ code: role.codigo, name: role.nombre, description: role.descripcion }));
 }
 
 async function getUserById(idInput) {
   const id = parseUserId(idInput);
-  const user = await prisma.usuario.findUnique({
+  const user = await repository.usuario.findUnique({
     where: { id_usuario: id },
     select: safeUserSelect
   });
@@ -180,7 +179,7 @@ async function getUserById(idInput) {
   return toSafeUser(user);
 }
 
-async function updateUser(idInput, input, db = prisma) {
+async function updateUser(idInput, input, db = repository) {
   const id = parseUserId(idInput);
   const existingUser = await db.usuario.findUnique({ where: { id_usuario: id } });
   if (!existingUser) {
@@ -209,7 +208,7 @@ async function updateUser(idInput, input, db = prisma) {
   return toSafeUser(user);
 }
 
-async function deactivateUser(idInput, db = prisma) {
+async function deactivateUser(idInput, db = repository) {
   const id = parseUserId(idInput);
   const existingUser = await db.usuario.findUnique({ where: { id_usuario: id } });
   if (!existingUser) {
@@ -222,11 +221,11 @@ async function deactivateUser(idInput, db = prisma) {
 }
 
 async function mutateUser(action, idInput, input, actor) {
-  return prisma.$transaction(async (db) => {
-    await db.$executeRaw`SELECT pg_advisory_xact_lock(742106)`;
+  return repository.transaction(async (db) => {
+    await db.security.lockAdministration();
     const account = await db.usuario.findUnique({ where: { id_usuario: BigInt(actor.id) }, include: { rol: true } });
     const actorPermissions = account && account.estado === 'ACTIVO' && account.rol.activo
-      ? await permissionsForUser(account.id_usuario, account.rol.codigo, db) : [];
+      ? await permissionsForUser(account.id_usuario, account.rol.codigo, db.security) : [];
     if (!actorPermissions.includes('users.manage')) throw new UserError(403, 'No tiene permisos para administrar usuarios.');
     const id = idInput ? parseUserId(idInput) : null;
     if (id === BigInt(actor.id) && (action === 'DEACTIVATE' || input.rol !== undefined || input.estado !== undefined)) {
@@ -236,7 +235,7 @@ async function mutateUser(action, idInput, input, actor) {
     if (!actorPermissions.includes('security.manage')) {
       const targetRoles = [before?.rol.codigo, input.rol].filter(Boolean);
       for (const targetRole of targetRoles) {
-        const targetPermissions = await permissionsForRole(targetRole, db);
+        const targetPermissions = await permissionsForRole(targetRole, db.security);
         if (targetPermissions.some((permission) => !actorPermissions.includes(permission))) {
           throw new UserError(403, 'Se requiere administrar seguridad para asignar o modificar accesos superiores a los propios.');
         }
@@ -253,7 +252,7 @@ async function mutateUser(action, idInput, input, actor) {
     if (action === 'CREATE') result = await createUser(input, db);
     else if (action === 'UPDATE') result = await updateUser(idInput, input, db);
     else await deactivateUser(idInput, db);
-    await recordAudit(db, actor.id, 'USER_' + action, idInput || result.id, {
+    await recordAudit(db.security, actor.id, 'USER_' + action, idInput || result.id, {
       before: before ? { rol: before.rol.codigo, estado: before.estado } : null,
       after: result ? { rol: result.rol, estado: result.estado } : { estado: 'INACTIVO' }
     });

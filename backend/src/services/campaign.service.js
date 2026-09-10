@@ -1,4 +1,4 @@
-const prisma = require('../config/prisma');
+const repository = require('../repositories/campaign.repository');
 
 class CampaignError extends Error {
   constructor(statusCode, message) {
@@ -51,7 +51,7 @@ async function listCampaigns({ search = '', estado = '' } = {}) {
   }
 
   const [campaigns, counts] = await Promise.all([
-    prisma.campania.findMany({
+    repository.campania.findMany({
       where,
       orderBy: [{ fecha_creacion: 'desc' }],
       include: {
@@ -63,7 +63,7 @@ async function listCampaigns({ search = '', estado = '' } = {}) {
         }
       }
     }),
-    prisma.campania.groupBy({
+    repository.campania.groupBy({
       by: ['estado'],
       _count: { id_campania: true }
     })
@@ -96,7 +96,7 @@ async function listCampaigns({ search = '', estado = '' } = {}) {
 
 async function getCampaignById(id) {
   const campaignId = BigInt(id);
-  const campaign = await prisma.campania.findUnique({
+  const campaign = await repository.campania.findUnique({
     where: { id_campania: campaignId },
     include: {
       usuario: {
@@ -145,7 +145,7 @@ async function createCampaign(data, userId) {
     ? data.estado.toUpperCase()
     : 'BORRADOR';
 
-  const campaign = await prisma.campania.create({
+  const campaign = await repository.campania.create({
     data: {
       nombre: data.nombre.trim(),
       descripcion: data.descripcion ? data.descripcion.trim() : null,
@@ -170,7 +170,7 @@ async function createCampaign(data, userId) {
 
 async function updateCampaign(id, data) {
   const campaignId = BigInt(id);
-  const existing = await prisma.campania.findUnique({
+  const existing = await repository.campania.findUnique({
     where: { id_campania: campaignId }
   });
 
@@ -248,7 +248,7 @@ async function updateCampaign(id, data) {
     updateData.presupuesto = data.presupuesto;
   }
 
-  const updated = await prisma.campania.update({
+  const updated = await repository.campania.update({
     where: { id_campania: campaignId },
     data: updateData,
     include: {
@@ -266,7 +266,7 @@ async function updateCampaign(id, data) {
 
 async function deleteCampaign(id) {
   const campaignId = BigInt(id);
-  const existing = await prisma.campania.findUnique({
+  const existing = await repository.campania.findUnique({
     where: { id_campania: campaignId },
     include: {
       _count: {
@@ -281,7 +281,7 @@ async function deleteCampaign(id) {
 
   // Si tiene notificaciones asociadas, realizar baja lógica pasando a CANCELADA
   if (existing._count.notificacion > 0) {
-    const updated = await prisma.campania.update({
+    const updated = await repository.campania.update({
       where: { id_campania: campaignId },
       data: {
         estado: 'CANCELADA',
@@ -295,7 +295,7 @@ async function deleteCampaign(id) {
     };
   }
 
-  await prisma.campania.delete({
+  await repository.campania.delete({
     where: { id_campania: campaignId }
   });
 

@@ -1,6 +1,5 @@
 const crypto = require('crypto');
-const { Prisma } = require('@prisma/client');
-const prisma = require('../config/prisma');
+const repository = require('../repositories/consent.repository');
 
 const folioAttempts = 3;
 
@@ -119,7 +118,7 @@ function toConsent(consent) {
 }
 
 async function findAuthenticatedDoctor(userIdInput) {
-  const doctor = await prisma.medico.findUnique({
+  const doctor = await repository.medico.findUnique({
     where: { id_usuario: BigInt(userIdInput) },
     select: {
       id_medico: true,
@@ -137,14 +136,14 @@ async function findAuthenticatedDoctor(userIdInput) {
 }
 
 async function validateAssociations(patientId, doctorId, appointmentId) {
-  const patient = await prisma.paciente.findUnique({
+  const patient = await repository.paciente.findUnique({
     where: { id_paciente: patientId },
     select: { id_paciente: true }
   });
   if (!patient) throw new ConsentError(404, 'Paciente no encontrado.');
 
   if (!appointmentId) return;
-  const appointment = await prisma.cita.findUnique({
+  const appointment = await repository.cita.findUnique({
     where: { id_cita: appointmentId },
     select: { id_paciente: true, id_medico: true }
   });
@@ -158,7 +157,7 @@ async function validateAssociations(patientId, doctorId, appointmentId) {
 }
 
 function isFolioCollision(error) {
-  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+  if (!repository.isUniqueConstraintError(error)) {
     return false;
   }
   return String(error.meta?.target || '').includes('folio');
@@ -174,7 +173,7 @@ async function createConsent(userIdInput, input) {
 
   for (let attempt = 1; attempt <= folioAttempts; attempt += 1) {
     try {
-      const consent = await prisma.consentimiento_informado.create({
+      const consent = await repository.consentimiento_informado.create({
         data: {
           id_paciente: patientId,
           id_medico: doctor.id_medico,
@@ -198,7 +197,7 @@ async function createConsent(userIdInput, input) {
 async function getConsentById(userIdInput, consentIdInput) {
   const consentId = parseId(consentIdInput, 'consentimiento');
   const doctor = await findAuthenticatedDoctor(userIdInput);
-  const consent = await prisma.consentimiento_informado.findFirst({
+  const consent = await repository.consentimiento_informado.findFirst({
     where: { id_consentimiento: consentId, id_medico: doctor.id_medico },
     select: consentSelect
   });
@@ -221,7 +220,7 @@ async function signConsent(userIdInput, consentIdInput, signatureData) {
     throw new ConsentError(400, 'Los datos de la firma son obligatorios.');
   }
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await repository.transaction(async (tx) => {
     // PA-01 (MED-163): Validar existencia del consentimiento
     const consent = await tx.consentimiento_informado.findFirst({
       where: { id_consentimiento: consentId, id_medico: doctor.id_medico }
@@ -269,7 +268,7 @@ async function getConsentHistory(userIdInput, filters = {}) {
     where.estado = filters.estado;
   }
 
-  const consents = await prisma.consentimiento_informado.findMany({
+  const consents = await repository.consentimiento_informado.findMany({
     where,
     orderBy: { fecha_generacion: 'desc' },
     select: consentSelect
@@ -281,12 +280,12 @@ async function getConsentHistory(userIdInput, filters = {}) {
 async function getConsentOptions(userIdInput) {
   const doctor = await findAuthenticatedDoctor(userIdInput);
   const [patients, appointments] = await Promise.all([
-    prisma.paciente.findMany({
+    repository.paciente.findMany({
       where: { activo: true },
       orderBy: [{ apellidos: 'asc' }, { nombres: 'asc' }],
       select: { id_paciente: true, nombres: true, apellidos: true }
     }),
-    prisma.cita.findMany({
+    repository.cita.findMany({
       where: { id_medico: doctor.id_medico },
       orderBy: { fecha_hora_inicio: 'desc' },
       take: 100,
