@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const prisma = require('../config/prisma');
+const repository = require('../repositories/auth.repository');
 const { permissionsForUser } = require('./security.service');
 
 class AuthError extends Error {
@@ -36,7 +36,7 @@ async function login(emailInput, passwordInput) {
     throw new AuthError(400, 'Correo electrónico y contraseña son obligatorios.');
   }
 
-  const user = await prisma.usuario.findUnique({
+  const user = await repository.usuario.findUnique({
     where: { email },
     include: { rol: true }
   });
@@ -68,7 +68,7 @@ async function login(emailInput, passwordInput) {
 }
 
 async function getCurrentUser(userId) {
-  const user = await prisma.usuario.findUnique({
+  const user = await repository.usuario.findUnique({
     where: { id_usuario: BigInt(userId) },
     include: { rol: true }
   });
@@ -84,13 +84,29 @@ async function getCurrentUser(userId) {
   return { ...toSafeUser(user), permissions: await permissionsForUser(user.id_usuario, user.rol.codigo) };
 }
 
+async function authenticateSession(userId) {
+  const user = await repository.usuario.findUnique({
+    where: { id_usuario: BigInt(userId) },
+    include: { rol: true }
+  });
+  if (!user || user.estado !== 'ACTIVO' || !user.rol.activo) {
+    throw new AuthError(401, 'Sesión sin acceso habilitado.');
+  }
+  return {
+    id: String(user.id_usuario),
+    idUsuario: String(user.id_usuario),
+    rol: user.rol.codigo,
+    permissions: await permissionsForUser(user.id_usuario, user.rol.codigo)
+  };
+}
+
 async function forgotPassword(emailInput) {
   const email = typeof emailInput === 'string' ? emailInput.trim().toLowerCase() : '';
   if (!email) {
     throw new AuthError(400, 'Ingrese su correo electrónico para continuar.');
   }
 
-  const user = await prisma.usuario.findUnique({
+  const user = await repository.usuario.findUnique({
     where: { email },
     select: { id_usuario: true, email: true, nombres: true, apellidos: true, estado: true }
   });
@@ -112,4 +128,4 @@ async function forgotPassword(emailInput) {
   return { message: 'Se han enviado las instrucciones de restablecimiento a su correo electrónico.' };
 }
 
-module.exports = { AuthError, forgotPassword, getCurrentUser, login };
+module.exports = { AuthError, authenticateSession, forgotPassword, getCurrentUser, login };

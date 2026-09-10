@@ -310,10 +310,42 @@ npm run test:whatsapp-incoming
 ## Arquitectura
 
 ```text
-React → Routes → Controllers → Services → Prisma → PostgreSQL
+┌─────────────────────────────────────────────────────────────────────┐
+│ PRESENTACIÓN                                                        │
+│ React (pages/components) → cliente HTTP (frontend/src/services/api) │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │ HTTP / JSON
+┌───────────────────────────────▼─────────────────────────────────────┐
+│ APLICACIÓN                                                          │
+│ Routes → Middleware → Controllers → Services                       │
+│                       HTTP          reglas de negocio               │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │ contratos de repositorio
+┌───────────────────────────────▼─────────────────────────────────────┐
+│ ACCESO A DATOS                                                     │
+│ Repositories → Prisma → PostgreSQL                                 │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-Las rutas definen endpoints y middlewares, los controladores construyen respuestas HTTP y los servicios contienen validaciones y reglas de negocio. React solo consume la API; no consulta PostgreSQL directamente.
+Responsabilidades estrictas:
+
+- `frontend/src/pages` y `frontend/src/components`: presentación e interacción. Solo consumen el cliente HTTP.
+- `backend/src/routes`: declaran endpoints, middleware y el controlador correspondiente; no contienen lógica HTTP embebida ni importan servicios.
+- `backend/src/middleware`: autentican, autorizan y procesan aspectos transversales. La autenticación delega la consulta de sesión al servicio de autenticación.
+- `backend/src/controllers`: traducen HTTP a entradas de aplicación y construyen respuestas; no importan Prisma ni repositorios.
+- `backend/src/services`: validaciones y reglas de negocio independientes de Express; no ejecutan SQL ni importan Prisma.
+- `backend/src/repositories`: única puerta de acceso de la aplicación a Prisma, transacciones y SQL parametrizado.
+- `backend/src/config/prisma.js`: construcción y ciclo de vida del cliente de PostgreSQL.
+
+El flujo obligatorio es `Vista → HTTP → Route → Controller → Service → Repository → Prisma → PostgreSQL`. Las integraciones externas de almacenamiento, WhatsApp y SIN se mantienen detrás de proveedores consumidos por los servicios.
+
+La separación se protege automáticamente. Desde `backend` ejecute:
+
+```powershell
+npm run test:architecture
+```
+
+La prueba falla si rutas, controladores, middleware o servicios importan Prisma; si una ruta importa directamente un servicio; si falta un repositorio funcional; o si el frontend depende de módulos internos del backend.
 
 ## Hotfix: OSI, roles y mínimo privilegio
 

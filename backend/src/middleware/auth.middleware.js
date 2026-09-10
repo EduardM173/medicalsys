@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
-const prisma = require('../config/prisma');
-const { permissionsForUser } = require('../services/security.service');
+const authService = require('../services/auth.service');
 async function requireAuth(request, response, next) {
   let payload;
   try {
@@ -10,15 +9,11 @@ async function requireAuth(request, response, next) {
     return response.status(401).json({ message: 'Autenticación requerida.' });
   }
   try {
-    const user = await prisma.usuario.findUnique({ where: { id_usuario: BigInt(payload.sub) }, include: { rol: true } });
-    if (!user || user.estado !== 'ACTIVO' || !user.rol.activo) {
-      return response.status(401).json({ message: 'Sesión sin acceso habilitado.' });
-    }
-    request.user = {
-      id: String(user.id_usuario), idUsuario: String(user.id_usuario), rol: user.rol.codigo,
-      permissions: await permissionsForUser(user.id_usuario, user.rol.codigo)
-    };
+    request.user = await authService.authenticateSession(payload.sub);
     return next();
-  } catch (error) { return next(error); }
+  } catch (error) {
+    if (error.statusCode === 401) return response.status(401).json({ message: error.message });
+    return next(error);
+  }
 }
 module.exports = requireAuth;

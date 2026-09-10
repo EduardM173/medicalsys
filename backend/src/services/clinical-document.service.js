@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const path = require('path');
-const prisma = require('../config/prisma');
+const repository = require('../repositories/document.repository');
 const storageService = require('./storage/storage.service');
 
 const VALID_DOCUMENT_TYPES = ['EXAMEN', 'RADIOGRAFIA', 'CONSENTIMIENTO', 'RECETA', 'INFORME', 'OTRO'];
@@ -37,12 +37,12 @@ function serializeDocument(doc) {
 class ClinicalDocumentService {
   async getOrCreateHistory(patientId) {
     const pId = BigInt(patientId);
-    let history = await prisma.historia_clinica.findUnique({
+    let history = await repository.historia_clinica.findUnique({
       where: { id_paciente: pId }
     });
 
     if (!history) {
-      history = await prisma.historia_clinica.create({
+      history = await repository.historia_clinica.create({
         data: {
           id_paciente: pId,
           fecha_apertura: new Date()
@@ -75,7 +75,7 @@ class ClinicalDocumentService {
 
     // Verificar que el paciente exista
     const pId = BigInt(patientId);
-    const patient = await prisma.paciente.findUnique({
+    const patient = await repository.paciente.findUnique({
       where: { id_paciente: pId }
     });
 
@@ -92,7 +92,7 @@ class ClinicalDocumentService {
     let attId = null;
     if (attentionId) {
       attId = BigInt(attentionId);
-      const attention = await prisma.atencion_medica.findFirst({
+      const attention = await repository.atencion_medica.findFirst({
         where: {
           id_atencion: attId,
           id_historia: history.id_historia
@@ -121,7 +121,7 @@ class ClinicalDocumentService {
     });
 
     // Guardar en Base de Datos
-    const createdDoc = await prisma.documento_clinico.create({
+    const createdDoc = await repository.documento_clinico.create({
       data: {
         id_historia: history.id_historia,
         id_atencion: attId,
@@ -146,7 +146,7 @@ class ClinicalDocumentService {
 
   async getPatientDocuments(patientId, filters = {}) {
     const pId = BigInt(patientId);
-    const history = await prisma.historia_clinica.findUnique({
+    const history = await repository.historia_clinica.findUnique({
       where: { id_paciente: pId }
     });
 
@@ -162,7 +162,7 @@ class ClinicalDocumentService {
       where.tipo = filters.tipo.toUpperCase();
     }
 
-    const docs = await prisma.documento_clinico.findMany({
+    const docs = await repository.documento_clinico.findMany({
       where,
       orderBy: { fecha_registro: 'desc' },
       include: {
@@ -176,7 +176,7 @@ class ClinicalDocumentService {
 
   async getDocumentById(documentId) {
     const docId = BigInt(documentId);
-    const doc = await prisma.documento_clinico.findUnique({
+    const doc = await repository.documento_clinico.findUnique({
       where: { id_documento: docId },
       include: {
         usuario: true,
@@ -220,7 +220,7 @@ class ClinicalDocumentService {
     }
 
     // Eliminar registro en base de datos
-    await prisma.documento_clinico.delete({
+    await repository.documento_clinico.delete({
       where: { id_documento: doc.id_documento }
     });
 

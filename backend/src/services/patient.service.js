@@ -1,5 +1,4 @@
-const { Prisma } = require('@prisma/client');
-const prisma = require('../config/prisma');
+const repository = require('../repositories/patient.repository');
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -119,7 +118,7 @@ function toPatient(patient) {
 }
 
 async function ensureUniqueDocument(document, complement, excludeId) {
-  const existing = await prisma.paciente.findFirst({
+  const existing = await repository.paciente.findFirst({
     where: {
       documento_identidad: document,
       complemento: complement,
@@ -154,10 +153,10 @@ async function createPatient(input) {
   };
 
   try {
-    const patient = await prisma.paciente.create({ data, select: patientSelect });
+    const patient = await repository.paciente.create({ data, select: patientSelect });
     return toPatient(patient);
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    if (repository.isUniqueConstraintError(error)) {
       throw new PatientError(409, 'Ya existe un paciente con este documento de identidad.');
     }
     throw error;
@@ -167,7 +166,7 @@ async function createPatient(input) {
 async function listPatients(searchInput = '') {
   const search = typeof searchInput === 'string' ? normalizeSpacing(searchInput).slice(0, 100) : '';
   const terms = search ? search.split(' ') : [];
-  const patients = await prisma.paciente.findMany({
+  const patients = await repository.paciente.findMany({
     where: {
       activo: true,
       ...(terms.length ? {
@@ -189,7 +188,7 @@ async function listPatients(searchInput = '') {
 
 async function getPatientById(idInput) {
   const id = parsePatientId(idInput);
-  const patient = await prisma.paciente.findUnique({
+  const patient = await repository.paciente.findUnique({
     where: { id_paciente: id },
     select: patientSelect
   });
@@ -201,7 +200,7 @@ async function getPatientById(idInput) {
 
 async function updatePatient(idInput, input) {
   const id = parsePatientId(idInput);
-  const existing = await prisma.paciente.findUnique({ where: { id_paciente: id } });
+  const existing = await repository.paciente.findUnique({ where: { id_paciente: id } });
   if (!existing) {
     throw new PatientError(404, 'Paciente no encontrado.');
   }
@@ -242,14 +241,14 @@ async function updatePatient(idInput, input) {
   if (input.telefonoEmergencia !== undefined) data.telefono_emergencia = optionalText(input.telefonoEmergencia, 'El teléfono de emergencia', 30);
 
   try {
-    const patient = await prisma.paciente.update({
+    const patient = await repository.paciente.update({
       where: { id_paciente: id },
       data,
       select: patientSelect
     });
     return toPatient(patient);
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    if (repository.isUniqueConstraintError(error)) {
       throw new PatientError(409, 'Ya existe un paciente con este documento de identidad.');
     }
     throw error;

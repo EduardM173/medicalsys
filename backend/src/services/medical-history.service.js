@@ -1,4 +1,4 @@
-const prisma = require('../config/prisma');
+const repository = require('../repositories/history.repository');
 
 class MedicalHistoryError extends Error {
   constructor(statusCode, message) {
@@ -82,7 +82,7 @@ function toHistory(history) {
 
 async function getMedicalHistoryByPatientId(patientIdInput) {
   const patientId = parsePatientId(patientIdInput);
-  const patient = await prisma.paciente.findUnique({
+  const patient = await repository.paciente.findUnique({
     where: { id_paciente: patientId },
     select: {
       id_paciente: true,
