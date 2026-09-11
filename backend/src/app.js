@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth.routes');
 const billingRoutes = require('./routes/billing.routes');
 const campaignRoutes = require('./routes/campaign.routes');
 const clinicalDocumentRoutes = require('./routes/clinical-document.routes');
+const clinicalMessageRoutes = require('./routes/clinical-message.routes');
 const consentRoutes = require('./routes/consent.routes');
 const doctorRoutes = require('./routes/doctor.routes');
 const documentRoutes = require('./routes/document.routes');
@@ -21,8 +22,12 @@ const scheduleRoutes = require('./routes/schedule.routes');
 const serviceRoutes = require('./routes/service.routes');
 const userRoutes = require('./routes/user.routes');
 const errorHandler = require('./middleware/error.middleware');
+const requestLogger = require('./middleware/log.middleware');
+const { enforceHttps } = require('./middleware/security.middleware');
 
 const app = express();
+app.enable('trust proxy');
+app.use(enforceHttps());
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -30,6 +35,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+app.use(requestLogger);
 
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
@@ -51,6 +57,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/loyalty', loyaltyRoutes);
+app.use('/api', clinicalMessageRoutes);
 app.use('/api', scheduleRoutes);
 app.use('/api', documentRoutes);
 app.use('/api', clinicalDocumentRoutes);

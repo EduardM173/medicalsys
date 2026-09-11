@@ -1,6 +1,7 @@
-const { createRepository, isUniqueConstraintError } = require('./repository.factory');
+const { createEncryptedRepository } = require('./encrypted.repository');
+const { isUniqueConstraintError } = require('./repository.factory');
 
-module.exports = createRepository(
+module.exports = createEncryptedRepository(
   ['medico', 'paciente', 'cita', 'consentimiento_informado'],
   undefined,
   () => ({ isUniqueConstraintError })
