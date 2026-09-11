@@ -9,14 +9,16 @@
     "security:setup": "node scripts/setup-security.js",
     "security:grant-notifications": "node scripts/grant-notifications-permission.js",
     "security:encryption-setup": "node scripts/setup-encryption.js",
+    "security:digital-signature-setup": "node scripts/setup-digital-signature.js",
     "test:security": "node --test tests/security.test.js",
     "test:encryption": "node --test tests/security/HU-31-encryption.test.js",
+    "test:digital-signature": "node --test tests/security/HU-33-digital-signature.test.js",
     "test:billing": "node --test tests/billing-query.test.js",
     "test:notifications": "node --test tests/notification-history.test.js",
     "test:whatsapp-incoming": "node --test tests/green-api-incoming.test.js",
     "test:campaign-loyalty": "node --test tests/campaign-loyalty.test.js",
     "test:architecture": "node --test tests/architecture.test.js",
-    "test": "node --test tests/architecture.test.js tests/campaign-loyalty.test.js tests/billing-query.test.js tests/notification-history.test.js tests/green-api-incoming.test.js tests/security.test.js tests/security/HU-31-encryption.test.js",
+    "test": "node --test tests/architecture.test.js tests/campaign-loyalty.test.js tests/billing-query.test.js tests/notification-history.test.js tests/green-api-incoming.test.js tests/security.test.js tests/security/HU-31-encryption.test.js tests/security/HU-33-digital-signature.test.js",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "prisma:generate": "prisma generate",
@@ -36,9 +38,11 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^2.3.0"
+    "multer": "^2.3.0",
+    "pdf-lib": "^1.17.1"
   },
   "devDependencies": {
+    "node-forge": "^1.4.0",
     "nodemon": "^3.1.9",
     "prisma": "^6.0.0"
   }

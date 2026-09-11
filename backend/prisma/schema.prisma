@@ -111,10 +111,16 @@ model consentimiento_informado {
   id_paciente       BigInt
   id_medico         BigInt
   id_cita           BigInt?
+  // HU-33: plantilla fuente y versión exacta utilizada al generar (PA-01/PA-02).
+  id_plantilla      BigInt?
+  version_plantilla Int?                  @default(1)
   folio             String                @unique @db.VarChar(50)
   procedimiento     String                @db.VarChar(255)
   contenido         String
   estado            estado_consentimiento @default(GENERADO)
+  // HU-33: documento PDF inmutable previo a la firma (MED-309).
+  pdf_path          String?               @db.VarChar(500)
+  pdf_hash          String?               @db.VarChar(64)
   firma_storage_key String?               @db.VarChar(500)
   firma_hash_sha256 String?               @db.VarChar(64)
   fecha_generacion  DateTime              @default(now()) @db.Timestamptz(6)
@@ -123,6 +129,60 @@ model consentimiento_informado {
   documento_clinico documento_clinico?    @relation(fields: [id_documento], references: [id_documento], map: "fk_consentimiento_documento")
   medico            medico                @relation(fields: [id_medico], references: [id_medico], map: "fk_consentimiento_medico")
   paciente          paciente              @relation(fields: [id_paciente], references: [id_paciente], map: "fk_consentimiento_paciente")
+  plantilla         plantilla_consentimiento? @relation(fields: [id_plantilla], references: [id_plantilla], map: "fk_consentimiento_plantilla")
+  firma             firma_digital_consentimiento?
+  anulacion         anulacion_consentimiento?
+
+  @@index([id_plantilla], map: "idx_consentimiento_plantilla")
+}
+
+/// HU-33: catálogo de plantillas de consentimiento informado con versionado.
+model plantilla_consentimiento {
+  id_plantilla        BigInt      @id @default(autoincrement())
+  codigo              String      @unique @db.VarChar(50)
+  titulo              String      @db.VarChar(180)
+  tipo_procedimiento  String      @db.VarChar(100)
+  contenido           String
+  version             Int         @default(1)
+  activa              Boolean     @default(true)
+  fecha_creacion      DateTime    @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion DateTime    @default(now()) @db.Timestamptz(6)
+  consentimiento_informado consentimiento_informado[]
+
+  @@index([codigo, activa], map: "idx_plantilla_consentimiento_activa")
+}
+
+/// HU-33: metadatos PKI de la firma digital (X.509 + SHA256withRSA).
+model firma_digital_consentimiento {
+  id_firma              BigInt      @id @default(autoincrement())
+  id_consentimiento     BigInt      @unique
+  tipo_firmante         tipo_firmante @default(PACIENTE)
+  nombre_firmante       String      @db.VarChar(180)
+  ci_firmante           String      @db.VarChar(40)
+  relacion_tutor        String?     @db.VarChar(80)
+  certificado_pem       String
+  emisor_ca             String      @db.VarChar(255)
+  serial_number         String      @db.VarChar(100)
+  valido_desde          DateTime    @db.Timestamptz(6)
+  valido_hasta          DateTime    @db.Timestamptz(6)
+  algoritmo             String      @db.VarChar(50)
+  fecha_firma           DateTime    @default(now()) @db.Timestamptz(6)
+  hash_documento        String?     @db.VarChar(64)
+  firma_bruta           String
+  resultado_validacion  Boolean     @default(true)
+  consentimiento_informado consentimiento_informado @relation(fields: [id_consentimiento], references: [id_consentimiento], map: "fk_firma_consentimiento")
+
+  @@index([emisor_ca], map: "idx_firma_consentimiento_emisor")
+}
+
+/// HU-33: anulación lógica. Nunca se elimina físicamente el documento ni la firma.
+model anulacion_consentimiento {
+  id_anulacion          BigInt      @id @default(autoincrement())
+  id_consentimiento     BigInt      @unique
+  motivo                String
+  anulado_por_usuario   BigInt
+  fecha_anulacion       DateTime    @default(now()) @db.Timestamptz(6)
+  consentimiento_informado consentimiento_informado @relation(fields: [id_consentimiento], references: [id_consentimiento], map: "fk_anulacion_consentimiento")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -473,6 +533,11 @@ enum estado_usuario {
   ACTIVO
   INACTIVO
   SUSPENDIDO
+}
+
+enum tipo_firmante {
+  PACIENTE
+  TUTOR
 }
 
 enum metodo_pago {
