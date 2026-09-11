@@ -9,33 +9,36 @@ datasource db {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model atencion_medica {
-  id_atencion             BigInt              @id @default(autoincrement())
-  id_historia             BigInt
-  id_medico               BigInt
-  id_cita                 BigInt?             @unique
-  fecha_atencion          DateTime            @default(now()) @db.Timestamptz(6)
-  motivo_consulta         String
-  anamnesis               String?
-  diagnostico_codigo      String?             @db.VarChar(30)
-  diagnostico_descripcion String?
-  tratamiento             String?
-  observaciones           String?
-  presion_sistolica       Int?                @db.SmallInt
-  presion_diastolica      Int?                @db.SmallInt
-  frecuencia_cardiaca     Int?                @db.SmallInt
-  temperatura             Decimal?            @db.Decimal(4, 1)
-  saturacion_oxigeno      Int?                @db.SmallInt
-  peso_kg                 Decimal?            @db.Decimal(6, 2)
-  talla_cm                Decimal?            @db.Decimal(6, 2)
-  fecha_creacion          DateTime            @default(now()) @db.Timestamptz(6)
-  fecha_actualizacion     DateTime            @default(now()) @db.Timestamptz(6)
-  cita                    cita?               @relation(fields: [id_cita], references: [id_cita], map: "fk_atencion_cita")
-  historia_clinica        historia_clinica    @relation(fields: [id_historia], references: [id_historia], map: "fk_atencion_historia")
-  medico                  medico              @relation(fields: [id_medico], references: [id_medico], map: "fk_atencion_medico")
-  documento_clinico       documento_clinico[]
-  receta                  receta[]
+  id_atencion                BigInt              @id @default(autoincrement())
+  id_historia                BigInt
+  id_medico                  BigInt
+  id_cita                    BigInt?             @unique
+  fecha_atencion             DateTime            @default(now()) @db.Timestamptz(6)
+  // HU-31: campos cifrados AES-256-GCM (holgura para ciphertext hex).
+  motivo_consulta            String
+  anamnesis                  String?
+  diagnostico_codigo         String?             @db.VarChar(255)
+  diagnostico_codigo_blind_index String?         @db.VarChar(64)
+  diagnostico_descripcion    String?
+  tratamiento                String?
+  observaciones              String?
+  presion_sistolica          Int?                @db.SmallInt
+  presion_diastolica         Int?                @db.SmallInt
+  frecuencia_cardiaca        Int?                @db.SmallInt
+  temperatura                Decimal?            @db.Decimal(4, 1)
+  saturacion_oxigeno         Int?                @db.SmallInt
+  peso_kg                    Decimal?            @db.Decimal(6, 2)
+  talla_cm                   Decimal?            @db.Decimal(6, 2)
+  fecha_creacion             DateTime            @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion        DateTime            @default(now()) @db.Timestamptz(6)
+  cita                       cita?               @relation(fields: [id_cita], references: [id_cita], map: "fk_atencion_cita")
+  historia_clinica           historia_clinica    @relation(fields: [id_historia], references: [id_historia], map: "fk_atencion_historia")
+  medico                     medico              @relation(fields: [id_medico], references: [id_medico], map: "fk_atencion_medico")
+  documento_clinico          documento_clinico[]
+  receta                     receta[]
 
   @@index([id_historia, fecha_atencion(sort: Desc)], map: "idx_atencion_historia_fecha")
+  @@index([diagnostico_codigo_blind_index], map: "idx_atencion_diagnostico_blind")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -207,7 +210,22 @@ model historia_clinica {
   fecha_actualizacion     DateTime            @default(now()) @db.Timestamptz(6)
   atencion_medica         atencion_medica[]
   documento_clinico       documento_clinico[]
+  mensaje_clinico         mensaje_clinico[]
   paciente                paciente            @relation(fields: [id_paciente], references: [id_paciente], map: "fk_historia_paciente")
+}
+
+/// Mensajes clínicos entre profesionales (HU-31). contenido se persiste cifrado.
+model mensaje_clinico {
+  id_mensaje          BigInt        @id @default(autoincrement())
+  id_historia         BigInt
+  id_medico           BigInt
+  destinatario_role   String?       @db.VarChar(50)
+  contenido           String
+  fecha_envio         DateTime      @default(now()) @db.Timestamptz(6)
+  historia_clinica    historia_clinica @relation(fields: [id_historia], references: [id_historia], map: "fk_mensaje_clinico_historia")
+  medico              medico        @relation(fields: [id_medico], references: [id_medico], map: "fk_mensaje_clinico_medico")
+
+  @@index([id_historia, fecha_envio(sort: Desc)], map: "idx_mensaje_clinico_historia_fecha")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -238,6 +256,7 @@ model medico {
   cita                     cita[]
   consentimiento_informado consentimiento_informado[]
   horario_medico           horario_medico[]
+  mensaje_clinico          mensaje_clinico[]
   usuario                  usuario                    @relation(fields: [id_usuario], references: [id_usuario], map: "fk_medico_usuario")
 }
 

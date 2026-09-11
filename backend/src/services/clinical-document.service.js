@@ -1,7 +1,9 @@
 const crypto = require('crypto');
 const path = require('path');
+const { Readable } = require('stream');
 const repository = require('../repositories/document.repository');
 const storageService = require('./storage/storage.service');
+const cryptoService = require('./crypto.service');
 
 const VALID_DOCUMENT_TYPES = ['EXAMEN', 'RADIOGRAFIA', 'CONSENTIMIENTO', 'RECETA', 'INFORME', 'OTRO'];
 
@@ -105,17 +107,20 @@ class ClinicalDocumentService {
       }
     }
 
-    // Calcular hash SHA-256 para integridad clínica y auditoría
+    // Calcular hash SHA-256 del documento clínico original (integridad clínica)
     const sha256 = crypto.createHash('sha256').update(file.buffer).digest('hex');
+
+    // HU-31 / PA-06: el archivo se persiste cifrado AES-256-GCM en disco/R2.
+    const encryptedBuffer = cryptoService.encryptBuffer(file.buffer);
 
     // Generar nombre de archivo único
     const ext = path.extname(file.originalname) || '';
     const safeUUID = crypto.randomUUID();
     const storedFilename = `${Date.now()}-${safeUUID}${ext}`;
 
-    // Guardar en Storage Provider activo (Local o R2)
+    // Guardar en Storage Provider activo (Local o R2) como ciphertext
     const storageResult = await storageService.saveFile({
-      buffer: file.buffer,
+      buffer: encryptedBuffer,
       filename: storedFilename,
       mimeType: file.mimetype
     });
@@ -200,12 +205,18 @@ class ClinicalDocumentService {
     const doc = await this.getDocumentById(documentId);
     const { stream, size } = await storageService.getFileStream(doc.storage_key, doc.storage_provider);
 
+    // HU-31 / PA-06: descifrar el archivo persistido antes de devolverlo.
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    const plainBuffer = cryptoService.decryptBuffer(Buffer.concat(chunks));
+
     return {
-      stream,
-      size,
+      stream: Readable.from(plainBuffer),
+      size: plainBuffer.length,
       mimeType: doc.mime_type || 'application/octet-stream',
       filename: doc.nombre_archivo,
-      hashSha256: doc.hash_sha256
+      hashSha256: doc.hash_sha256,
+      encrypted: size !== plainBuffer.length
     };
   }
 

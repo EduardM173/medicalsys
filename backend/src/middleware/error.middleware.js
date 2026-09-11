@@ -1,8 +1,12 @@
+const { logger } = require('../config/logger');
+
 function errorHandler(error, _request, response, _next) {
   const statusCode = error.statusCode || 500;
 
   if (statusCode >= 500) {
-    console.error(error);
+    logger.error({ message: error.message, stack: error.stack, name: error.name });
+  } else {
+    logger.warn({ message: error.message, statusCode, name: error.name });
   }
 
   response.status(statusCode).json({

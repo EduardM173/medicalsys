@@ -1,3 +1,3 @@
-const { createRepository } = require('./repository.factory');
+const { createEncryptedRepository } = require('./encrypted.repository');
 
-module.exports = createRepository(['paciente', 'historia_clinica', 'atencion_medica', 'documento_clinico']);
+module.exports = createEncryptedRepository(['paciente', 'historia_clinica', 'atencion_medica', 'documento_clinico']);

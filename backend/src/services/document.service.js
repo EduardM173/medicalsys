@@ -1,5 +1,7 @@
+const { Readable } = require('stream');
 const repository = require('../repositories/document.repository');
 const storageService = require('./storage.service');
+const cryptoService = require('./crypto.service');
 
 class DocumentError extends Error {
   constructor(statusCode, message) {
@@ -108,8 +110,16 @@ async function getDocumentFileById(documentIdInput) {
     document.storage_provider,
     document.storage_key
   );
+
+  // HU-31 / PA-06: descifrar el archivo persistido antes de devolverlo.
+  const chunks = [];
+  for await (const chunk of storedFile.stream) chunks.push(chunk);
+  const plainBuffer = cryptoService.decryptBuffer(Buffer.concat(chunks));
+
   return {
     ...storedFile,
+    size: plainBuffer.length,
+    stream: Readable.from(plainBuffer),
     fileName: document.nombre_archivo,
     mimeType: document.mime_type
   };
