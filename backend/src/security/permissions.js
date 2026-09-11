@@ -1,6 +1,6 @@
 const roles = ['ADMINISTRADOR', 'OSI', 'MEDICO', 'RECEPCIONISTA', 'PACIENTE'];
 const defaultAssignments = {
-  ADMINISTRADOR: ['users.manage', 'security.manage', 'patients.read', 'patients.write', 'history.read', 'attention.write', 'documents.read', 'documents.write', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'doctors.write', 'schedules.read', 'schedules.write', 'services.read', 'billing.read', 'billing.prepare', 'notifications.manage', 'campaigns.manage', 'loyalty.manage'],
+  ADMINISTRADOR: ['users.manage', 'security.manage', 'patients.read', 'patients.write', 'history.read', 'attention.write', 'documents.read', 'documents.write', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'doctors.write', 'schedules.read', 'schedules.write', 'services.read', 'billing.read', 'billing.prepare', 'notifications.manage', 'campaigns.manage', 'loyalty.manage', 'consents.manage'],
   OSI: ['users.manage', 'security.manage'],
   MEDICO: ['patients.read', 'history.read', 'attention.write', 'documents.read', 'documents.write', 'agenda.read', 'consents.manage', 'rooms.read', 'schedules.read'],
   RECEPCIONISTA: ['patients.read', 'patients.write', 'documents.read', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'schedules.read', 'services.read', 'billing.read', 'billing.prepare', 'notifications.manage'],
@@ -46,7 +46,7 @@ function permissionForRequest(request) {
   if (/^\/api\/rooms(?:\/|$)/.test(path)) return read && !path.endsWith('/pending-appointments') ? 'rooms.read' : 'rooms.write';
   if (/^\/api\/appointments(?:\/|$)/.test(path)) return 'appointments.manage';
   if (/^\/api\/agenda(?:\/|$)/.test(path)) return 'agenda.read';
-  if (/^\/api\/(?:consents|consentimientos)(?:\/|$)/.test(path)) return 'consents.manage';
+  if (/^\/api\/(?:consents|consentimientos|consent-templates)(?:\/|$)/.test(path)) return 'consents.manage';
   if (/^\/api\/services(?:\/|$)/.test(path)) return 'services.read';
   if (read && /^\/api\/billing\/invoices(?:\/[^/]+)?$/.test(path)) return 'billing.read';
   if (/^\/api\/billing(?:\/|$)/.test(path)) return 'billing.prepare';
