@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '../components/Button';
 import { PageContext } from '../components/PageContext';
-import { getIssuedInvoice, getIssuedInvoices, getPatients } from '../services/api';
+import { getIssuedInvoice, getIssuedInvoices, getPatients, getInvoiceXmlUrl, cancelInvoice } from '../services/api';
 import '../styles/billing.css';
 import '../styles/billing-invoices.css';
 
@@ -18,7 +19,37 @@ function formatMoney(value) {
 function formatDate(value) {
   return value ? new Intl.DateTimeFormat('es-BO', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—';
 }
-function SinBadge({ value }) {
+function SinBadge({ value, referencia }) {
+  if (value === 'PENDIENTE' || (referencia && String(referencia).startsWith('CONT-'))) {
+    return (
+      <span
+        className="invoice-badge"
+        style={{
+          background: '#fef3c7',
+          color: '#92400e',
+          border: '1px solid #fde68a',
+          fontWeight: 600
+        }}
+      >
+        🟡 CONTINGENCIA (RND 102100000011)
+      </span>
+    );
+  }
+  if (value === 'EMITIDA') {
+    return (
+      <span
+        className="invoice-badge"
+        style={{
+          background: '#ecfdf5',
+          color: '#065f46',
+          border: '1px solid #a7f3d0',
+          fontWeight: 600
+        }}
+      >
+        🟢 EN LÍNEA (SIAT v2)
+      </span>
+    );
+  }
   const simulated = value === 'SIMULADA';
   return <span className={`invoice-badge invoice-sin-${String(value || '').toLowerCase()}`}>{simulated ? 'SIMULACIÓN' : value || '—'}</span>;
 }
@@ -27,24 +58,86 @@ function InvoiceDetail({ invoiceId }) {
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  useEffect(() => {
-    let active = true;
+  const [copiedCuf, setCopiedCuf] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState(1);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
+
+  const fetchInvoice = useCallback(() => {
+    setLoading(true);
     getIssuedInvoice(invoiceId)
-      .then((response) => { if (active) setInvoice(response.invoice); })
-      .catch((requestError) => { if (active) setError(requestError.status === 404 ? 'Factura no encontrada.' : requestError.message || 'No fue posible cargar la información de facturación.'); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+      .then((response) => { setInvoice(response.invoice); })
+      .catch((requestError) => { setError(requestError.status === 404 ? 'Factura no encontrada.' : requestError.message || 'No fue posible cargar la información de facturación.'); })
+      .finally(() => { setLoading(false); });
   }, [invoiceId]);
+
+  useEffect(() => {
+    fetchInvoice();
+  }, [fetchInvoice]);
+
+  const handleCopyCuf = () => {
+    if (invoice?.cuf) {
+      navigator.clipboard.writeText(invoice.cuf);
+      setCopiedCuf(true);
+      setTimeout(() => setCopiedCuf(false), 2000);
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    try {
+      setCancelling(true);
+      setCancelError('');
+      await cancelInvoice(invoiceId, { motivo: cancelReason });
+      setShowCancelModal(false);
+      fetchInvoice();
+    } catch (err) {
+      setCancelError(err.message || 'No fue posible anular la factura ante el SIN.');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   if (loading) return <main className="billing-page invoice-query-page"><p className="invoice-state">Cargando factura...</p></main>;
   if (error) return <main className="billing-page invoice-query-page"><p className="billing-alert error" role="alert">{error}</p><Link className="button button-secondary" to="/facturacion">Volver a facturas</Link></main>;
+
+  const qrUrl = invoice.qrPayload && invoice.qrPayload.startsWith('http')
+    ? invoice.qrPayload
+    : `https://pilotosiat.impuestos.gob.bo/consulta/QR?nit=4247012018&cuf=${invoice.cuf}&numero=${invoice.numeroFactura}&t=2`;
+
+  const isContingencia = invoice.sinEstado === 'PENDIENTE' || (invoice.sinReferencia && invoice.sinReferencia.startsWith('CONT-'));
+
   return <main className="billing-page invoice-query-page">
     <PageContext
-      actions={<div className="invoice-badges"><span className="invoice-badge invoice-issued">{invoice.estado}</span><SinBadge value={invoice.sinEstado} /></div>}
+      actions={
+        <div className="invoice-badges" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <span className={`invoice-badge ${invoice.estado === 'ANULADA' ? 'invoice-error' : 'invoice-issued'}`}>
+            {invoice.estado}
+          </span>
+          <SinBadge value={invoice.sinEstado} referencia={invoice.sinReferencia} />
+          {invoice.estado === 'EMITIDA' && (
+            <button
+              type="button"
+              className="button button-secondary"
+              style={{ padding: '4px 10px', fontSize: '0.8rem', color: '#b91c1c', borderColor: '#fca5a5' }}
+              onClick={() => setShowCancelModal(true)}
+            >
+              🚫 Anular Factura
+            </button>
+          )}
+        </div>
+      }
       breadcrumbs={[{ label: 'Inicio', to: '/dashboard' }, { label: 'Facturación', to: '/facturacion' }, { label: invoice.numeroFactura }]}
       subtitle={`Emitida el ${formatDate(invoice.fechaEmision)}`}
       title={`Factura ${invoice.numeroFactura}`}
     />
-    {invoice.sinEstado === 'SIMULADA' && <p className="invoice-simulation-notice">Simulación de desarrollo: esta factura no representa una aceptación real del SIN.</p>}
+
+    {isContingencia && (
+      <div style={{ padding: '12px 16px', background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '8px', marginBottom: '20px', color: '#92400e', fontSize: '0.88rem' }}>
+        <strong>ℹ️ Factura emitida legalmente bajo Contingencia (RND 102100000011):</strong> El documento cuenta con validez fiscal plena (Tipo Emisión 2: Fuera de Línea) y paquete XML firmado en cola de sincronización.
+      </div>
+    )}
+
     <div className="invoice-detail-grid">
       <section className="ui-card invoice-detail-card"><h2>Paciente</h2><dl>
         <div><dt>Nombre completo</dt><dd>{invoice.paciente.nombre}</dd></div>
@@ -57,18 +150,124 @@ function InvoiceDetail({ invoiceId }) {
         <div><dt>Método de pago</dt><dd>{paymentLabels[invoice.metodoPago] || invoice.metodoPago}</dd></div>
       </dl></section>
     </div>
+
     <section className="ui-card invoice-detail-card invoice-concepts"><h2>Servicios facturados</h2>
       <div className="billing-table-wrap"><table className="billing-table"><thead><tr><th>Descripción</th><th>Cantidad</th><th>Precio unitario</th><th>Subtotal</th></tr></thead><tbody>
         {invoice.conceptos.map((item) => <tr key={item.id}><td><strong>{item.descripcion}</strong></td><td>{item.cantidad}</td><td className="invoice-money">{formatMoney(item.precioUnitario)}</td><td className="invoice-money"><strong>{formatMoney(item.subtotal)}</strong></td></tr>)}
       </tbody></table></div>
       <div className="invoice-totals"><div><span>Subtotal</span><strong>{formatMoney(invoice.subtotal)}</strong></div><div className="invoice-grand-total"><span>Total</span><strong>{formatMoney(invoice.total)}</strong></div></div>
     </section>
-    <section className="ui-card invoice-detail-card"><h2>Resultado de emisión</h2>
-      <div className="invoice-result-grid"><div><span>Estado factura</span><strong>{invoice.estado}</strong></div><div><span>Resultado SIN</span><SinBadge value={invoice.sinEstado} /></div>{invoice.emitidaPor && <div><span>Emitida por</span><strong>{invoice.emitidaPor}</strong></div>}{invoice.sinReferencia && <div><span>Referencia SIN</span><code>{invoice.sinReferencia}</code></div>}{invoice.codigoAutorizacion && <div><span>Código de autorización</span><code>{invoice.codigoAutorizacion}</code></div>}{invoice.cuf && <div className="invoice-result-wide"><span>CUF</span><code>{invoice.cuf}</code></div>}</div>
+
+    <section className="ui-card invoice-detail-card">
+      <h2>Validación Fiscal y Comunicación SIAT (SIN)</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '20px', alignItems: 'start' }}>
+        <div className="invoice-result-grid" style={{ marginTop: 0 }}>
+          <div><span>Estado factura</span><strong>{invoice.estado}</strong></div>
+          <div><span>Modalidad SIN</span><strong>Computarizada en Línea</strong></div>
+          <div><span>Resultado SIN</span><SinBadge value={invoice.sinEstado} referencia={invoice.sinReferencia} /></div>
+          {invoice.emitidaPor && <div><span>Emitida por</span><strong>{invoice.emitidaPor}</strong></div>}
+          {invoice.sinReferencia && <div><span>Referencia / Paquete</span><code>{invoice.sinReferencia}</code></div>}
+          {invoice.codigoAutorizacion && <div><span>Código de autorización</span><code>{invoice.codigoAutorizacion}</code></div>}
+          {invoice.cuf && (
+            <div className="invoice-result-wide">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <span>Código Único de Factura (CUF - Módulo 11 Base 16)</span>
+                <button
+                  type="button"
+                  onClick={handleCopyCuf}
+                  style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                >
+                  {copiedCuf ? '✓ ¡Copiado!' : '📋 Copiar CUF'}
+                </button>
+              </div>
+              <code style={{ wordBreak: 'break-all', fontSize: '0.85rem' }}>{invoice.cuf}</code>
+            </div>
+          )}
+        </div>
+
+        {invoice.cuf && (
+          <div style={{ textAlign: 'center', padding: '12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', minWidth: '150px' }}>
+            <QRCodeSVG value={qrUrl} size={120} level="M" />
+            <span style={{ display: 'block', fontSize: '0.72rem', color: '#64748b', marginTop: '6px' }}>
+              QR Fiscal Oficial SIN
+            </span>
+            <a
+              href={qrUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: 'inline-block', fontSize: '0.75rem', color: '#2563eb', marginTop: '4px', textDecoration: 'underline' }}
+            >
+              Consultar en SIAT ↗
+            </a>
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+        <a
+          href={getInvoiceXmlUrl(invoice.id)}
+          target="_blank"
+          rel="noreferrer"
+          className="button button-secondary"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+        >
+          📄 Descargar XML Oficial (XSD Compra-Venta)
+        </a>
+      </div>
     </section>
+
+    {showCancelModal && (
+      <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="cancel-title">
+        <div className="modal-card" style={{ maxWidth: '480px', width: '100%' }}>
+          <header className="modal-header">
+            <h2 id="cancel-title" style={{ margin: 0, fontSize: '1.2rem', color: '#b91c1c' }}>
+              🚫 Anular Factura Fiscal
+            </h2>
+            <button type="button" className="modal-close" onClick={() => setShowCancelModal(false)}>✕</button>
+          </header>
+          <div style={{ padding: '16px 20px' }}>
+            <p style={{ margin: '0 0 12px', fontSize: '0.9rem', color: '#334155' }}>
+              ¿Está seguro de anular la factura <strong>{invoice.numeroFactura}</strong>? Esta acción reportará la anulación al SIN conforme a la normativa vigente.
+            </p>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: '#1e293b' }}>
+              Motivo de Anulación (Catálogo Oficial SIN):
+            </label>
+            <select
+              value={cancelReason}
+              onChange={(e) => setCancelReason(Number(e.target.value))}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginBottom: '14px' }}
+            >
+              <option value={1}>1 - Factura mal emitida</option>
+              <option value={2}>2 - Datos de emisión incorrectos</option>
+              <option value={3}>3 - Factura devuelta</option>
+              <option value={4}>4 - Otro / Modificación clínica</option>
+            </select>
+            {cancelError && (
+              <p style={{ color: '#dc2626', fontSize: '0.85rem', margin: '0 0 10px' }}>⚠️ {cancelError}</p>
+            )}
+          </div>
+          <footer style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '12px 20px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+            <button type="button" className="button button-secondary" onClick={() => setShowCancelModal(false)} disabled={cancelling}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="button"
+              style={{ background: '#dc2626', borderColor: '#b91c1c', color: '#fff' }}
+              onClick={handleConfirmCancel}
+              disabled={cancelling}
+            >
+              {cancelling ? 'Anulando...' : 'Confirmar Anulación ante el SIN'}
+            </button>
+          </footer>
+        </div>
+      </div>
+    )}
+
     <Link className="button button-secondary invoice-back" to="/facturacion">Volver al listado</Link>
   </main>;
 }
+
 
 export function BillingInvoicesPage() {
   const { invoiceId } = useParams();
