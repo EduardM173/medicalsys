@@ -55,7 +55,7 @@ class ClinicalDocumentService {
     return history;
   }
 
-  async uploadDocument({ patientId, attentionId, userId, file, tipo, titulo }) {
+  async uploadDocument({ patientId, attentionId, userId, file, tipo, titulo, tenantCode = null }) {
     if (!file || !file.buffer) {
       const error = new Error('Debe adjuntar un archivo válido.');
       error.statusCode = 400;
@@ -122,7 +122,8 @@ class ClinicalDocumentService {
     const storageResult = await storageService.saveFile({
       buffer: encryptedBuffer,
       filename: storedFilename,
-      mimeType: file.mimetype
+      mimeType: file.mimetype,
+      tenantCode
     });
 
     // Guardar en Base de Datos
@@ -201,9 +202,9 @@ class ClinicalDocumentService {
     return doc;
   }
 
-  async getDocumentDownloadStream(documentId) {
+  async getDocumentDownloadStream(documentId, tenantCode = null) {
     const doc = await this.getDocumentById(documentId);
-    const { stream, size } = await storageService.getFileStream(doc.storage_key, doc.storage_provider);
+    const { stream, size } = await storageService.getFileStream(doc.storage_key, doc.storage_provider, tenantCode);
 
     // HU-31 / PA-06: descifrar el archivo persistido antes de devolverlo.
     const chunks = [];
