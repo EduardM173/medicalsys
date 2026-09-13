@@ -149,6 +149,19 @@ export function getConsentOptions() {
   return request('/consents/options');
 }
 
+// HU-33: el documento debe nacer desde una plantilla versionada; este flujo
+// genera y persiste el PDF previo a la firma.
+export function getConsentTemplates({ activeOnly = true } = {}) {
+  return request(`/consent-templates${activeOnly ? '?active=true' : ''}`);
+}
+
+export function generateConsentFromTemplate(templateId, data) {
+  return request(`/consent-templates/${encodeURIComponent(templateId)}/generate`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
 export function createConsent(consent) {
   return request('/consents', {
     method: 'POST',
@@ -168,6 +181,13 @@ export function signConsent(consentId, signatureData) {
   return request(`/consents/${consentId}/sign`, {
     method: 'POST',
     body: JSON.stringify({ signatureData })
+  });
+}
+
+export function signConsentWithCertificate(consentId, signature) {
+  return request(`/consents/${encodeURIComponent(consentId)}/sign`, {
+    method: 'POST',
+    body: JSON.stringify(signature)
   });
 }
 
