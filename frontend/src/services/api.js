@@ -12,7 +12,10 @@ async function request(path, options = {}) {
   let response;
 
   const isFormData = options.body instanceof FormData;
-  const defaultHeaders = isFormData ? {} : { 'Content-Type': 'application/json' };
+  const activeTenant = localStorage.getItem('medicalsys_active_tenant') || 'cumed';
+  const defaultHeaders = isFormData
+    ? { 'X-Tenant-Code': activeTenant }
+    : { 'Content-Type': 'application/json', 'X-Tenant-Code': activeTenant };
 
   try {
     response = await fetch(`${apiUrl}${path}`, {
@@ -475,6 +478,43 @@ export function updateLoyaltyPatient(patientId, data) {
 export function removeLoyaltyPatient(patientId) {
   return request(`/loyalty/patients/${patientId}`, {
     method: 'DELETE'
+  });
+}
+
+// ==========================================
+// HU-30: Multitenencia SaaS y Suscripciones
+// ==========================================
+
+export function getCurrentTenant() {
+  return request('/tenants/current');
+}
+
+export function getTenantCatalog() {
+  return request('/tenants/catalog');
+}
+
+export function getMyOrganizations() {
+  return request('/tenants/my-organizations');
+}
+
+export function provisionTenant(data) {
+  return request('/tenants/provision', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export function generateTenantRenewalQr(data) {
+  return request('/tenants/subscription/renew-qr', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export function confirmTenantPayment(data) {
+  return request('/tenants/subscription/confirm-payment', {
+    method: 'POST',
+    body: JSON.stringify(data)
   });
 }
 

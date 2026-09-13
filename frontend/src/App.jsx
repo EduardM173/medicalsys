@@ -25,9 +25,10 @@ import { NotificationHistoryPage } from './pages/NotificationHistoryPage';
 import { SecurityPage } from './pages/SecurityPage';
 import { CampaignsPage } from './pages/CampaignsPage';
 import { LoyaltyPage } from './pages/LoyaltyPage';
+import { TenantProvider } from './context/TenantContext';
 
 function App() {
-  return <BrowserRouter><AuthProvider><Routes>
+  return <BrowserRouter><TenantProvider><AuthProvider><Routes>
     <Route path="/login" element={<LoginPage />} />
     <Route element={<ProtectedRoute />}><Route element={<AppLayout />}>
       <Route path="/dashboard" element={<DashboardPage />} />
@@ -55,6 +56,6 @@ function App() {
       <Route element={<AuthorizedRoute permission="loyalty.manage" />}><Route path="/fidelizacion" element={<LoyaltyPage />} /></Route>
     </Route></Route>
     <Route path="*" element={<Navigate replace to="/dashboard" />} />
-  </Routes></AuthProvider></BrowserRouter>;
+  </Routes></AuthProvider></TenantProvider></BrowserRouter>;
 }
 export default App;
