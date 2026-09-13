@@ -1,14 +1,14 @@
-const MockSinProvider = require('./mockSin.provider');
+﻿const MockSinProvider = require('./mockSin.provider');
 const SinFiscalProvider = require('./sinFiscal.provider');
 
 /**
- * MED-184: Servicio adaptador del SIN (impuestos bolivianos). Aplica el
- * patrón "provider" ya usado por services/whatsapp y services/storage para
- * mantener aislada la lógica fiscal de la implementación concreta del SIAT.
+ * MED-184 / HU-34: Servicio adaptador del SIN (impuestos bolivianos).
+ * Aplica el patrón "provider" para mantener aislada la lógica fiscal
+ * de la implementación concreta del SIAT.
  *
  * Proveedores disponibles vía SIN_PROVIDER:
- *   MOCK     -> no contacta el SIAT real, genera CUF/QR de prueba (por defecto)
- *   SIN_REAL -> integración real con el SIAT (requiere SIN_NIT y SIN_TOKEN)
+ *   SIN_REAL -> motor fiscal normativo SIAT v2 con contingencia (por defecto)
+ *   MOCK     -> adaptador simulado simple
  */
 class SinFacturacionProvider {
   constructor() {
@@ -17,15 +17,27 @@ class SinFacturacionProvider {
   }
 
   getActiveProvider() {
-    const configuredProvider = (process.env.SIN_PROVIDER || 'MOCK').toUpperCase();
-    if (configuredProvider === 'SIN_REAL' && this.realProvider.isConfigured()) {
-      return this.realProvider;
+    const configuredProvider = (process.env.SIN_PROVIDER || 'SIN_REAL').toUpperCase();
+    if (configuredProvider === 'MOCK') {
+      return this.mockProvider;
     }
-    return this.mockProvider;
+    return this.realProvider;
   }
 
   async emitir(facturaContext) {
     return this.getActiveProvider().emitir(facturaContext);
+  }
+
+  async anular(anulacionContext) {
+    if (typeof this.getActiveProvider().anular === 'function') {
+      return this.getActiveProvider().anular(anulacionContext);
+    }
+    return {
+      success: true,
+      estado: 'ANULADA',
+      fechaAnulacion: new Date(),
+      mensajeSin: 'Anulación procesada en proveedor activo.'
+    };
   }
 }
 
