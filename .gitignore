@@ -21,3 +21,12 @@ backend/generated/
 # Archivos subidos en desarrollo local
 backend/uploads/
 uploads/
+
+# Almacenamiento temporal de facturas XML
+backend/storage/facturas-xml/*.xml
+!backend/storage/facturas-xml/.gitkeep
+
+# Pasarela BNB privada / local
+backend/src/services/bnb/
+backend/src/config/bnb.js
+

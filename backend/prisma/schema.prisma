@@ -461,6 +461,7 @@ model usuario {
   medico              medico?
   notificacion        notificacion[]
   paciente            paciente?
+  usuario_organizacion usuario_organizacion[]
   rol                 rol                 @relation(fields: [id_rol], references: [id_rol], map: "fk_usuario_rol")
 
   @@index([estado], map: "idx_usuario_estado")
@@ -604,5 +605,57 @@ enum nivel_fidelizacion {
   ESTANDAR
   FRECUENTE
   PREMIUM
+}
+
+model organizacion {
+  id_organizacion        BigInt                    @id @default(autoincrement())
+  codigo                 String                    @unique @db.VarChar(50)
+  nombre                 String                    @db.VarChar(150)
+  tipo                   String                    @default("CLINICA") @db.VarChar(30)
+  subdominio             String                    @unique @db.VarChar(60)
+  schema_name            String                    @unique @db.VarChar(60)
+  estado                 String                    @default("ACTIVA") @db.VarChar(30)
+  plan_suscripcion       String                    @default("PROFESIONAL") @db.VarChar(50)
+  fecha_suscripcion_fin  DateTime?                 @db.Timestamptz(6)
+  fecha_creacion         DateTime                  @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion    DateTime                  @default(now()) @db.Timestamptz(6)
+  usuario_organizacion   usuario_organizacion[]
+  pago_suscripcion_tenant pago_suscripcion_tenant[]
+
+  @@index([codigo], map: "idx_organizacion_codigo")
+  @@index([subdominio], map: "idx_organizacion_subdominio")
+  @@index([estado], map: "idx_organizacion_estado")
+}
+
+model usuario_organizacion {
+  id_usuario_org      BigInt       @id @default(autoincrement())
+  id_usuario          BigInt
+  id_organizacion     BigInt
+  rol_en_organizacion String       @default("ADMINISTRADOR") @db.VarChar(50)
+  activo              Boolean      @default(true)
+  fecha_creacion      DateTime     @default(now()) @db.Timestamptz(6)
+  usuario             usuario      @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
+  organizacion        organizacion @relation(fields: [id_organizacion], references: [id_organizacion], onDelete: Cascade)
+
+  @@unique([id_usuario, id_organizacion], map: "uq_usuario_organizacion")
+  @@index([id_usuario], map: "idx_usr_org_usuario")
+  @@index([id_organizacion], map: "idx_usr_org_organizacion")
+}
+
+model pago_suscripcion_tenant {
+  id_pago          BigInt       @id @default(autoincrement())
+  id_organizacion  BigInt
+  monto            Decimal      @db.Decimal(12, 2)
+  moneda           String       @default("BOB") @db.VarChar(10)
+  codigo_qr        String?
+  referencia_pago  String       @unique @db.VarChar(100)
+  estado           String       @default("PENDIENTE") @db.VarChar(30)
+  meses_renovacion Int          @default(1)
+  fecha_pago       DateTime?    @db.Timestamptz(6)
+  fecha_creacion   DateTime     @default(now()) @db.Timestamptz(6)
+  organizacion     organizacion @relation(fields: [id_organizacion], references: [id_organizacion], onDelete: Cascade)
+
+  @@index([id_organizacion], map: "idx_pago_suscripcion_org")
+  @@index([referencia_pago], map: "idx_pago_suscripcion_ref")
 }
 
