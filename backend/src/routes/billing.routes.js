@@ -7,9 +7,12 @@ const router = Router();
 
 router.use(requireAuth, requireRole('RECEPCIONISTA', 'ADMINISTRADOR'));
 router.get('/invoices', billingController.listIssuedInvoices);
+router.get('/invoices/:id/xml', billingController.getInvoiceXml);
 router.get('/invoices/:id', billingController.getIssuedInvoice);
+router.post('/invoices/:id/cancel', billingController.cancelInvoice);
 router.get('/summary', billingController.getSummary);
 router.post('/prepare', billingController.prepareInvoice);
 router.post('/:id/emit', billingController.emitInvoice);
 
 module.exports = router;
+
