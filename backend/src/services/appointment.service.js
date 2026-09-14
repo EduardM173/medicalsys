@@ -1,4 +1,9 @@
+const prisma = require('../config/prisma');
 const repository = require('../repositories/appointment.repository');
+const {
+  scheduleAppointmentNotifications,
+  cancelAppointmentNotificationJobs
+} = require('./whatsapp/whatsapp-notification-queue.service');
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -7,8 +12,9 @@ const activeStates = ['PROGRAMADA', 'CONFIRMADA', 'EN_CONSULTA'];
 // HU-15 / PA-04: transiciones de estado permitidas para una cita existente.
 // COMPLETADA y CANCELADA son estados finales: no admiten nuevos cambios.
 const allowedTransitions = {
-  PROGRAMADA: ['CONFIRMADA', 'CANCELADA'],
+  PROGRAMADA: ['CONFIRMADA', 'PENDIENTE_REPROGRAMACION', 'CANCELADA'],
   CONFIRMADA: ['EN_CONSULTA', 'CANCELADA'],
+  PENDIENTE_REPROGRAMACION: ['PROGRAMADA', 'CANCELADA'],
   EN_CONSULTA: ['COMPLETADA', 'CANCELADA'],
   COMPLETADA: [],
   CANCELADA: []
@@ -50,16 +56,47 @@ function timeTextToTimeValue(value) {
   return new Date(`1970-01-01T${value}:00.000Z`);
 }
 
+function clinicDateTimeParts(date) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/La_Paz',
+    hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'short'
+  }).formatToParts(date);
+  return Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));
+}
+
 function dateTimeToTimeText(date) {
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mm = String(date.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
+  const { hour, minute } = clinicDateTimeParts(date);
+  return `${hour}:${minute}`;
 }
 
 // PA-04 usa la misma convención de horario_medico.dia_semana: 1=Lunes...7=Domingo
 function dayOfWeek(date) {
-  const jsDay = date.getDay(); // 0=Domingo...6=Sábado
-  return jsDay === 0 ? 7 : jsDay;
+  const weekday = clinicDateTimeParts(date).weekday;
+  return { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 }[weekday];
+}
+
+// Las fechas de la UI son hora local de la clínica, no la zona del servidor.
+// Bolivia (America/La_Paz) mantiene UTC-4 sin cambios estacionales.
+function clinicDateTimeToUtc(dateText, timeText) {
+  const [year, month, day] = dateText.split('-').map(Number);
+  const [hour, minute] = timeText.split(':').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, hour + 4, minute));
+  const parts = clinicDateTimeParts(date);
+  if (`${parts.year}-${parts.month}-${parts.day}` !== dateText || `${parts.hour}:${parts.minute}` !== timeText) {
+    throw new AppointmentError(400, 'La fecha u hora de la cita no es válida.');
+  }
+  return date;
+}
+
+function clinicDayRange(dateText) {
+  const [year, month, day] = dateText.split('-').map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day + 1));
+  const nextText = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-${String(next.getUTCDate()).padStart(2, '0')}`;
+  return {
+    start: clinicDateTimeToUtc(dateText, '00:00'),
+    end: clinicDateTimeToUtc(nextText, '00:00')
+  };
 }
 
 function toAppointment(appointment) {
@@ -182,10 +219,7 @@ async function createAppointment(input, createdByUserId) {
     findActiveService(serviceId)
   ]);
 
-  const start = new Date(`${input.fecha}T${input.horaInicio}:00`);
-  if (Number.isNaN(start.getTime())) {
-    throw new AppointmentError(400, 'La fecha u hora de la cita no es válida.');
-  }
+  const start = clinicDateTimeToUtc(input.fecha, input.horaInicio);
 
   const now = new Date();
   if (start.getTime() < now.getTime()) {
@@ -205,19 +239,25 @@ async function createAppointment(input, createdByUserId) {
   const indicacionesPrevias = optionalText(input.indicacionesPrevias, 'Las notas e instrucciones', 2000);
 
   // PA-02 / PA-06: se almacena fecha/hora de inicio y fin, motivo y el estado inicial PROGRAMADA.
-  const appointment = await repository.cita.create({
-    data: {
-      id_paciente: patientId,
-      id_medico: doctorId,
-      id_servicio: serviceId,
-      creado_por: createdByUserId ? BigInt(createdByUserId) : null,
-      fecha_hora_inicio: start,
-      fecha_hora_fin: end,
-      motivo: service.nombre,
-      indicaciones_previas: indicacionesPrevias,
-      estado: 'PROGRAMADA'
-    },
-    include: appointmentInclude
+  // PA-01 / PA-03: cita y outbox se confirman juntos; un reinicio entre
+  // ambos nunca deja una cita sin sus notificaciones persistentes.
+  const appointment = await prisma.$transaction(async (tx) => {
+    const created = await tx.cita.create({
+      data: {
+        id_paciente: patientId,
+        id_medico: doctorId,
+        id_servicio: serviceId,
+        creado_por: createdByUserId ? BigInt(createdByUserId) : null,
+        fecha_hora_inicio: start,
+        fecha_hora_fin: end,
+        motivo: service.nombre,
+        indicaciones_previas: indicacionesPrevias,
+        estado: 'PROGRAMADA'
+      },
+      include: appointmentInclude
+    });
+    await scheduleAppointmentNotifications(tx, created, { emitidoPorUserId: createdByUserId });
+    return created;
   });
 
   return toAppointment(appointment);
@@ -263,10 +303,7 @@ async function updateAppointment(idInput, input = {}) {
       throw new AppointmentError(400, 'La hora de inicio de la cita no es válida.');
     }
 
-    const start = new Date(`${input.fecha}T${input.horaInicio}:00`);
-    if (Number.isNaN(start.getTime())) {
-      throw new AppointmentError(400, 'La fecha u hora de la cita no es válida.');
-    }
+    const start = clinicDateTimeToUtc(input.fecha, input.horaInicio);
 
     const now = new Date();
     if (start.getTime() < now.getTime()) {
@@ -283,6 +320,9 @@ async function updateAppointment(idInput, input = {}) {
 
     data.fecha_hora_inicio = start;
     data.fecha_hora_fin = end;
+    if (existing.estado === 'PENDIENTE_REPROGRAMACION' && !wantsStatusChange) {
+      data.estado = 'PROGRAMADA';
+    }
   }
 
   // PA-04 / PA-05: cambio de estado, incluida la cancelación lógica.
@@ -306,10 +346,18 @@ async function updateAppointment(idInput, input = {}) {
 
   data.fecha_actualizacion = new Date();
 
-  const appointment = await repository.cita.update({
-    where: { id_cita: id },
-    data,
-    include: appointmentInclude
+  const appointment = await prisma.$transaction(async (tx) => {
+    const updated = await tx.cita.update({
+      where: { id_cita: id },
+      data,
+      include: appointmentInclude
+    });
+    if (wantsReschedule) {
+      await scheduleAppointmentNotifications(tx, updated, { emitidoPorUserId: existing.creado_por });
+    } else if (['CANCELADA', 'PENDIENTE_REPROGRAMACION'].includes(updated.estado)) {
+      await cancelAppointmentNotificationJobs(tx, updated.id_cita);
+    }
+    return updated;
   });
 
   // PA-06: los cambios quedan disponibles en una consulta posterior de la misma cita.
@@ -336,9 +384,8 @@ async function listAppointments(filters = {}) {
     if (!datePattern.test(filters.fecha)) {
       throw new AppointmentError(400, 'La fecha de búsqueda no es válida.');
     }
-    const dayStart = new Date(`${filters.fecha}T00:00:00`);
-    const dayEnd = new Date(`${filters.fecha}T23:59:59.999`);
-    where.fecha_hora_inicio = { gte: dayStart, lte: dayEnd };
+    const range = clinicDayRange(filters.fecha);
+    where.fecha_hora_inicio = { gte: range.start, lt: range.end };
   }
 
   if (filters.medicoId) {
