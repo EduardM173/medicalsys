@@ -18,17 +18,46 @@ function getJwtSecret() {
   return process.env.JWT_SECRET;
 }
 
-function toSafeUser(user) {
+const tenantRepository = require('../repositories/tenant.repository');
+
+async function getUserOrganizations(userId) {
+  try {
+    const rels = await tenantRepository.usuario_organizacion.findMany({
+      where: {
+        id_usuario: BigInt(userId),
+        activo: true
+      },
+      include: {
+        organizacion: true
+      }
+    });
+
+    return rels.map((r) => ({
+      id: Number(r.organizacion.id_organizacion),
+      codigo: r.organizacion.codigo,
+      nombre: r.organizacion.nombre,
+      subdominio: r.organizacion.subdominio,
+      rol: r.rol_en_organizacion
+    }));
+  } catch (_err) {
+    return [];
+  }
+}
+
+function toSafeUser(user, organizaciones = []) {
+  const isSuperAdmin = user.rol.codigo === 'SUPERADMIN';
   return {
     id: Number(user.id_usuario),
     nombres: user.nombres,
     apellidos: user.apellidos,
     email: user.email,
-    rol: user.rol.codigo
+    rol: user.rol.codigo,
+    isSuperAdmin,
+    organizaciones
   };
 }
 
-async function login(emailInput, passwordInput) {
+async function login(emailInput, passwordInput, activeTenantCode = null) {
   const email = typeof emailInput === 'string' ? emailInput.trim().toLowerCase() : '';
   const password = typeof passwordInput === 'string' ? passwordInput : '';
 
@@ -53,10 +82,31 @@ async function login(emailInput, passwordInput) {
     throw new AuthError(403, 'Usuario sin acceso habilitado.');
   }
 
-  const safeUser = toSafeUser(user);
+  const userOrgs = await getUserOrganizations(user.id_usuario);
+  const isSuperAdmin = user.rol.codigo === 'SUPERADMIN';
+
+  // Strict tenant boundary check on login
+  if (activeTenantCode && !isSuperAdmin) {
+    const cleanTenant = String(activeTenantCode).trim().toLowerCase();
+    const hasAccess = userOrgs.some(
+      (o) => o.codigo === cleanTenant || o.subdominio === cleanTenant
+    );
+    if (!hasAccess && userOrgs.length > 0) {
+      throw new AuthError(
+        403,
+        `Esta cuenta no tiene autorización para acceder a la clínica solicitada (${cleanTenant}).`
+      );
+    }
+  }
+
+  const safeUser = toSafeUser(user, userOrgs);
   safeUser.permissions = await permissionsForUser(user.id_usuario, user.rol.codigo);
   const token = jwt.sign(
-    { rol: safeUser.rol },
+    {
+      rol: safeUser.rol,
+      isSuperAdmin,
+      organizaciones: userOrgs.map((o) => o.codigo)
+    },
     getJwtSecret(),
     {
       subject: String(user.id_usuario),
@@ -81,7 +131,10 @@ async function getCurrentUser(userId) {
     throw new AuthError(403, 'Usuario sin acceso habilitado.');
   }
 
-  return { ...toSafeUser(user), permissions: await permissionsForUser(user.id_usuario, user.rol.codigo) };
+  const userOrgs = await getUserOrganizations(user.id_usuario);
+  const safeUser = toSafeUser(user, userOrgs);
+  safeUser.permissions = await permissionsForUser(user.id_usuario, user.rol.codigo);
+  return safeUser;
 }
 
 async function authenticateSession(userId) {
@@ -92,10 +145,14 @@ async function authenticateSession(userId) {
   if (!user || user.estado !== 'ACTIVO' || !user.rol.activo) {
     throw new AuthError(401, 'Sesión sin acceso habilitado.');
   }
+  const userOrgs = await getUserOrganizations(user.id_usuario);
+  const isSuperAdmin = user.rol.codigo === 'SUPERADMIN';
   return {
     id: String(user.id_usuario),
     idUsuario: String(user.id_usuario),
     rol: user.rol.codigo,
+    isSuperAdmin,
+    organizaciones: userOrgs.map((o) => o.codigo),
     permissions: await permissionsForUser(user.id_usuario, user.rol.codigo)
   };
 }

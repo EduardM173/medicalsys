@@ -8,14 +8,57 @@ export class ApiError extends Error {
   }
 }
 
+const AUTH_TOKEN_KEY = 'medicalsys_token';
+
+export function getStoredToken() {
+  try {
+    return sessionStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem(AUTH_TOKEN_KEY) || '';
+  } catch (_e) {
+    return '';
+  }
+}
+
+export function setStoredToken(token) {
+  try {
+    if (token) {
+      sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
+    } else {
+      sessionStorage.removeItem(AUTH_TOKEN_KEY);
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+  } catch (_e) {}
+}
+
 async function request(path, options = {}) {
   let response;
 
   const isFormData = options.body instanceof FormData;
-  const activeTenant = localStorage.getItem('medicalsys_active_tenant') || 'cumed';
+  
+  // Resolución profesional de tenant por URL: subdominio (*.localhost) o query param (?tenant=...)
+  let urlTenant = null;
+  try {
+    const host = window.location.hostname.toLowerCase();
+    if (host.endsWith('.localhost')) {
+      const sub = host.replace('.localhost', '');
+      if (sub && sub !== 'www') urlTenant = sub;
+    }
+    if (!urlTenant) {
+      const q = new URLSearchParams(window.location.search).get('tenant');
+      if (q) urlTenant = q.trim().toLowerCase();
+    }
+  } catch (_e) {}
+
+  const isLoginPath = path.endsWith('/auth/login');
+  // En el portal central (localhost sin subdominio), no enviar un tenant heredado de localStorage para el login
+  const activeTenant = urlTenant || (!isLoginPath ? localStorage.getItem('medicalsys_active_tenant') : null);
+  const token = getStoredToken();
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+  const tenantHeaders = activeTenant ? { 'X-Tenant-Code': activeTenant } : {};
+
   const defaultHeaders = isFormData
-    ? { 'X-Tenant-Code': activeTenant }
-    : { 'Content-Type': 'application/json', 'X-Tenant-Code': activeTenant };
+    ? { ...tenantHeaders, ...authHeaders }
+    : { 'Content-Type': 'application/json', ...tenantHeaders, ...authHeaders };
 
   try {
     response = await fetch(`${apiUrl}${path}`, {
@@ -44,11 +87,19 @@ export function getHealth() {
   return request('/health');
 }
 
-export function loginRequest(credentials) {
-  return request('/auth/login', {
+export async function loginRequest(credentials) {
+  const data = await request('/auth/login', {
     method: 'POST',
     body: JSON.stringify(credentials)
   });
+  if (data && data.token) {
+    const host = window.location.hostname.toLowerCase();
+    const isRootPortal = host === 'localhost' || host === '127.0.0.1';
+    if (!isRootPortal) {
+      setStoredToken(data.token);
+    }
+  }
+  return data;
 }
 
 export function forgotPasswordRequest(email) {
@@ -62,7 +113,11 @@ export function getMe() {
   return request('/auth/me');
 }
 
-export function logoutRequest() {
+export async function logoutRequest() {
+  setStoredToken(null);
+  try {
+    localStorage.removeItem('medicalsys_active_tenant');
+  } catch (_e) {}
   return request('/auth/logout', { method: 'POST' });
 }
 
@@ -516,5 +571,16 @@ export function confirmTenantPayment(data) {
     method: 'POST',
     body: JSON.stringify(data)
   });
+}
+
+export function generateBnbRenewalQr(data) {
+  return request('/tenants/subscription/renew-bnb-qr', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export function checkBnbQrStatus(qrId) {
+  return request(`/tenants/subscription/bnb-status/${encodeURIComponent(qrId)}`);
 }
 

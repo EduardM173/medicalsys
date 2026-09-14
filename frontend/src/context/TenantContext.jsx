@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getCurrentTenant, getTenantCatalog } from '../services/api';
+import { getCurrentTenant, getTenantCatalog, getStoredToken } from '../services/api';
 
 const TenantContext = createContext(null);
 
@@ -8,6 +8,7 @@ export function TenantProvider({ children }) {
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+  const [renewalVoucher, setRenewalVoucher] = useState(null);
 
   const loadTenantData = useCallback(async () => {
     try {
@@ -38,7 +39,23 @@ export function TenantProvider({ children }) {
   const switchTenant = (tenantCode) => {
     if (!tenantCode) return;
     localStorage.setItem('medicalsys_active_tenant', tenantCode);
-    window.location.reload();
+
+    const host = window.location.hostname.toLowerCase();
+    const port = window.location.port ? `:${window.location.port}` : '';
+    const token = getStoredToken();
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+
+    // Si el host es un subdominio .localhost (ej: cumed.localhost:5173 -> sanrafael.localhost:5173)
+    if (host.endsWith('.localhost')) {
+      window.location.href = `${window.location.protocol}//${tenantCode}.localhost${port}${window.location.pathname}${tokenParam}`;
+      return;
+    }
+
+    // Si estamos en localhost normal, actualizamos el parámetro de URL ?tenant=...
+    const url = new URL(window.location.href);
+    url.searchParams.set('tenant', tenantCode);
+    if (token) url.searchParams.set('token', token);
+    window.location.href = url.toString();
   };
 
   return (
@@ -50,7 +67,9 @@ export function TenantProvider({ children }) {
         switchTenant,
         refreshTenant: loadTenantData,
         isSubscriptionModalOpen,
-        setIsSubscriptionModalOpen
+        setIsSubscriptionModalOpen,
+        renewalVoucher,
+        setRenewalVoucher
       }}
     >
       {children}

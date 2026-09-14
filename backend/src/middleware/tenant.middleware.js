@@ -1,5 +1,23 @@
 const tenantService = require('../services/tenant.service');
 const tenantRepository = require('../repositories/tenant.repository');
+const { runWithTenant } = require('../context/tenant.context');
+
+function hasExplicitTenant(req) {
+  if (req.headers['x-tenant-code'] || req.headers['x-tenant-id']) return true;
+  if (req.query && req.query.tenant) return true;
+
+  const host = req.headers.host || '';
+  const cleanHost = host.split(':')[0].toLowerCase();
+  if (cleanHost.endsWith('.localhost')) {
+    const sub = cleanHost.replace('.localhost', '');
+    if (sub && sub !== 'www') return true;
+  }
+  const parts = cleanHost.split('.');
+  if (parts.length > 2 && !['www', 'localhost', '127', 'api'].includes(parts[0])) {
+    return true;
+  }
+  return false;
+}
 
 function extractTenantIdentifier(req) {
   const headerCode = req.headers['x-tenant-code'] || req.headers['x-tenant-id'];
@@ -31,6 +49,7 @@ function extractTenantIdentifier(req) {
 
 async function tenantMiddleware(req, res, next) {
   try {
+    req.hasExplicitTenant = hasExplicitTenant(req);
     const ident = extractTenantIdentifier(req);
     let org = null;
 
@@ -73,7 +92,7 @@ async function tenantMiddleware(req, res, next) {
       return next(err);
     }
 
-    next();
+    return runWithTenant({ tenant: org, prisma: req.prisma }, () => next());
   } catch (err) {
     next(err);
   }
