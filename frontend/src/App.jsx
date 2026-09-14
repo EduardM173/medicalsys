@@ -17,6 +17,7 @@ import { DocumentsPage } from './pages/DocumentsPage';
 import { LoginPage } from './pages/LoginPage';
 import { MedicalHistoryPage } from './pages/MedicalHistoryPage';
 import { PatientsPage } from './pages/PatientsPage';
+import { PatientPortalPage } from './pages/PatientPortalPage';
 import { RoomsPage } from './pages/RoomsPage';
 import { SchedulesPage } from './pages/SchedulesPage';
 import { UsersPage } from './pages/UsersPage';
@@ -31,6 +32,7 @@ function App() {
     <Route path="/login" element={<LoginPage />} />
     <Route element={<ProtectedRoute />}><Route element={<AppLayout />}>
       <Route path="/dashboard" element={<DashboardPage />} />
+      <Route element={<AuthorizedRoute permission="patient.portal.read" />}><Route path="/mi-portal" element={<PatientPortalPage />} /></Route>
       <Route element={<AuthorizedRoute permission="patients.read" />}><Route path="/pacientes" element={<PatientsPage />} /></Route>
       <Route element={<AuthorizedRoute permission="history.read" />}><Route path="/historial-clinico/:patientId" element={<MedicalHistoryPage />} /></Route>
       <Route element={<AuthorizedRoute permission="documents.read" />}><Route path="/pacientes/:patientId/documentos" element={<DocumentsPage />} /></Route>

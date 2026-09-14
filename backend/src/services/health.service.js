@@ -1,7 +1,7 @@
-const prisma = require('../config/prisma');
+const healthRepository = require('../repositories/health.repository');
 
 async function checkHealth() {
-  await prisma.$queryRaw`SELECT 1`;
+  await healthRepository.checkConnection();
 
   return {
     status: 'ok',

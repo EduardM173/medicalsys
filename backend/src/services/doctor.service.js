@@ -1,5 +1,4 @@
-const { Prisma } = require('@prisma/client');
-const prisma = require('../config/prisma');
+const repository = require('../repositories/doctor.repository');
 
 const doctorSelect = {
   id_medico: true,
@@ -69,7 +68,7 @@ function toDoctor(doctor) {
 }
 
 async function ensureUniqueLicense(license, excludeId) {
-  const existing = await prisma.medico.findFirst({
+  const existing = await repository.medico.findFirst({
     where: {
       matricula_profesional: license,
       ...(excludeId ? { id_medico: { not: excludeId } } : {})
@@ -86,7 +85,7 @@ async function createDoctor(input) {
   const license = requiredText(input.matriculaProfesional, 'La matrícula profesional', 100);
   const specialty = requiredText(input.especialidad, 'La especialidad', 150);
 
-  const user = await prisma.usuario.findUnique({
+  const user = await repository.usuario.findUnique({
     where: { id_usuario: userId },
     include: { rol: { select: { codigo: true } }, medico: { select: { id_medico: true } } }
   });
@@ -102,7 +101,7 @@ async function createDoctor(input) {
   await ensureUniqueLicense(license);
 
   try {
-    const doctor = await prisma.medico.create({
+    const doctor = await repository.medico.create({
       data: {
         id_usuario: userId,
         matricula_profesional: license,
@@ -113,7 +112,7 @@ async function createDoctor(input) {
     });
     return toDoctor(doctor);
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    if (repository.isUniqueConstraintError(error)) {
       const target = String(error.meta?.target || '');
       if (target.includes('id_usuario')) {
         throw new DoctorError(409, 'El usuario ya posee un perfil médico.');
@@ -126,7 +125,7 @@ async function createDoctor(input) {
 
 async function listDoctors(searchInput = '') {
   const search = typeof searchInput === 'string' ? searchInput.trim().slice(0, 100) : '';
-  const doctors = await prisma.medico.findMany({
+  const doctors = await repository.medico.findMany({
     where: search ? {
       OR: [
         { matricula_profesional: { contains: search, mode: 'insensitive' } },
@@ -143,7 +142,7 @@ async function listDoctors(searchInput = '') {
 
 async function getDoctorById(idInput) {
   const id = parseId(idInput, 'médico');
-  const doctor = await prisma.medico.findUnique({
+  const doctor = await repository.medico.findUnique({
     where: { id_medico: id },
     select: doctorSelect
   });
@@ -155,7 +154,7 @@ async function getDoctorById(idInput) {
 
 async function updateDoctor(idInput, input) {
   const id = parseId(idInput, 'médico');
-  const existing = await prisma.medico.findUnique({ where: { id_medico: id } });
+  const existing = await repository.medico.findUnique({ where: { id_medico: id } });
   if (!existing) {
     throw new DoctorError(404, 'Médico no encontrado.');
   }
@@ -182,14 +181,14 @@ async function updateDoctor(idInput, input) {
   }
 
   try {
-    const doctor = await prisma.medico.update({
+    const doctor = await repository.medico.update({
       where: { id_medico: id },
       data,
       select: doctorSelect
     });
     return toDoctor(doctor);
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    if (repository.isUniqueConstraintError(error)) {
       throw new DoctorError(409, 'La matrícula profesional ya está registrada.');
     }
     throw error;

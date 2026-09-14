@@ -1,5 +1,7 @@
-const prisma = require('../config/prisma');
+const { Readable } = require('stream');
+const repository = require('../repositories/document.repository');
 const storageService = require('./storage.service');
+const cryptoService = require('./crypto.service');
 
 class DocumentError extends Error {
   constructor(statusCode, message) {
@@ -44,7 +46,7 @@ function toDocument(document) {
 
 async function listDocumentsByPatientId(patientIdInput) {
   const patientId = parseId(patientIdInput, 'paciente');
-  const patient = await prisma.paciente.findUnique({
+  const patient = await repository.paciente.findUnique({
     where: { id_paciente: patientId },
     select: {
       id_paciente: true,
@@ -88,15 +90,17 @@ async function listDocumentsByPatientId(patientIdInput) {
   };
 }
 
-async function getDocumentFileById(documentIdInput) {
+async function getDocumentFileById(documentIdInput, actor = null, expectedPatientId = null) {
   const documentId = parseId(documentIdInput, 'documento');
-  const document = await prisma.documento_clinico.findUnique({
+  const document = await repository.documento_clinico.findUnique({
     where: { id_documento: documentId },
     select: {
+      id_documento: true,
       nombre_archivo: true,
       storage_provider: true,
       storage_key: true,
-      mime_type: true
+      mime_type: true,
+      historia_clinica: { select: { id_paciente: true } }
     }
   });
 
@@ -104,12 +108,24 @@ async function getDocumentFileById(documentIdInput) {
     throw new DocumentError(404, 'Documento clínico no encontrado.');
   }
 
+  if (actor?.rol === 'PACIENTE' && expectedPatientId !== null && document.historia_clinica?.id_paciente !== BigInt(expectedPatientId)) {
+    throw new DocumentError(404, 'Documento clínico no encontrado.');
+  }
+
   const storedFile = await storageService.openFile(
     document.storage_provider,
     document.storage_key
   );
+
+  // HU-31 / PA-06: descifrar el archivo persistido antes de devolverlo.
+  const chunks = [];
+  for await (const chunk of storedFile.stream) chunks.push(chunk);
+  const plainBuffer = cryptoService.decryptBuffer(Buffer.concat(chunks));
+
   return {
     ...storedFile,
+    size: plainBuffer.length,
+    stream: Readable.from(plainBuffer),
     fileName: document.nombre_archivo,
     mimeType: document.mime_type
   };

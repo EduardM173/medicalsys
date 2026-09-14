@@ -28,6 +28,18 @@ async function setupSecurity() {
       codigo: 'OSI', nombre: 'Oficial de Seguridad de la Información',
       descripcion: 'Administración de usuarios, roles, permisos y auditoría de accesos', activo: true
     } });
+    // HU-32: el rol PACIENTE necesita únicamente el permiso de portal propio.
+    await db.$executeRawUnsafe(`
+      INSERT INTO security_role_policy (role_code, permissions)
+      VALUES ('PACIENTE', '[\"patient.portal.read\"]'::jsonb)
+      ON CONFLICT (role_code) DO UPDATE
+      SET permissions = CASE
+        WHEN security_role_policy.permissions ? 'patient.portal.read'
+          THEN security_role_policy.permissions
+        ELSE security_role_policy.permissions || '[\"patient.portal.read\"]'::jsonb
+      END,
+      updated_at = NOW()
+    `);
   });
 }
 if (require.main === module) {

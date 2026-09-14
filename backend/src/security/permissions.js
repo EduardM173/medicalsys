@@ -1,10 +1,10 @@
 const roles = ['ADMINISTRADOR', 'OSI', 'MEDICO', 'RECEPCIONISTA', 'PACIENTE'];
 const defaultAssignments = {
-  ADMINISTRADOR: ['users.manage', 'security.manage', 'patients.read', 'patients.write', 'history.read', 'attention.write', 'documents.read', 'documents.write', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'doctors.write', 'schedules.read', 'schedules.write', 'services.read', 'billing.read', 'billing.prepare', 'notifications.manage', 'campaigns.manage', 'loyalty.manage'],
+  ADMINISTRADOR: ['users.manage', 'security.manage', 'patients.read', 'patients.write', 'history.read', 'attention.write', 'documents.read', 'documents.write', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'doctors.write', 'schedules.read', 'schedules.write', 'services.read', 'billing.read', 'billing.prepare', 'notifications.manage', 'campaigns.manage', 'loyalty.manage', 'consents.manage'],
   OSI: ['users.manage', 'security.manage'],
   MEDICO: ['patients.read', 'history.read', 'attention.write', 'documents.read', 'documents.write', 'agenda.read', 'consents.manage', 'rooms.read', 'schedules.read'],
   RECEPCIONISTA: ['patients.read', 'patients.write', 'documents.read', 'appointments.manage', 'rooms.read', 'rooms.write', 'doctors.read', 'schedules.read', 'services.read', 'billing.read', 'billing.prepare', 'notifications.manage'],
-  PACIENTE: []
+  PACIENTE: ['patient.portal.read']
 };
 const catalog = [
   ['users.manage', 'Administrar usuarios y asignar roles', []],
@@ -29,7 +29,8 @@ const catalog = [
   ['billing.prepare', 'Preparar factura', ['patients.read', 'services.read', 'appointments.manage']],
   ['notifications.manage', 'Enviar confirmaciones y recordatorios de citas por WhatsApp', ['appointments.manage']],
   ['campaigns.manage', 'Crear y gestionar campañas y promociones de salud', []],
-  ['loyalty.manage', 'Gestionar fidelización de pacientes', ['patients.read']]
+  ['loyalty.manage', 'Gestionar fidelización de pacientes', ['patients.read']],
+  ['patient.portal.read', 'Consultar exclusivamente información propia del portal de paciente', []]
 ].map(([code, label, requires]) => ({ code, label, requires }));
 function defaults(role) { return [...(defaultAssignments[role] || [])]; }
 function permissionForRequest(request) {
@@ -37,6 +38,8 @@ function permissionForRequest(request) {
   const read = ['GET', 'HEAD'].includes(request.method);
   if (/^\/api\/security(?:\/|$)/.test(path)) return 'security.manage';
   if (/^\/api\/users(?:\/|$)/.test(path)) return 'users.manage';
+  if (/^\/api\/patient\/[^/]+\/(history|documents|appointments|notifications)$/.test(path)) return 'patient.portal.read';
+  if (/^\/api\/patient\/[^/]+\/documents\/[^/]+\/file$/.test(path)) return 'patient.portal.read';
   if (/^\/api\/patients\/[^/]+\/medical-history$/.test(path)) return 'history.read';
   if (/^\/api\/patients\/[^/]+\/documents$/.test(path) || /^\/api\/documents\//.test(path)) return read ? 'documents.read' : 'documents.write';
   if (/^\/api\/patients(?:\/|$)/.test(path)) return read ? 'patients.read' : 'patients.write';
@@ -46,7 +49,7 @@ function permissionForRequest(request) {
   if (/^\/api\/rooms(?:\/|$)/.test(path)) return read && !path.endsWith('/pending-appointments') ? 'rooms.read' : 'rooms.write';
   if (/^\/api\/appointments(?:\/|$)/.test(path)) return 'appointments.manage';
   if (/^\/api\/agenda(?:\/|$)/.test(path)) return 'agenda.read';
-  if (/^\/api\/(?:consents|consentimientos)(?:\/|$)/.test(path)) return 'consents.manage';
+  if (/^\/api\/(?:consents|consentimientos|consent-templates)(?:\/|$)/.test(path)) return 'consents.manage';
   if (/^\/api\/services(?:\/|$)/.test(path)) return 'services.read';
   if (read && /^\/api\/billing\/invoices(?:\/[^/]+)?$/.test(path)) return 'billing.read';
   if (/^\/api\/billing(?:\/|$)/.test(path)) return 'billing.prepare';

@@ -27,9 +27,6 @@ async function getStats(req, res, next) {
 async function enrollPatient(req, res, next) {
   try {
     const { patientId, nivel, puntos, notas } = req.body;
-    if (!patientId) {
-      return res.status(400).json({ message: 'El ID del paciente es obligatorio.' });
-    }
     const result = await loyaltyService.enrollPatient({ patientId, nivel, puntos, notas });
     res.status(201).json(result);
   } catch (error) {

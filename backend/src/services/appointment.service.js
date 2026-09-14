@@ -1,4 +1,4 @@
-const prisma = require('../config/prisma');
+const repository = require('../repositories/appointment.repository');
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -102,7 +102,7 @@ const appointmentInclude = {
 };
 
 async function findActivePatient(patientId) {
-  const patient = await prisma.paciente.findUnique({ where: { id_paciente: patientId } });
+  const patient = await repository.paciente.findUnique({ where: { id_paciente: patientId } });
   if (!patient || !patient.activo) {
     throw new AppointmentError(400, 'El paciente seleccionado no existe o no está activo.');
   }
@@ -110,7 +110,7 @@ async function findActivePatient(patientId) {
 }
 
 async function findActiveDoctor(doctorId) {
-  const doctor = await prisma.medico.findUnique({ where: { id_medico: doctorId } });
+  const doctor = await repository.medico.findUnique({ where: { id_medico: doctorId } });
   if (!doctor || !doctor.activo) {
     throw new AppointmentError(400, 'El médico seleccionado no existe o no está activo.');
   }
@@ -118,7 +118,7 @@ async function findActiveDoctor(doctorId) {
 }
 
 async function findActiveService(serviceId) {
-  const service = await prisma.servicio_medico.findUnique({ where: { id_servicio: serviceId } });
+  const service = await repository.servicio_medico.findUnique({ where: { id_servicio: serviceId } });
   if (!service || !service.activo) {
     throw new AppointmentError(400, 'El servicio seleccionado no existe o no está activo.');
   }
@@ -131,7 +131,7 @@ async function assertWithinDoctorSchedule(doctorId, start, end) {
   const startTime = timeTextToTimeValue(dateTimeToTimeText(start));
   const endTime = timeTextToTimeValue(dateTimeToTimeText(end));
 
-  const schedule = await prisma.horario_medico.findFirst({
+  const schedule = await repository.horario_medico.findFirst({
     where: {
       id_medico: doctorId,
       dia_semana: day,
@@ -148,7 +148,7 @@ async function assertWithinDoctorSchedule(doctorId, start, end) {
 
 // PA-05: no se permite registrar una cita que se solape con otra cita activa del mismo médico.
 async function assertNoAppointmentConflict(doctorId, start, end, excludeId) {
-  const overlapping = await prisma.cita.findFirst({
+  const overlapping = await repository.cita.findFirst({
     where: {
       id_medico: doctorId,
       estado: { in: activeStates },
@@ -205,7 +205,7 @@ async function createAppointment(input, createdByUserId) {
   const indicacionesPrevias = optionalText(input.indicacionesPrevias, 'Las notas e instrucciones', 2000);
 
   // PA-02 / PA-06: se almacena fecha/hora de inicio y fin, motivo y el estado inicial PROGRAMADA.
-  const appointment = await prisma.cita.create({
+  const appointment = await repository.cita.create({
     data: {
       id_paciente: patientId,
       id_medico: doctorId,
@@ -231,7 +231,7 @@ async function createAppointment(input, createdByUserId) {
 async function updateAppointment(idInput, input = {}) {
   const id = parseId(idInput, 'cita');
 
-  const existing = await prisma.cita.findUnique({
+  const existing = await repository.cita.findUnique({
     where: { id_cita: id },
     include: appointmentInclude
   });
@@ -306,7 +306,7 @@ async function updateAppointment(idInput, input = {}) {
 
   data.fecha_actualizacion = new Date();
 
-  const appointment = await prisma.cita.update({
+  const appointment = await repository.cita.update({
     where: { id_cita: id },
     data,
     include: appointmentInclude
@@ -319,7 +319,7 @@ async function updateAppointment(idInput, input = {}) {
 // PA-07: una consulta posterior de la cita recupera los datos almacenados en PostgreSQL.
 async function getAppointmentById(idInput) {
   const id = parseId(idInput, 'cita');
-  const appointment = await prisma.cita.findUnique({
+  const appointment = await repository.cita.findUnique({
     where: { id_cita: id },
     include: appointmentInclude
   });
@@ -353,7 +353,7 @@ async function listAppointments(filters = {}) {
     where.estado = filters.estado;
   }
 
-  const appointments = await prisma.cita.findMany({
+  const appointments = await repository.cita.findMany({
     where,
     orderBy: { fecha_hora_inicio: 'asc' },
     include: appointmentInclude

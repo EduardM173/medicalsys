@@ -1,4 +1,4 @@
-const prisma = require('../config/prisma');
+const repository = require('../repositories/room.repository');
 
 const VALID_ROOM_TYPES = ['CONSULTORIO', 'QUIROFANO', 'SALA'];
 const VALID_ROOM_STATUSES = ['DISPONIBLE', 'MANTENIMIENTO', 'INACTIVA'];
@@ -61,7 +61,7 @@ class RoomService {
       where.estado = filters.estado.toUpperCase();
     }
 
-    const rooms = await prisma.sala.findMany({
+    const rooms = await repository.sala.findMany({
       where,
       orderBy: { nombre: 'asc' }
     });
@@ -71,7 +71,7 @@ class RoomService {
 
   async getRoomById(roomId) {
     const rId = BigInt(roomId);
-    const room = await prisma.sala.findUnique({
+    const room = await repository.sala.findUnique({
       where: { id_sala: rId }
     });
 
@@ -108,7 +108,7 @@ class RoomService {
 
     // Buscar reservas activas que se solapan en el intervalo
     // Condición de solapamiento: (inicio_reserva < end) AND (fin_reserva > start)
-    const overlappingReservations = await prisma.reserva_sala.findMany({
+    const overlappingReservations = await repository.reserva_sala.findMany({
       where: {
         estado: 'ACTIVA',
         fecha_hora_inicio: { lt: end },
@@ -131,7 +131,7 @@ class RoomService {
       where.tipo = tipo.toUpperCase();
     }
 
-    const availableRooms = await prisma.sala.findMany({
+    const availableRooms = await repository.sala.findMany({
       where,
       orderBy: { nombre: 'asc' }
     });
@@ -140,7 +140,7 @@ class RoomService {
   }
 
   async listPendingAppointments() {
-    const appointments = await prisma.cita.findMany({
+    const appointments = await repository.cita.findMany({
       where: {
         estado: { in: ['PROGRAMADA', 'CONFIRMADA'] }
       },
@@ -202,7 +202,7 @@ class RoomService {
       where.fecha_hora_inicio = { gte: startOfDay, lte: endOfDay };
     }
 
-    const reservations = await prisma.reserva_sala.findMany({
+    const reservations = await repository.reserva_sala.findMany({
       where,
       orderBy: { fecha_hora_inicio: 'asc' },
       include: {
@@ -242,7 +242,7 @@ class RoomService {
     const cId = BigInt(idCita);
 
     // 1. Validar que la sala exista y esté DISPONIBLE
-    const room = await prisma.sala.findUnique({
+    const room = await repository.sala.findUnique({
       where: { id_sala: sId }
     });
     if (!room) {
@@ -257,7 +257,7 @@ class RoomService {
     }
 
     // 2. Validar que la cita exista
-    const appointment = await prisma.cita.findUnique({
+    const appointment = await repository.cita.findUnique({
       where: { id_cita: cId }
     });
     if (!appointment) {
@@ -267,7 +267,7 @@ class RoomService {
     }
 
     // 3. Validar si la cita ya tiene una reserva activa
-    const existingCitaReservation = await prisma.reserva_sala.findUnique({
+    const existingCitaReservation = await repository.reserva_sala.findUnique({
       where: { id_cita: cId }
     });
     if (existingCitaReservation && existingCitaReservation.estado === 'ACTIVA') {
@@ -277,7 +277,7 @@ class RoomService {
     }
 
     // 4. Algoritmo anti-solapamiento de sala: verificar que no haya colisión en la sala
-    const collision = await prisma.reserva_sala.findFirst({
+    const collision = await repository.reserva_sala.findFirst({
       where: {
         id_sala: sId,
         estado: 'ACTIVA',
@@ -302,7 +302,7 @@ class RoomService {
     // 5. Crear o actualizar la reserva
     let reservation;
     if (existingCitaReservation) {
-      reservation = await prisma.reserva_sala.update({
+      reservation = await repository.reserva_sala.update({
         where: { id_cita: cId },
         data: {
           id_sala: sId,
@@ -322,7 +322,7 @@ class RoomService {
         }
       });
     } else {
-      reservation = await prisma.reserva_sala.create({
+      reservation = await repository.reserva_sala.create({
         data: {
           id_cita: cId,
           id_sala: sId,
@@ -348,7 +348,7 @@ class RoomService {
 
   async updateRoomReservation(reservationId, { idSala, fechaHoraInicio, fechaHoraFin, estado }) {
     const resId = BigInt(reservationId);
-    const existing = await prisma.reserva_sala.findUnique({
+    const existing = await repository.reserva_sala.findUnique({
       where: { id_reserva: resId }
     });
 
@@ -375,7 +375,7 @@ class RoomService {
 
     if (idSala || fechaHoraInicio || fechaHoraFin) {
       // Verificar colisiones excluyendo esta misma reserva
-      const collision = await prisma.reserva_sala.findFirst({
+      const collision = await repository.reserva_sala.findFirst({
         where: {
           id_reserva: { not: resId },
           id_sala: targetSalaId,
@@ -396,7 +396,7 @@ class RoomService {
       data.fecha_hora_fin = end;
     }
 
-    const updated = await prisma.reserva_sala.update({
+    const updated = await repository.reserva_sala.update({
       where: { id_reserva: resId },
       data,
       include: {
@@ -416,7 +416,7 @@ class RoomService {
 
   async cancelRoomReservation(reservationId) {
     const resId = BigInt(reservationId);
-    const existing = await prisma.reserva_sala.findUnique({
+    const existing = await repository.reserva_sala.findUnique({
       where: { id_reserva: resId }
     });
 
@@ -426,7 +426,7 @@ class RoomService {
       throw error;
     }
 
-    const cancelled = await prisma.reserva_sala.update({
+    const cancelled = await repository.reserva_sala.update({
       where: { id_reserva: resId },
       data: { estado: 'CANCELADA' },
       include: {
