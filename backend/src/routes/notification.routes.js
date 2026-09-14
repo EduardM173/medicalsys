@@ -13,6 +13,9 @@ router.use(requireAuth, requireRole('RECEPCIONISTA', 'ADMINISTRADOR'));
 // HU-26: historial de confirmaciones y recordatorios por paciente/cita.
 router.get('/', notificationController.getHistory);
 
+router.get('/failures', notificationController.getFailures);
+router.post('/failures/:jobId/retry', notificationController.retryFailure);
+
 // HU-24: Enviar confirmación de cita por WhatsApp
 router.get('/confirmations/candidates', notificationController.getConfirmationCandidates);
 router.post('/confirmations', notificationController.sendConfirmation);

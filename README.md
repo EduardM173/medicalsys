@@ -228,6 +228,8 @@ GET  /api/billing/invoices?search=&patientId=&date=YYYY-MM-DD
 GET  /api/billing/invoices/:id
 
 GET  /api/notifications?patientId=ID&appointmentId=ID_OPCIONAL
+GET  /api/notifications/failures
+POST /api/notifications/failures/:jobId/retry
 ```
 
 Los endpoints de usuarios y horarios requieren sesión con rol `ADMINISTRADOR`. La creación y edición de médicos también requiere `ADMINISTRADOR`, pero la consulta (`GET /api/doctors`) está disponible además para `RECEPCIONISTA`, ya que la necesita para reservar citas. Los endpoints de citas y de servicios (`/api/appointments`, `/api/services`) requieren `RECEPCIONISTA` o `ADMINISTRADOR`. Sin sesión responden `401`; un rol sin permiso recibe `403` en esas operaciones.
@@ -306,6 +308,38 @@ Cuando un paciente con número registrado responda exactamente `SI` o `SÍ` a un
 cd backend
 npm run test:whatsapp-incoming
 ```
+
+### HU-35: cola automática de WhatsApp
+
+La zona de la clínica usa el identificador IANA válido `America/La_Paz`; `America/La_Poz` no existe en la base de zonas horarias. Al crear o reprogramar una cita se insertan, en la misma transacción PostgreSQL, una confirmación y un recordatorio en la tabla `cola_notificacion`. Por defecto la confirmación queda disponible de inmediato y el recordatorio 24 horas antes de la cita.
+
+Instale la migración después de actualizar el código y regenerar Prisma:
+
+```powershell
+cd backend
+npx prisma migrate deploy
+npm run prisma:generate
+```
+
+El backend inicia un worker local por defecto. Para ejecutar workers independientes (recomendado en producción), desactive el worker embebido en las instancias de API y arranque uno o más procesos separados:
+
+```env
+WHATSAPP_START_WORKER_IN_API=false
+WHATSAPP_REMINDER_MINUTES_BEFORE=1440
+WHATSAPP_MAX_ATTEMPTS=5
+WHATSAPP_RETRY_BASE_SECONDS=60
+WHATSAPP_RETRY_MAX_SECONDS=3600
+WHATSAPP_NO_RESPONSE_ACTION=PENDIENTE_REPROGRAMACION
+```
+
+```powershell
+cd backend
+npm run worker:whatsapp
+```
+
+Cada worker reclama el trabajo mediante una actualización condicional en PostgreSQL y renueva su bloqueo mientras llama al proveedor. Por ello puede desplegar más de uno sin que dos instancias procesen simultáneamente el mismo trabajo. Los reintentos usan espera incremental (1, 2, 4… minutos hasta el límite configurado) y, al agotarse, el mensaje aparece en la pestaña **Fallos y reintentos** de `/whatsapp`.
+
+En Green API active las notificaciones de estados de mensajes enviados por API y de estados salientes: MedicalSys procesa `sent`, `delivered`, `read` y `failed` desde la misma cola HTTP para mantener el historial y reintentar los fallos de entrega.
 
 ## Arquitectura
 

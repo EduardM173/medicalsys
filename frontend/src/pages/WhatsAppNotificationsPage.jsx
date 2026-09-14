@@ -4,6 +4,8 @@ import {
   ApiError,
   getConfirmationCandidates,
   getReminderCandidates,
+  getWhatsAppNotificationFailures,
+  retryWhatsAppNotificationFailure,
   runAppointmentReminders,
   sendAppointmentConfirmation,
   sendAppointmentReminder
@@ -13,6 +15,7 @@ import '../styles/whatsapp-notifications.css';
 const statusLabels = {
   PROGRAMADA: 'Programada',
   CONFIRMADA: 'Confirmada',
+  PENDIENTE_REPROGRAMACION: 'Pendiente de reprogramación',
   EN_CONSULTA: 'En consulta',
   COMPLETADA: 'Completada',
   CANCELADA: 'Cancelada'
@@ -30,10 +33,8 @@ function requestErrorMessage(requestError, fallback) {
   return requestError instanceof ApiError ? requestError.message : fallback;
 }
 
-// HU-24 / HU-25: envío manual de confirmaciones y recordatorios de citas por
-// WhatsApp. La consulta del historial completo de notificaciones (HU-26) se
-// implementa por separado; esta pantalla solo dispara envíos y muestra el
-// resultado inmediato de cada intento.
+// HU-35: las acciones manuales solo priorizan trabajos en la outbox; el
+// worker persistente realiza el envío y el panel expone sus fallos finales.
 export function WhatsAppNotificationsPage() {
   const [activeTab, setActiveTab] = useState('confirmations');
 
@@ -43,7 +44,7 @@ export function WhatsAppNotificationsPage() {
         <div>
           <span className="login-kicker">WhatsApp Business</span>
           <h1>Notificaciones de Citas por WhatsApp</h1>
-          <p>Envíe confirmaciones y recordatorios de citas directamente al paciente.</p>
+          <p>Las confirmaciones y recordatorios se programan automáticamente y se envían desde una cola persistente.</p>
         </div>
       </header>
 
@@ -62,9 +63,18 @@ export function WhatsAppNotificationsPage() {
         >
           Recordatorio de Cita
         </button>
+        <button
+          className={`whatsapp-tab${activeTab === 'failures' ? ' active' : ''}`}
+          onClick={() => setActiveTab('failures')}
+          type="button"
+        >
+          Fallos y reintentos
+        </button>
       </nav>
 
-      {activeTab === 'confirmations' ? <ConfirmationsPanel /> : <RemindersPanel />}
+      {activeTab === 'confirmations' && <ConfirmationsPanel />}
+      {activeTab === 'reminders' && <RemindersPanel />}
+      {activeTab === 'failures' && <FailuresPanel />}
     </main>
   );
 }
@@ -165,7 +175,7 @@ function ConfirmationsPanel() {
                         disabled={busyId === appointment.id || !hasPhone}
                         onClick={() => handleSend(appointment)}
                       >
-                        {busyId === appointment.id ? 'Enviando...' : 'Enviar confirmación'}
+                        {busyId === appointment.id ? 'Programando...' : 'Programar ahora'}
                       </Button>
                     </td>
                   </tr>
@@ -270,11 +280,11 @@ function RemindersPanel() {
 
       <div className="whatsapp-bulk-actions">
         <Button disabled={selectedIds.size === 0 || bulkBusy} onClick={handleRunSelected}>
-          {bulkBusy ? 'Enviando recordatorios...' : `Enviar recordatorios seleccionados (${selectedIds.size})`}
+          {bulkBusy ? 'Programando recordatorios...' : `Programar recordatorios seleccionados (${selectedIds.size})`}
         </Button>
         {bulkSummary && (
           <span className="whatsapp-bulk-summary">
-            {bulkSummary.enviados} enviados · {bulkSummary.duplicados} ya enviados antes · {bulkSummary.fallidos} fallidos
+            {bulkSummary.enviados} programados · {bulkSummary.duplicados} ya enviados antes · {bulkSummary.fallidos} fallidos
           </span>
         )}
       </div>
@@ -331,7 +341,7 @@ function RemindersPanel() {
                         onClick={() => handleSendOne(appointment)}
                         variant="secondary"
                       >
-                        {busyId === appointment.id ? 'Enviando...' : 'Enviar'}
+                        {busyId === appointment.id ? 'Programando...' : 'Programar ahora'}
                       </Button>
                     </td>
                   </tr>
@@ -352,6 +362,10 @@ function SendResult({ result }) {
     return <span className="whatsapp-result whatsapp-result-duplicate">Ya se había enviado</span>;
   }
 
+  if (result.estado === 'PENDIENTE') {
+    return <span className="whatsapp-result whatsapp-result-pending">Programado para envío</span>;
+  }
+
   if (result.estado === 'ENVIADA' || result.estado === 'ENTREGADA' || result.estado === 'LEIDA') {
     return <span className="whatsapp-result whatsapp-result-success">Enviado correctamente</span>;
   }
@@ -360,5 +374,94 @@ function SendResult({ result }) {
     <span className="whatsapp-result whatsapp-result-error">
       Error: {result.proveedorReferencia || result.error || 'No fue posible enviar el mensaje.'}
     </span>
+  );
+}
+
+function FailuresPanel() {
+  const [failures, setFailures] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [retryingId, setRetryingId] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await getWhatsAppNotificationFailures();
+      setFailures(response.failures);
+      setError('');
+    } catch (requestError) {
+      setError(requestErrorMessage(requestError, 'No fue posible cargar los fallos de WhatsApp.'));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleRetry(failure) {
+    setRetryingId(failure.queueId);
+    try {
+      await retryWhatsAppNotificationFailure(failure.queueId);
+      setFailures((current) => current.filter((item) => item.queueId !== failure.queueId));
+    } catch (requestError) {
+      setError(requestErrorMessage(requestError, 'No fue posible programar el reintento.'));
+    } finally {
+      setRetryingId(null);
+    }
+  }
+
+  return (
+    <section className="whatsapp-panel">
+      <div className="whatsapp-panel-heading">
+        <div>
+          <h2>Alertas de envío</h2>
+          <p>Estos mensajes agotaron sus reintentos automáticos. Puede programar un nuevo intento sin crear un mensaje duplicado.</p>
+        </div>
+        <span className="whatsapp-count">{failures.length} {failures.length === 1 ? 'fallo' : 'fallos'}</span>
+      </div>
+
+      {error && <p className="notice error-notice" role="alert">{error}</p>}
+      {loading ? (
+        <p className="whatsapp-empty">Cargando alertas...</p>
+      ) : failures.length === 0 ? (
+        <p className="whatsapp-empty">No hay notificaciones fallidas.</p>
+      ) : (
+        <div className="whatsapp-table-wrapper">
+          <table className="whatsapp-table">
+            <thead>
+              <tr>
+                <th>Paciente</th>
+                <th>Tipo</th>
+                <th>Cita</th>
+                <th>Intentos</th>
+                <th>Error</th>
+                <th aria-label="Acciones" />
+              </tr>
+            </thead>
+            <tbody>
+              {failures.map((failure) => (
+                <tr key={failure.queueId}>
+                  <td>{failure.paciente.nombre}</td>
+                  <td>{failure.tipo === 'CONFIRMACION_CITA' ? 'Confirmación' : 'Recordatorio'}</td>
+                  <td>{formatDateTime(failure.cita.fechaHoraInicio)}</td>
+                  <td>{failure.intentos}/{failure.maxIntentos}</td>
+                  <td>{failure.ultimoError || 'Sin detalle disponible'}</td>
+                  <td>
+                    <Button
+                      className="whatsapp-send-button"
+                      disabled={retryingId === failure.queueId}
+                      onClick={() => handleRetry(failure)}
+                      variant="secondary"
+                    >
+                      {retryingId === failure.queueId ? 'Programando...' : 'Reintentar'}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }

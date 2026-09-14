@@ -12,6 +12,25 @@ async function getHistory(request, response, next) {
   }
 }
 
+// HU-35 / MED-324: panel operativo para incidentes que agotaron reintentos.
+async function getFailures(_request, response, next) {
+  try {
+    const failures = await notificationService.listFailedNotificationJobs();
+    response.status(200).json({ failures });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function retryFailure(request, response, next) {
+  try {
+    const notification = await notificationService.retryFailedNotificationJob(request.params.jobId);
+    response.status(200).json({ notification });
+  } catch (error) {
+    next(error);
+  }
+}
+
 // HU-24
 async function getConfirmationCandidates(request, response, next) {
   try {
@@ -70,6 +89,8 @@ async function runReminders(request, response, next) {
 
 module.exports = {
   getHistory,
+  getFailures,
+  retryFailure,
   getConfirmationCandidates,
   sendConfirmation,
   getReminderCandidates,

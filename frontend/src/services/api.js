@@ -404,6 +404,15 @@ export function getNotificationHistory({ patientId, appointmentId } = {}) {
   return request(`/notifications${query ? `?${query}` : ''}`);
 }
 
+// HU-35 / MED-324: alertas de trabajos que agotaron sus reintentos.
+export function getWhatsAppNotificationFailures() {
+  return request('/notifications/failures');
+}
+
+export function retryWhatsAppNotificationFailure(jobId) {
+  return request(`/notifications/failures/${encodeURIComponent(jobId)}/retry`, { method: 'POST' });
+}
+
 // ==========================================
 // HU-27: Campañas y Promociones de Salud
 // ==========================================

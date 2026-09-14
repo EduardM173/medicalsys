@@ -10,12 +10,14 @@
     "test:billing": "node --test tests/billing-query.test.js",
     "test:notifications": "node --test tests/notification-history.test.js",
     "test:whatsapp-incoming": "node --test tests/green-api-incoming.test.js",
+    "test:whatsapp-queue": "node --test tests/whatsapp-notification-queue.test.js",
     "test:campaign-loyalty": "node --test tests/campaign-loyalty.test.js",
-    "test": "node --test tests/campaign-loyalty.test.js tests/billing-query.test.js tests/notification-history.test.js tests/green-api-incoming.test.js tests/security.test.js",
+    "test": "node --test tests/campaign-loyalty.test.js tests/billing-query.test.js tests/notification-history.test.js tests/green-api-incoming.test.js tests/whatsapp-notification-queue.test.js tests/security.test.js",
     "security:setup": "node scripts/setup-security.js",
     "security:grant-notifications": "node scripts/grant-notifications-permission.js",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "worker:whatsapp": "node src/workers/whatsapp-notification.worker.js",
     "prisma:generate": "prisma generate",
     "prisma:pull": "prisma db pull",
     "prisma:baseline": "prisma migrate resolve --applied 20260824_init_medicalsys",
@@ -33,7 +35,8 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^2.3.0"
+    "multer": "^2.3.0",
+    "pdf-lib": "^1.17.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.9",

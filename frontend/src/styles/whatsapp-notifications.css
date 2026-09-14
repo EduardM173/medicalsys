@@ -30,6 +30,7 @@
 .whatsapp-status { padding: 4px 10px; font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); border-radius: 999px; white-space: nowrap; }
 .status-programada { color: var(--color-info); background: var(--color-blue-soft); }
 .status-confirmada { color: var(--color-success); background: var(--color-success-soft); }
+.status-pendiente_reprogramacion { color: var(--color-warning); background: var(--color-warning-soft); }
 .status-en_consulta { color: var(--color-warning); background: var(--color-warning-soft); }
 
 .whatsapp-warning { color: var(--color-danger); font-size: var(--font-size-caption); }
@@ -39,6 +40,7 @@
 .whatsapp-result-pending { color: var(--color-text-muted); }
 .whatsapp-result { display: inline-block; padding: 4px 10px; font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); border-radius: 999px; }
 .whatsapp-result-success { color: var(--color-success); background: var(--color-success-soft); }
+.whatsapp-result-pending.whatsapp-result { color: var(--color-info); background: var(--color-blue-soft); }
 .whatsapp-result-error { color: var(--color-danger); background: var(--color-danger-soft); white-space: normal; }
 .whatsapp-result-duplicate { color: var(--color-warning); background: var(--color-warning-soft); }
 .whatsapp-duplicate-tag { display: block; margin-top: 4px; color: var(--color-text-muted); font-size: var(--font-size-caption); }
