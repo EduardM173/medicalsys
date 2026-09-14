@@ -32,7 +32,7 @@ function expandRequiredPermissions(permissions) {
       }
     });
   };
-  [...expanded].forEach(addRequirements);
+   [...expanded].forEach(addRequirements);
   return [...expanded];
 }
 

@@ -102,6 +102,22 @@ async function authenticateSession(userId) {
   };
 }
 
+async function authenticateSession(userId) {
+  const user = await repository.usuario.findUnique({
+    where: { id_usuario: BigInt(userId) },
+    include: { rol: true }
+  });
+  if (!user || user.estado !== 'ACTIVO' || !user.rol.activo) {
+    throw new AuthError(401, 'Sesión sin acceso habilitado.');
+  }
+  return {
+    id: String(user.id_usuario),
+    idUsuario: String(user.id_usuario),
+    rol: user.rol.codigo,
+    permissions: await permissionsForUser(user.id_usuario, user.rol.codigo)
+  };
+}
+
 async function forgotPassword(emailInput) {
   const email = typeof emailInput === 'string' ? emailInput.trim().toLowerCase() : '';
   if (!email) {
