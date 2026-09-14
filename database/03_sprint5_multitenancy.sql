@@ -104,6 +104,10 @@ BEGIN
     EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.campania (LIKE public.campania INCLUDING ALL)';
     EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.fidelizacion_paciente (LIKE public.fidelizacion_paciente INCLUDING ALL)';
 
+    -- Vistas hacia tablas globales de identidad
+    EXECUTE 'CREATE OR REPLACE VIEW ' || quote_ident(v_schema) || '.usuario AS SELECT * FROM public.usuario';
+    EXECUTE 'CREATE OR REPLACE VIEW ' || quote_ident(v_schema) || '.rol AS SELECT * FROM public.rol';
+
     -- Insertar configuracion fiscal independiente del tenant
     EXECUTE 'INSERT INTO ' || quote_ident(v_schema) || '.configuracion_clinica (nombre_comercial, razon_social, nit, direccion, telefono, email, activa)
              SELECT ' || quote_literal(p_nombre) || ', ' || quote_literal(p_nombre || ' S.R.L.') || ', ' || quote_literal(p_nit) || ', ' || quote_literal(p_direccion) || ', ' || quote_literal(p_telefono) || ', ' || quote_literal(p_email) || ', TRUE

@@ -7,7 +7,7 @@ function createUserRepository(client = database) {
     isUniqueConstraintError,
     security: createSecurityRepository(activeClient)
   });
-  return createRepository(['usuario', 'rol', 'medico', 'paciente'], client, decorate);
+  return createRepository(['usuario', 'rol', 'medico', 'paciente', 'usuario_organizacion', 'organizacion'], client, decorate);
 }
 
 module.exports = createUserRepository();

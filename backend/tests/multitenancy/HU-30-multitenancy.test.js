@@ -149,3 +149,81 @@ test('HU-30 (Bonus): Ciclo de renovación de suscripción por QR y confirmación
   assert.equal(confirmResult.mesesRenovados, 3);
   assert.ok(new Date(confirmResult.nuevaFechaFin) > new Date());
 });
+
+test('HU-30: Autenticación y aislamiento estricto de usuarios por clínica y perfil SuperAdmin', async () => {
+  const authService = require('../../src/services/auth.service');
+
+  // 1. Admin de Cumed ingresa a Cumed correctamente
+  const loginCumed = await authService.login('admin@medicalsys.test', 'MedicalSys2026!', 'cumed');
+  assert.equal(loginCumed.user.email, 'admin@medicalsys.test');
+  assert.equal(loginCumed.user.isSuperAdmin, false);
+  assert.ok(loginCumed.user.organizaciones.some((o) => o.codigo === 'cumed'));
+
+  // 2. Admin de Cumed es rechazado con 403 si intenta acceder a San Rafael
+  await assert.rejects(
+    async () => {
+      await authService.login('admin@medicalsys.test', 'MedicalSys2026!', 'sanrafael');
+    },
+    (err) => {
+      assert.equal(err.statusCode, 403);
+      assert.match(err.message, /no tiene autorización para acceder a la clínica solicitada/);
+      return true;
+    }
+  );
+
+  // 3. Admin de San Rafael ingresa a San Rafael correctamente
+  const loginSanRafael = await authService.login('admin2@medicalsys.test', 'MedicalSys2026!', 'sanrafael');
+  assert.equal(loginSanRafael.user.email, 'admin2@medicalsys.test');
+  assert.equal(loginSanRafael.user.isSuperAdmin, false);
+  assert.ok(loginSanRafael.user.organizaciones.some((o) => o.codigo === 'sanrafael'));
+
+  // 4. Admin de San Rafael es rechazado con 403 si intenta acceder a Cumed
+  await assert.rejects(
+    async () => {
+      await authService.login('admin2@medicalsys.test', 'MedicalSys2026!', 'cumed');
+    },
+    (err) => {
+      assert.equal(err.statusCode, 403);
+      assert.match(err.message, /no tiene autorización para acceder a la clínica solicitada/);
+      return true;
+    }
+  );
+
+  // 5. SuperAdmin global tiene acceso multi-tenant a ambas clínicas
+  const loginSuperCumed = await authService.login('superadmin@medicalsys.test', 'MedicalSys2026!', 'cumed');
+  assert.equal(loginSuperCumed.user.isSuperAdmin, true);
+
+  const loginSuperSR = await authService.login('superadmin@medicalsys.test', 'MedicalSys2026!', 'sanrafael');
+  assert.equal(loginSuperSR.user.isSuperAdmin, true);
+
+  // 6. Login desde portal raíz (sin tenant explícito) descubre la organización de cada usuario
+  const loginRootCumed = await authService.login('admin@medicalsys.test', 'MedicalSys2026!');
+  assert.equal(loginRootCumed.user.email, 'admin@medicalsys.test');
+  assert.equal(loginRootCumed.user.organizaciones[0].codigo, 'cumed');
+  assert.equal(loginRootCumed.user.organizaciones[0].subdominio, 'cumed');
+
+  const loginRootSR = await authService.login('admin2@medicalsys.test', 'MedicalSys2026!');
+  assert.equal(loginRootSR.user.email, 'admin2@medicalsys.test');
+  assert.equal(loginRootSR.user.organizaciones[0].codigo, 'sanrafael');
+  assert.equal(loginRootSR.user.organizaciones[0].subdominio, 'sanrafael');
+});
+
+test('HU-30: Aislamiento estricto de usuarios por clínica en gestión de usuarios', async () => {
+  const userService = require('../../src/services/user.service');
+
+  // 1. Listar usuarios de Cumed (tenantId = 1) no debe incluir administradores exclusivos de San Rafael
+  const usersCumed = await userService.listUsers({ tenantId: 1 });
+  const emailsCumed = usersCumed.map((u) => u.email);
+  assert.ok(emailsCumed.includes('admin@medicalsys.test'), 'admin@medicalsys.test debe estar en Cumed');
+  assert.ok(!emailsCumed.includes('admin2@medicalsys.test'), 'admin2@medicalsys.test NO debe aparecer en Cumed');
+  assert.ok(!emailsCumed.includes('admin.sanrafael@medicalsys.test'), 'admin.sanrafael@medicalsys.test NO debe aparecer en Cumed');
+
+  // 2. Listar usuarios de San Rafael (tenantId = 2) no debe incluir administradores exclusivos de Cumed
+  const usersSR = await userService.listUsers({ tenantId: 2 });
+  const emailsSR = usersSR.map((u) => u.email);
+  assert.ok(emailsSR.includes('admin2@medicalsys.test'), 'admin2@medicalsys.test debe estar en San Rafael');
+  assert.ok(!emailsSR.includes('admin@medicalsys.test'), 'admin@medicalsys.test NO debe aparecer en San Rafael');
+});
+
+
+
