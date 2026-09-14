@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const repository = require('../repositories/notification.repository');
 const {
   fullName,
   buildConfirmationMessage,
@@ -102,7 +103,7 @@ async function listPatientNotificationHistory({ patientId: patientIdInput, appoi
     throw new NotificationError(400, 'Debe seleccionar un paciente.');
   }
   const patientId = parseId(patientIdInput, 'paciente');
-  const patient = await prisma.paciente.findUnique({
+  const patient = await repository.paciente.findUnique({
     where: { id_paciente: patientId },
     select: { id_paciente: true, nombres: true, apellidos: true, documento_identidad: true, complemento: true }
   });
@@ -111,7 +112,7 @@ async function listPatientNotificationHistory({ patientId: patientIdInput, appoi
   let appointmentId = null;
   if (appointmentIdInput !== undefined && appointmentIdInput !== null && appointmentIdInput !== '') {
     appointmentId = parseId(appointmentIdInput, 'cita');
-    const appointment = await prisma.cita.findUnique({
+    const appointment = await repository.cita.findUnique({
       where: { id_cita: appointmentId },
       select: { id_paciente: true }
     });
@@ -121,7 +122,7 @@ async function listPatientNotificationHistory({ patientId: patientIdInput, appoi
     }
   }
 
-  const notifications = await prisma.notificacion.findMany({
+  const notifications = await repository.notificacion.findMany({
     where: {
       id_paciente: patientId,
       tipo: { in: historyNotificationTypes },
@@ -156,7 +157,7 @@ async function listPatientNotificationHistory({ patientId: patientIdInput, appoi
 }
 
 async function findCitaOrThrow(citaId) {
-  const cita = await prisma.cita.findUnique({ where: { id_cita: citaId }, select: appointmentSelect });
+  const cita = await repository.cita.findUnique({ where: { id_cita: citaId }, select: appointmentSelect });
   if (!cita) {
     throw new NotificationError(404, 'Cita no encontrada.');
   }
@@ -252,7 +253,7 @@ async function findPendingNotificationForPatient(patientId, providerReference) {
   };
 
   if (providerReference) {
-    const quoted = await prisma.notificacion.findFirst({
+    const quoted = await repository.notificacion.findFirst({
       where: { ...baseWhere, proveedor_referencia: providerReference },
       orderBy: { fecha_creacion: 'desc' },
       select: { id_notificacion: true, id_cita: true }
@@ -263,7 +264,7 @@ async function findPendingNotificationForPatient(patientId, providerReference) {
   // Si el usuario responde sin citar el mensaje, se elige la confirmación o
   // recordatorio pendiente más reciente de ese paciente. Solo se usa para
   // citas futuras.
-  return prisma.notificacion.findFirst({
+  return repository.notificacion.findFirst({
     where: baseWhere,
     orderBy: { fecha_creacion: 'desc' },
     select: { id_notificacion: true, id_cita: true }
@@ -290,7 +291,7 @@ async function processGreenApiIncomingNotification(payload) {
   const incomingReference = payload?.idMessage ? `GREENAPI-IN:${payload.idMessage}` : null;
   if (!text || !incomingReference) return { processed: false, reason: 'invalid_message' };
 
-  const duplicate = await prisma.notificacion.findFirst({
+  const duplicate = await repository.notificacion.findFirst({
     where: { proveedor_referencia: incomingReference },
     select: { id_notificacion: true }
   });
@@ -309,7 +310,7 @@ async function processGreenApiIncomingNotification(payload) {
     ? new Date(Number(payload.timestamp) * 1000)
     : new Date();
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await repository.transaction(async (tx) => {
     const seen = await tx.notificacion.findFirst({
       where: { proveedor_referencia: incomingReference },
       select: { id_notificacion: true }
@@ -474,6 +475,7 @@ async function sendAndRegister({ cita, tipo, mensaje, emitidoPorUserId }) {
   // sin teléfono se conserva la cita y se genera un fallo visible en cola.
   assertValidPhone(cita.paciente);
   const queued = await scheduleNotificationForAppointment(cita, tipo, emitidoPorUserId, { runNow: true });
+
   return {
     ...queued,
     mensaje,
@@ -489,7 +491,7 @@ async function sendAndRegister({ cita, tipo, mensaje, emitidoPorUserId }) {
 
 // Citas activas y futuras disponibles para solicitar una confirmación.
 async function listConfirmationCandidates() {
-  const citas = await prisma.cita.findMany({
+  const citas = await repository.cita.findMany({
     where: {
       estado: { in: activeAppointmentStates },
       fecha_hora_inicio: { gt: new Date() }
@@ -544,7 +546,7 @@ async function listReminderCandidates() {
   const now = new Date();
   const windowEnd = new Date(now.getTime() + REMINDER_WINDOW_HOURS * 60 * 60 * 1000);
 
-  const citas = await prisma.cita.findMany({
+  const citas = await repository.cita.findMany({
     where: {
       estado: { in: activeAppointmentStates },
       fecha_hora_inicio: { gt: now, lte: windowEnd }
@@ -558,7 +560,7 @@ async function listReminderCandidates() {
   // PA-06: se marca en la lista si la cita ya recibió un recordatorio
   // entregado con éxito, para evitar reenvíos accidentales desde la UI.
   const citaIds = citas.map((cita) => cita.id_cita);
-  const yaEnviados = await prisma.notificacion.findMany({
+  const yaEnviados = await repository.notificacion.findMany({
     where: {
       id_cita: { in: citaIds },
       tipo: 'RECORDATORIO_CITA',
@@ -595,7 +597,7 @@ async function sendAppointmentReminder(citaIdInput, emitidoPorUserId, { allowRes
   // PA-06: la misma cita no debe recibir el mismo recordatorio varias veces
   // (por doble clic o por una repetición de la ejecución del flujo).
   if (!allowResend) {
-    const existente = await prisma.notificacion.findFirst({
+    const existente = await repository.notificacion.findFirst({
       where: {
         id_cita: cita.id_cita,
         tipo: 'RECORDATORIO_CITA',

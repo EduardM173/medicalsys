@@ -1,5 +1,4 @@
-const { Prisma } = require('@prisma/client');
-const prisma = require('../config/prisma');
+const repository = require('../repositories/schedule.repository');
 
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -67,7 +66,7 @@ function toSchedule(schedule) {
 }
 
 async function findDoctor(doctorId) {
-  const doctor = await prisma.medico.findUnique({
+  const doctor = await repository.medico.findUnique({
     where: { id_medico: doctorId },
     include: { usuario: { select: { nombres: true, apellidos: true } } }
   });
@@ -78,7 +77,7 @@ async function findDoctor(doctorId) {
 }
 
 async function listDoctors() {
-  const doctors = await prisma.medico.findMany({
+  const doctors = await repository.medico.findMany({
     where: { activo: true, usuario: { estado: 'ACTIVO' } },
     orderBy: [{ usuario: { apellidos: 'asc' } }, { usuario: { nombres: 'asc' } }],
     include: { usuario: { select: { nombres: true, apellidos: true } } }
@@ -89,7 +88,7 @@ async function listDoctors() {
 async function listSchedulesByDoctor(doctorIdInput, options = {}) {
   const doctorId = parseId(doctorIdInput, 'médico');
   const doctor = await findDoctor(doctorId);
-  const schedules = await prisma.horario_medico.findMany({
+  const schedules = await repository.horario_medico.findMany({
     where: {
       id_medico: doctorId,
       ...(options.activeOnly ? { activo: true } : {})
@@ -104,7 +103,7 @@ async function listActiveSchedulesByDoctor(doctorIdInput) {
 }
 
 async function assertNoOverlap({ doctorId, day, start, end, excludeId }) {
-  const overlap = await prisma.horario_medico.findFirst({
+  const overlap = await repository.horario_medico.findFirst({
     where: {
       id_medico: doctorId,
       dia_semana: day,
@@ -131,7 +130,7 @@ async function createSchedule(doctorIdInput, input) {
   await assertNoOverlap({ doctorId, day, start, end });
 
   try {
-    const schedule = await prisma.horario_medico.create({
+    const schedule = await repository.horario_medico.create({
       data: {
         id_medico: doctorId,
         dia_semana: day,
@@ -142,7 +141,7 @@ async function createSchedule(doctorIdInput, input) {
     });
     return toSchedule(schedule);
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    if (repository.isUniqueConstraintError(error)) {
       throw new ScheduleError(409, 'Ya existe un horario con el mismo día e intervalo.');
     }
     throw error;
@@ -151,7 +150,7 @@ async function createSchedule(doctorIdInput, input) {
 
 async function updateSchedule(scheduleIdInput, input) {
   const scheduleId = parseId(scheduleIdInput, 'horario');
-  const existing = await prisma.horario_medico.findUnique({ where: { id_horario: scheduleId } });
+  const existing = await repository.horario_medico.findUnique({ where: { id_horario: scheduleId } });
   if (!existing) {
     throw new ScheduleError(404, 'Horario no encontrado.');
   }
@@ -187,7 +186,7 @@ async function updateSchedule(scheduleIdInput, input) {
   }
 
   try {
-    const schedule = await prisma.horario_medico.update({
+    const schedule = await repository.horario_medico.update({
       where: { id_horario: scheduleId },
       data: {
         dia_semana: day,
@@ -199,7 +198,7 @@ async function updateSchedule(scheduleIdInput, input) {
     });
     return toSchedule(schedule);
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    if (repository.isUniqueConstraintError(error)) {
       throw new ScheduleError(409, 'Ya existe un horario con el mismo día e intervalo.');
     }
     throw error;

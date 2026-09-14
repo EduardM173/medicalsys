@@ -141,12 +141,37 @@ export function getMedicalHistory(patientId) {
   return request(`/patients/${patientId}/medical-history`);
 }
 
+export function getPatientPortalHistory(patientId) { return request(`/patient/${patientId}/history`); }
+export function getPatientPortalDocuments(patientId) { return request(`/patient/${patientId}/documents`); }
+export async function downloadPatientPortalDocument(patientId, documentId) {
+  let response;
+  try { response = await fetch(`${apiUrl}/patient/${patientId}/documents/${documentId}/file`, { credentials: 'include' }); }
+  catch (_error) { throw new ApiError(0, 'No fue posible conectar con el servidor.'); }
+  if (!response.ok) { const data = await response.json().catch(() => ({})); throw new ApiError(response.status, data.message || 'No fue posible descargar el documento.'); }
+  return response.blob();
+}
+export function getPatientPortalAppointments(patientId) { return request(`/patient/${patientId}/appointments`); }
+export function getPatientPortalNotifications(patientId) { return request(`/patient/${patientId}/notifications`); }
+
 export function getMyAgenda(date) {
   return request(`/agenda/me?date=${encodeURIComponent(date)}`);
 }
 
 export function getConsentOptions() {
   return request('/consents/options');
+}
+
+// HU-33: el documento debe nacer desde una plantilla versionada; este flujo
+// genera y persiste el PDF previo a la firma.
+export function getConsentTemplates({ activeOnly = true } = {}) {
+  return request(`/consent-templates${activeOnly ? '?active=true' : ''}`);
+}
+
+export function generateConsentFromTemplate(templateId, data) {
+  return request(`/consent-templates/${encodeURIComponent(templateId)}/generate`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
 }
 
 export function createConsent(consent) {
@@ -168,6 +193,13 @@ export function signConsent(consentId, signatureData) {
   return request(`/consents/${consentId}/sign`, {
     method: 'POST',
     body: JSON.stringify({ signatureData })
+  });
+}
+
+export function signConsentWithCertificate(consentId, signature) {
+  return request(`/consents/${encodeURIComponent(consentId)}/sign`, {
+    method: 'POST',
+    body: JSON.stringify(signature)
   });
 }
 

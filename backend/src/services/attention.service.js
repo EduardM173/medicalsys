@@ -1,4 +1,4 @@
-const prisma = require('../config/prisma');
+const repository = require('../repositories/history.repository');
 
 class AttentionError extends Error {
   constructor(statusCode, message) {
@@ -124,7 +124,7 @@ function toAttention(attention) {
 async function resolveDoctor(userId, explicitDoctorId) {
   if (explicitDoctorId) {
     const doctorId = parseId(explicitDoctorId, 'médico');
-    const doctor = await prisma.medico.findUnique({
+    const doctor = await repository.medico.findUnique({
       where: { id_medico: doctorId },
       include: { usuario: true }
     });
@@ -132,7 +132,7 @@ async function resolveDoctor(userId, explicitDoctorId) {
     return doctor;
   }
 
-  const doctor = await prisma.medico.findUnique({
+  const doctor = await repository.medico.findUnique({
     where: { id_usuario: BigInt(userId) },
     include: { usuario: true }
   });
@@ -165,7 +165,7 @@ async function createAttention(userId, input) {
   const pesoKg = parseNumber(input.pesoKg ?? input.peso_kg ?? input.peso, 'Peso', 1, 500);
   const tallaCm = parseNumber(input.tallaCm ?? input.talla_cm ?? input.talla, 'Talla', 20, 260);
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await repository.transaction(async (tx) => {
     // PA-01 (MED-66): Validar que el paciente exista
     const patient = await tx.paciente.findUnique({
       where: { id_paciente: patientId },
@@ -247,7 +247,7 @@ async function createAttention(userId, input) {
 
 async function getAttentionsByHistoryId(historyIdInput) {
   const historyId = parseId(historyIdInput, 'historia clínica');
-  const attentions = await prisma.atencion_medica.findMany({
+  const attentions = await repository.atencion_medica.findMany({
     where: { id_historia: historyId },
     orderBy: { fecha_atencion: 'desc' },
     include: {
@@ -260,13 +260,13 @@ async function getAttentionsByHistoryId(historyIdInput) {
 }
 
 async function getAttentionOptions(userId) {
-  const doctor = await prisma.medico.findUnique({
+  const doctor = await repository.medico.findUnique({
     where: { id_usuario: BigInt(userId) },
     include: { usuario: true }
   });
 
   const [patients, doctors, appointments] = await Promise.all([
-    prisma.paciente.findMany({
+    repository.paciente.findMany({
       where: { activo: true },
       orderBy: [{ apellidos: 'asc' }, { nombres: 'asc' }],
       select: {
@@ -277,11 +277,11 @@ async function getAttentionOptions(userId) {
         complemento: true
       }
     }),
-    prisma.medico.findMany({
+    repository.medico.findMany({
       where: { activo: true },
       include: { usuario: true }
     }),
-    prisma.cita.findMany({
+    repository.cita.findMany({
       where: {
         ...(doctor ? { id_medico: doctor.id_medico } : {}),
         estado: { in: ['PROGRAMADA', 'CONFIRMADA', 'EN_CONSULTA'] }

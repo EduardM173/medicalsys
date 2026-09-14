@@ -1,4 +1,4 @@
-const prisma = require('../config/prisma');
+const repository = require('../repositories/loyalty.repository');
 
 class LoyaltyError extends Error {
   constructor(statusCode, message) {
@@ -73,7 +73,7 @@ async function listPatientsWithLoyalty({ search = '', estado = '', nivel = '', s
   }
 
   const [patients, stats] = await Promise.all([
-    prisma.paciente.findMany({
+    repository.paciente.findMany({
       where: patientWhere,
       orderBy: [{ apellidos: 'asc' }, { nombres: 'asc' }],
       include: {
@@ -91,12 +91,12 @@ async function listPatientsWithLoyalty({ search = '', estado = '', nivel = '', s
 
 async function getLoyaltyStats() {
   const [totalPacientes, countsByEstado, countsByNivel] = await Promise.all([
-    prisma.paciente.count({ where: { activo: true } }),
-    prisma.fidelizacion_paciente.groupBy({
+    repository.paciente.count({ where: { activo: true } }),
+    repository.fidelizacion_paciente.groupBy({
       by: ['estado'],
       _count: { id_fidelizacion: true }
     }),
-    prisma.fidelizacion_paciente.groupBy({
+    repository.fidelizacion_paciente.groupBy({
       by: ['nivel'],
       _count: { id_fidelizacion: true }
     })
@@ -144,9 +144,12 @@ async function getLoyaltyStats() {
 }
 
 async function enrollPatient({ patientId, nivel = 'ESTANDAR', puntos = 0, notas = '' }) {
+  if (!/^\d+$/.test(String(patientId)) || BigInt(patientId) < 1n) {
+    throw new LoyaltyError(400, 'El ID del paciente es obligatorio y debe ser válido.');
+  }
   const pId = BigInt(patientId);
 
-  const patient = await prisma.paciente.findUnique({
+  const patient = await repository.paciente.findUnique({
     where: { id_paciente: pId },
     include: { fidelizacion: true }
   });
@@ -163,7 +166,7 @@ async function enrollPatient({ patientId, nivel = 'ESTANDAR', puntos = 0, notas 
     ? nivel.toUpperCase()
     : 'ESTANDAR';
 
-  const member = await prisma.fidelizacion_paciente.create({
+  const member = await repository.fidelizacion_paciente.create({
     data: {
       id_paciente: pId,
       estado: 'ACTIVO',
@@ -186,7 +189,7 @@ async function enrollPatient({ patientId, nivel = 'ESTANDAR', puntos = 0, notas 
 async function updatePatientLoyalty(patientId, data) {
   const pId = BigInt(patientId);
 
-  const existing = await prisma.fidelizacion_paciente.findUnique({
+  const existing = await repository.fidelizacion_paciente.findUnique({
     where: { id_paciente: pId }
   });
 
@@ -226,7 +229,7 @@ async function updatePatientLoyalty(patientId, data) {
     updateData.notas = data.notas ? data.notas.trim() : null;
   }
 
-  const updated = await prisma.fidelizacion_paciente.update({
+  const updated = await repository.fidelizacion_paciente.update({
     where: { id_paciente: pId },
     data: updateData,
     include: {
@@ -244,7 +247,7 @@ async function updatePatientLoyalty(patientId, data) {
 async function removePatientLoyalty(patientId) {
   const pId = BigInt(patientId);
 
-  const existing = await prisma.fidelizacion_paciente.findUnique({
+  const existing = await repository.fidelizacion_paciente.findUnique({
     where: { id_paciente: pId }
   });
 
@@ -252,7 +255,7 @@ async function removePatientLoyalty(patientId) {
     throw new LoyaltyError(404, 'El paciente no cuenta con registro de fidelización.');
   }
 
-  await prisma.fidelizacion_paciente.delete({
+  await repository.fidelizacion_paciente.delete({
     where: { id_paciente: pId }
   });
 

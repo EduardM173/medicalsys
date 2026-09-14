@@ -1,5 +1,4 @@
-const { Prisma } = require('@prisma/client');
-const prisma = require('../config/prisma');
+const repository = require('../repositories/billing.repository');
 const SinFacturacionProvider = require('./sin/sin.service');
 
 const paymentMethods = ['EFECTIVO', 'QR', 'TARJETA', 'TRANSFERENCIA', 'OTRO'];
@@ -43,15 +42,15 @@ function optionalText(value, fieldName, maxLength) {
 }
 
 function money(value) {
-  return new Prisma.Decimal(value).toDecimalPlaces(2).toFixed(2);
+  return repository.decimal(value).toDecimalPlaces(2).toFixed(2);
 }
 
 async function ensureActiveClinicConfig() {
-  let configuration = await prisma.configuracion_clinica.findFirst({
+  let configuration = await repository.configuracion_clinica.findFirst({
     where: { activa: true }
   });
   if (!configuration) {
-    configuration = await prisma.configuracion_clinica.create({
+    configuration = await repository.configuracion_clinica.create({
       data: {
         nombre_comercial: 'MedicalSys Centro Médico',
         razon_social: 'MEDICALSYS S.R.L.',
@@ -69,7 +68,7 @@ async function ensureActiveClinicConfig() {
 }
 
 async function generateNumeroFactura(configuration) {
-  const count = await prisma.factura.count();
+  const count = await repository.factura.count();
   const anio = new Date().getFullYear();
   const secuencia = String(count + 1).padStart(8, '0');
   return `${configuration.nit} 0 0${configuration.id_configuracion}-${anio}${secuencia}`.slice(0, 60);
@@ -77,7 +76,7 @@ async function generateNumeroFactura(configuration) {
 
 async function prepareInvoice(input = {}) {
   const patientId = parseId(input.pacienteId, 'paciente');
-  const patient = await prisma.paciente.findUnique({
+  const patient = await repository.paciente.findUnique({
     where: { id_paciente: patientId },
     select: {
       id_paciente: true,
@@ -97,7 +96,7 @@ async function prepareInvoice(input = {}) {
   let appointment = null;
   if (input.citaId !== undefined && input.citaId !== null && input.citaId !== '') {
     const appointmentId = parseId(input.citaId, 'cita');
-    appointment = await prisma.cita.findUnique({
+    appointment = await repository.cita.findUnique({
       where: { id_cita: appointmentId },
       select: {
         id_cita: true,
@@ -144,7 +143,7 @@ async function prepareInvoice(input = {}) {
     throw new BillingError(400, 'Cada servicio debe aparecer una sola vez; ajuste su cantidad.');
   }
 
-  const services = await prisma.servicio_medico.findMany({
+  const services = await repository.servicio_medico.findMany({
     where: {
       id_servicio: { in: normalizedItems.map((item) => item.serviceId) },
       activo: true
@@ -158,13 +157,13 @@ async function prepareInvoice(input = {}) {
   });
   const servicesById = new Map(services.map((service) => [service.id_servicio.toString(), service]));
 
-  let subtotal = new Prisma.Decimal(0);
+  let subtotal = repository.decimal(0);
   const concepts = normalizedItems.map(({ serviceId, quantity }, index) => {
     const service = servicesById.get(serviceId.toString());
     if (!service) {
       throw new BillingError(404, `El servicio del concepto ${index + 1} no existe o está inactivo.`);
     }
-    const unitPrice = new Prisma.Decimal(service.precio_base).toDecimalPlaces(2);
+    const unitPrice = repository.decimal(service.precio_base).toDecimalPlaces(2);
     const itemSubtotal = unitPrice.mul(quantity).toDecimalPlaces(2);
     subtotal = subtotal.add(itemSubtotal);
     return {
@@ -201,7 +200,7 @@ async function prepareInvoice(input = {}) {
   const clinicConfig = await ensureActiveClinicConfig();
   const numeroFactura = await generateNumeroFactura(clinicConfig);
 
-  const factura = await prisma.factura.create({
+  const factura = await repository.factura.create({
     data: {
       id_configuracion_clinica: clinicConfig.id_configuracion,
       id_paciente: patientId,
@@ -281,7 +280,7 @@ async function prepareInvoice(input = {}) {
 async function emitirFacturaComputarizada(idFactura, userId) {
   const facturaId = parseId(idFactura, 'factura');
 
-  const factura = await prisma.factura.findUnique({
+  const factura = await repository.factura.findUnique({
     where: { id_factura: facturaId },
     include: {
       detalle_factura: {
@@ -334,7 +333,7 @@ async function emitirFacturaComputarizada(idFactura, userId) {
 
   const fechaEmision = resultado.fechaEmision || new Date();
 
-  const emitida = await prisma.factura.update({
+  const emitida = await repository.factura.update({
     where: { id_factura: facturaId },
     data: {
       estado: 'EMITIDA',
@@ -455,7 +454,7 @@ async function listIssuedInvoices(filters = {}) {
       { nit_ci: { contains: search, mode: 'insensitive' } }
     ];
   }
-  const invoices = await prisma.factura.findMany({
+  const invoices = await repository.factura.findMany({
     where,
     orderBy: [{ fecha_emision: 'desc' }, { id_factura: 'desc' }],
     take: 100,
@@ -476,7 +475,7 @@ async function listIssuedInvoices(filters = {}) {
 
 async function getIssuedInvoiceById(idInput) {
   const invoiceId = parseId(idInput, 'factura');
-  const invoice = await prisma.factura.findFirst({
+  const invoice = await repository.factura.findFirst({
     where: { id_factura: invoiceId, estado: 'EMITIDA' },
     select: {
       id_factura: true,
@@ -564,9 +563,9 @@ async function getBillingSummary() {
   const now = new Date();
   const laPazStartOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 4, 0, 0));
   const [total, pending, emittedToday] = await Promise.all([
-    prisma.factura.count(),
-    prisma.factura.count({ where: { estado: 'BORRADOR' } }),
-    prisma.factura.count({
+    repository.factura.count(),
+    repository.factura.count({ where: { estado: 'BORRADOR' } }),
+    repository.factura.count({
       where: { estado: 'EMITIDA', fecha_emision: { gte: laPazStartOfDay } }
     })
   ]);

@@ -344,10 +344,42 @@ En Green API active las notificaciones de estados de mensajes enviados por API y
 ## Arquitectura
 
 ```text
-React → Routes → Controllers → Services → Prisma → PostgreSQL
+┌─────────────────────────────────────────────────────────────────────┐
+│ PRESENTACIÓN                                                        │
+│ React (pages/components) → cliente HTTP (frontend/src/services/api) │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │ HTTP / JSON
+┌───────────────────────────────▼─────────────────────────────────────┐
+│ APLICACIÓN                                                          │
+│ Routes → Middleware → Controllers → Services                       │
+│                       HTTP          reglas de negocio               │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │ contratos de repositorio
+┌───────────────────────────────▼─────────────────────────────────────┐
+│ ACCESO A DATOS                                                     │
+│ Repositories → Prisma → PostgreSQL                                 │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-Las rutas definen endpoints y middlewares, los controladores construyen respuestas HTTP y los servicios contienen validaciones y reglas de negocio. React solo consume la API; no consulta PostgreSQL directamente.
+Responsabilidades estrictas:
+
+- `frontend/src/pages` y `frontend/src/components`: presentación e interacción. Solo consumen el cliente HTTP.
+- `backend/src/routes`: declaran endpoints, middleware y el controlador correspondiente; no contienen lógica HTTP embebida ni importan servicios.
+- `backend/src/middleware`: autentican, autorizan y procesan aspectos transversales. La autenticación delega la consulta de sesión al servicio de autenticación.
+- `backend/src/controllers`: traducen HTTP a entradas de aplicación y construyen respuestas; no importan Prisma ni repositorios.
+- `backend/src/services`: validaciones y reglas de negocio independientes de Express; no ejecutan SQL ni importan Prisma.
+- `backend/src/repositories`: única puerta de acceso de la aplicación a Prisma, transacciones y SQL parametrizado.
+- `backend/src/config/prisma.js`: construcción y ciclo de vida del cliente de PostgreSQL.
+
+El flujo obligatorio es `Vista → HTTP → Route → Controller → Service → Repository → Prisma → PostgreSQL`. Las integraciones externas de almacenamiento, WhatsApp y SIN se mantienen detrás de proveedores consumidos por los servicios.
+
+La separación se protege automáticamente. Desde `backend` ejecute:
+
+```powershell
+npm run test:architecture
+```
+
+La prueba falla si rutas, controladores, middleware o servicios importan Prisma; si una ruta importa directamente un servicio; si falta un repositorio funcional; o si el frontend depende de módulos internos del backend.
 
 ## Hotfix: OSI, roles y mínimo privilegio
 
@@ -389,3 +421,29 @@ npm run build
 ```
 
 La suite de seguridad prueba 33 rutas con los cinco roles usando una base simulada, además de revocación, suspensión, rol desactivado, dependencias, autoedición y escalamiento. La verificación local también incluyó login OSI contra PostgreSQL y revisión de la interfaz con OSI, Médico y Recepcionista.
+
+## HU-32: Portal seguro del paciente
+
+La rama `feature/HU-32-portal-paciente` incorpora un portal de solo lectura exclusivo para `PACIENTE`.
+
+- `patient.portal.read` es el único permiso funcional asignado por defecto al rol `PACIENTE`.
+- El paciente consulta historial, documentos, citas y notificaciones únicamente mediante su sesión autenticada.
+- Los endpoints reciben el identificador del paciente para permitir pruebas de autorización por propiedad; si el identificador no corresponde al paciente autenticado, responden **404** para no revelar la existencia de otro paciente.
+- La descarga de documentos vuelve a comprobar que el documento pertenece a la historia clínica del paciente; un `documentId` de otro paciente también responde **404**.
+- No existen operaciones de escritura en el portal. Las rutas de atención, recetas, pacientes, facturación, agenda administrativa, notificaciones de envío y directorio continúan protegidas por sus permisos originales.
+- Cada consulta de historial o documento exitosamente atendida se registra en `security_audit`; los intentos de acceso cruzado también quedan registrados.
+- Médico y Recepcionista conservan sus permisos funcionales anteriores; el portal no les concede acceso adicional.
+
+Después de actualizar una instalación existente ejecute desde `backend`:
+
+```powershell
+npm run security:setup
+```
+
+Esto agrega de forma idempotente `patient.portal.read` a la política de `PACIENTE` sin eliminar otros permisos personalizados existentes.
+
+Pruebas específicas:
+
+```powershell
+npm run test:hu32
+```

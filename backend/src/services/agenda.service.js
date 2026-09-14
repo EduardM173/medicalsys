@@ -1,4 +1,4 @@
-const prisma = require('../config/prisma');
+const repository = require('../repositories/agenda.repository');
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const clinicUtcOffset = '-04:00';
@@ -64,7 +64,7 @@ function toAppointment(appointment) {
 
 async function getAgendaForAuthenticatedDoctor(userIdInput, dateInput) {
   const date = validateDate(dateInput);
-  const doctor = await prisma.medico.findUnique({
+  const doctor = await repository.medico.findUnique({
     where: { id_usuario: BigInt(userIdInput) },
     select: {
       id_medico: true,
@@ -81,7 +81,7 @@ async function getAgendaForAuthenticatedDoctor(userIdInput, dateInput) {
   }
 
   const range = getDateRange(date);
-  const appointments = await prisma.cita.findMany({
+  const appointments = await repository.cita.findMany({
     where: {
       id_medico: doctor.id_medico,
       fecha_hora_inicio: { gte: range.start, lt: range.end }

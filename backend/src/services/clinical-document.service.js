@@ -1,7 +1,9 @@
 const crypto = require('crypto');
 const path = require('path');
-const prisma = require('../config/prisma');
+const { Readable } = require('stream');
+const repository = require('../repositories/document.repository');
 const storageService = require('./storage/storage.service');
+const cryptoService = require('./crypto.service');
 
 const VALID_DOCUMENT_TYPES = ['EXAMEN', 'RADIOGRAFIA', 'CONSENTIMIENTO', 'RECETA', 'INFORME', 'OTRO'];
 
@@ -37,12 +39,12 @@ function serializeDocument(doc) {
 class ClinicalDocumentService {
   async getOrCreateHistory(patientId) {
     const pId = BigInt(patientId);
-    let history = await prisma.historia_clinica.findUnique({
+    let history = await repository.historia_clinica.findUnique({
       where: { id_paciente: pId }
     });
 
     if (!history) {
-      history = await prisma.historia_clinica.create({
+      history = await repository.historia_clinica.create({
         data: {
           id_paciente: pId,
           fecha_apertura: new Date()
@@ -75,7 +77,7 @@ class ClinicalDocumentService {
 
     // Verificar que el paciente exista
     const pId = BigInt(patientId);
-    const patient = await prisma.paciente.findUnique({
+    const patient = await repository.paciente.findUnique({
       where: { id_paciente: pId }
     });
 
@@ -92,7 +94,7 @@ class ClinicalDocumentService {
     let attId = null;
     if (attentionId) {
       attId = BigInt(attentionId);
-      const attention = await prisma.atencion_medica.findFirst({
+      const attention = await repository.atencion_medica.findFirst({
         where: {
           id_atencion: attId,
           id_historia: history.id_historia
@@ -105,23 +107,26 @@ class ClinicalDocumentService {
       }
     }
 
-    // Calcular hash SHA-256 para integridad clínica y auditoría
+    // Calcular hash SHA-256 del documento clínico original (integridad clínica)
     const sha256 = crypto.createHash('sha256').update(file.buffer).digest('hex');
+
+    // HU-31 / PA-06: el archivo se persiste cifrado AES-256-GCM en disco/R2.
+    const encryptedBuffer = cryptoService.encryptBuffer(file.buffer);
 
     // Generar nombre de archivo único
     const ext = path.extname(file.originalname) || '';
     const safeUUID = crypto.randomUUID();
     const storedFilename = `${Date.now()}-${safeUUID}${ext}`;
 
-    // Guardar en Storage Provider activo (Local o R2)
+    // Guardar en Storage Provider activo (Local o R2) como ciphertext
     const storageResult = await storageService.saveFile({
-      buffer: file.buffer,
+      buffer: encryptedBuffer,
       filename: storedFilename,
       mimeType: file.mimetype
     });
 
     // Guardar en Base de Datos
-    const createdDoc = await prisma.documento_clinico.create({
+    const createdDoc = await repository.documento_clinico.create({
       data: {
         id_historia: history.id_historia,
         id_atencion: attId,
@@ -146,7 +151,7 @@ class ClinicalDocumentService {
 
   async getPatientDocuments(patientId, filters = {}) {
     const pId = BigInt(patientId);
-    const history = await prisma.historia_clinica.findUnique({
+    const history = await repository.historia_clinica.findUnique({
       where: { id_paciente: pId }
     });
 
@@ -162,7 +167,7 @@ class ClinicalDocumentService {
       where.tipo = filters.tipo.toUpperCase();
     }
 
-    const docs = await prisma.documento_clinico.findMany({
+    const docs = await repository.documento_clinico.findMany({
       where,
       orderBy: { fecha_registro: 'desc' },
       include: {
@@ -176,7 +181,7 @@ class ClinicalDocumentService {
 
   async getDocumentById(documentId) {
     const docId = BigInt(documentId);
-    const doc = await prisma.documento_clinico.findUnique({
+    const doc = await repository.documento_clinico.findUnique({
       where: { id_documento: docId },
       include: {
         usuario: true,
@@ -200,12 +205,18 @@ class ClinicalDocumentService {
     const doc = await this.getDocumentById(documentId);
     const { stream, size } = await storageService.getFileStream(doc.storage_key, doc.storage_provider);
 
+    // HU-31 / PA-06: descifrar el archivo persistido antes de devolverlo.
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    const plainBuffer = cryptoService.decryptBuffer(Buffer.concat(chunks));
+
     return {
-      stream,
-      size,
+      stream: Readable.from(plainBuffer),
+      size: plainBuffer.length,
       mimeType: doc.mime_type || 'application/octet-stream',
       filename: doc.nombre_archivo,
-      hashSha256: doc.hash_sha256
+      hashSha256: doc.hash_sha256,
+      encrypted: size !== plainBuffer.length
     };
   }
 
@@ -220,7 +231,7 @@ class ClinicalDocumentService {
     }
 
     // Eliminar registro en base de datos
-    await prisma.documento_clinico.delete({
+    await repository.documento_clinico.delete({
       where: { id_documento: doc.id_documento }
     });
 

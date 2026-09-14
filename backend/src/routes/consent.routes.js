@@ -14,8 +14,14 @@ router.get('/options', consentController.getConsentOptions);
 router.get('/', consentController.getConsents);
 router.post('/', consentController.createConsent);
 router.get('/:consentId', consentController.getConsent);
+router.get('/:consentId/preview', consentController.previewConsent);
+router.get('/:consentId/download', consentController.downloadConsent);
+router.post('/:consentId/verify', consentController.verifyConsent);
+router.post('/:consentId/annul', consentController.annulConsent);
 router.post('/:consentId/sign', consentController.signConsent);
 router.post('/:consentId/firmar', consentController.signConsent);
+router.put('/:consentId', consentController.updateConsent);
+router.patch('/:consentId', consentController.updateConsent);
 
 module.exports = router;
 

@@ -16,6 +16,7 @@ export const modules = [
   ['patients.read', '/pacientes', 'Pacientes', 'Registro y consulta', 'P'],
   ['rooms.read', '/salas', 'Salas y Quirófanos', 'Consulta de disponibilidad', 'S'],
   ['campaigns.manage', '/campanias', 'Campañas de Salud', 'Promociones y programas preventivos', 'C'],
-  ['loyalty.manage', '/fidelizacion', 'Fidelización', 'Padrón y estado de pacientes', 'L']
+  ['loyalty.manage', '/fidelizacion', 'Fidelización', 'Padrón y estado de pacientes', 'L'],
+  ['patient.portal.read', '/mi-portal', 'Mi portal', 'Historial, documentos, citas y notificaciones propias', 'P']
 ];
 

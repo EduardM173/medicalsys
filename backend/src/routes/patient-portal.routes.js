@@ -1,0 +1,12 @@
+const { Router } = require('express');
+const controller = require('../controllers/patient-portal.controller');
+const requireAuth = require('../middleware/auth.middleware');
+const requireRole = require('../middleware/role.middleware');
+const router = Router();
+router.use(requireAuth,(req,res,next)=>req.user?.rol==='PACIENTE'?next():res.status(403).json({message:'El portal de paciente es exclusivo para el rol PACIENTE.'}),requireRole());
+router.get('/:patientId/history',controller.getHistory);
+router.get('/:patientId/documents',controller.listDocuments);
+router.get('/:patientId/documents/:documentId/file',controller.openDocument);
+router.get('/:patientId/appointments',controller.listAppointments);
+router.get('/:patientId/notifications',controller.listNotifications);
+module.exports=router;
