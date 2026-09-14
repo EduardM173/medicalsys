@@ -1,37 +1,95 @@
-﻿import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useTenant } from '../context/TenantContext';
-import { generateTenantRenewalQr, confirmTenantPayment } from '../services/api';
+import {
+  generateTenantRenewalQr,
+  confirmTenantPayment,
+  generateBnbRenewalQr,
+  checkBnbQrStatus
+} from '../services/api';
 
 export function TenantSubscriptionModal() {
-  const { currentTenant, isSubscriptionModalOpen, setIsSubscriptionModalOpen, refreshTenant } = useTenant();
+  const { currentTenant, isSubscriptionModalOpen, setIsSubscriptionModalOpen, refreshTenant, setRenewalVoucher } = useTenant();
   const [meses, setMeses] = useState(1);
+  const [gatewayMode, setGatewayMode] = useState('bnb'); // 'bnb' (en vivo) o 'simulado'
+  const [montoDemo1Bs, setMontoDemo1Bs] = useState(true);
   const [qrData, setQrData] = useState(null);
   const [loadingQr, setLoadingQr] = useState(false);
   const [submittingPayment, setSubmittingPayment] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(null);
   const [error, setError] = useState('');
+  const [pollingStatus, setPollingStatus] = useState('');
+  const pollTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
+  }, []);
 
   if (!isSubscriptionModalOpen || !currentTenant) return null;
 
   const handleClose = () => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
     setIsSubscriptionModalOpen(false);
     setQrData(null);
-    setPaymentSuccess(null);
     setError('');
+    setPollingStatus('');
+  };
+
+  const startBnbPolling = (qrId) => {
+    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    setPollingStatus('Esperando que escanees y confirmes desde tu app bancaria...');
+
+    pollTimerRef.current = setInterval(async () => {
+      try {
+        const check = await checkBnbQrStatus(qrId);
+        if (check.isPaid) {
+          clearInterval(pollTimerRef.current);
+          pollTimerRef.current = null;
+          handleClose();
+          setRenewalVoucher({
+            mesesRenovados: check.mesesRenovados || meses,
+            nuevaFechaFin: check.nuevaFechaFin,
+            voucherId: check.voucherId
+          });
+        }
+      } catch (err) {
+        // Silencioso ante reintentos de red
+      }
+    }, 3500);
   };
 
   const handleGenerateQr = async (e) => {
     e?.preventDefault();
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
     try {
       setLoadingQr(true);
       setError('');
       setPaymentSuccess(null);
-      const res = await generateTenantRenewalQr({
-        tenantCode: currentTenant.codigo,
-        meses
-      });
-      setQrData(res);
+      setPollingStatus('');
+
+      if (gatewayMode === 'bnb') {
+        const montoFinal = montoDemo1Bs ? 1 : undefined;
+        const res = await generateBnbRenewalQr({
+          tenantCode: currentTenant.codigo,
+          meses,
+          monto: montoFinal
+        });
+        setQrData({ ...res, isBnb: true });
+        startBnbPolling(res.qrId);
+      } else {
+        const res = await generateTenantRenewalQr({
+          tenantCode: currentTenant.codigo,
+          meses
+        });
+        setQrData({ ...res, isBnb: false });
+      }
     } catch (err) {
       setError(err.message || 'No fue posible generar el código QR de pago.');
     } finally {
@@ -47,9 +105,12 @@ export function TenantSubscriptionModal() {
       const res = await confirmTenantPayment({
         referenciaPago: qrData.referenciaPago
       });
-      setPaymentSuccess(res);
-      setQrData(null);
-      await refreshTenant();
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+      handleClose();
+      setRenewalVoucher(res);
     } catch (err) {
       setError(err.message || 'Error al confirmar el pago.');
     } finally {
@@ -96,18 +157,6 @@ export function TenantSubscriptionModal() {
             </div>
           )}
 
-          {paymentSuccess && (
-            <div style={{ padding: '16px', background: '#ecfdf5', border: '1px solid #34d399', borderRadius: '8px', color: '#065f46', marginBottom: '16px' }}>
-              <strong style={{ display: 'block', fontSize: '1rem', marginBottom: '4px' }}>
-                🎉 ¡Pago Confirmado y Suscripción Renovada!
-              </strong>
-              <p style={{ margin: 0, fontSize: '0.88rem' }}>
-                Se han extendido {paymentSuccess.mesesRenovados} mes(es). Nueva fecha de vigencia:{' '}
-                <strong>{new Date(paymentSuccess.nuevaFechaFin).toLocaleDateString('es-ES')}</strong>.
-              </p>
-            </div>
-          )}
-
           <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px', marginBottom: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <span style={{ fontSize: '0.9rem', color: '#475569' }}>Estado de Suscripción:</span>
@@ -140,6 +189,49 @@ export function TenantSubscriptionModal() {
               <h3 style={{ fontSize: '1rem', margin: '0 0 12px', color: '#1e293b' }}>
                 Renovar o Extender Suscripción
               </h3>
+
+              {/* Selector de Pasarela */}
+              <div style={{ marginBottom: '16px', background: '#f1f5f9', padding: '12px', borderRadius: '8px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px', color: '#334155' }}>
+                  Método de Cobro QR:
+                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="gatewayMode"
+                      value="bnb"
+                      checked={gatewayMode === 'bnb'}
+                      onChange={() => setGatewayMode('bnb')}
+                    />
+                    <span>🟢 <strong>QR Simple BNB (Pasarela Bancaria en Línea)</strong></span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="gatewayMode"
+                      value="simulado"
+                      checked={gatewayMode === 'simulado'}
+                      onChange={() => setGatewayMode('simulado')}
+                    />
+                    <span>🟡 Transferencia QR Estándar (Interoperable)</span>
+                  </label>
+                </div>
+
+                {gatewayMode === 'bnb' && (
+                  <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1', fontSize: '0.82rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#0f766e' }}>
+                      <input
+                        type="checkbox"
+                        checked={montoDemo1Bs}
+                        onChange={(e) => setMontoDemo1Bs(e.target.checked)}
+                      />
+                      <span>Habilitar tarifa reducida de validación: <strong>1.00 BOB</strong></span>
+                    </label>
+                  </div>
+                )}
+              </div>
+
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: '6px', color: '#334155' }}>
                   Período a renovar:
@@ -187,7 +279,7 @@ export function TenantSubscriptionModal() {
                     gap: '8px'
                   }}
                 >
-                  {loadingQr ? 'Generando QR...' : '💳 Generar Código QR de Cobro'}
+                  {loadingQr ? 'Generando en Banco...' : (gatewayMode === 'bnb' ? '🚀 Generar QR Real en BNB' : '💳 Generar Código QR')}
                 </button>
               </div>
             </form>
@@ -203,25 +295,65 @@ export function TenantSubscriptionModal() {
                   boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
                 }}
               >
-                <QRCodeSVG value={qrData.codigoQr} size={180} level="M" />
+                {qrData.isBnb && qrData.codigoQrBase64 ? (
+                  <img
+                    src={`data:image/png;base64,${qrData.codigoQrBase64}`}
+                    alt="QR Banco Nacional de Bolivia"
+                    style={{ width: '210px', height: '210px', display: 'block', borderRadius: '8px' }}
+                  />
+                ) : (
+                  <QRCodeSVG value={qrData.codigoQr || ''} size={180} level="M" />
+                )}
               </div>
 
               <div style={{ marginTop: '14px', textAlign: 'center' }}>
                 <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-navy, #10294c)' }}>
-                  {qrData.monto.toFixed(2)} {qrData.moneda}
+                  {Number(qrData.monto).toFixed(2)} {qrData.moneda || 'BOB'}
                 </div>
                 <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '2px' }}>
-                  Referencia: <code>{qrData.referenciaPago}</code>
+                  {qrData.isBnb ? (
+                    <>
+                      <span>Banco: <strong>{qrData.banco || 'Banco Nacional de Bolivia'}</strong></span><br />
+                      <span>ID QR Banco: <code>{qrData.qrId}</code></span>
+                    </>
+                  ) : (
+                    <span>Referencia: <code>{qrData.referenciaPago}</code></span>
+                  )}
                 </div>
-                <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '8px auto 16px', maxWidth: '380px' }}>
-                  Escanee desde cualquier app bancaria de Bolivia (BCP, Banco Unión, BNB, etc.) habilitada para Simple QR.
-                </p>
+
+                {pollingStatus ? (
+                  <div style={{
+                    margin: '12px auto',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    background: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    color: '#1e40af',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    maxWidth: '420px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}>
+                    <span style={{ display: 'inline-block', animation: 'spin 1.5s linear infinite' }}>🔄</span>
+                    {pollingStatus}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '8px auto 16px', maxWidth: '380px' }}>
+                    Escanee desde cualquier app bancaria de Bolivia (BCP, Banco Unión, BNB, etc.) habilitada para Simple QR.
+                  </p>
+                )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '12px' }}>
                 <button
                   type="button"
-                  onClick={() => setQrData(null)}
+                  onClick={() => {
+                    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+                    setQrData(null);
+                  }}
                   disabled={submittingPayment}
                   style={{
                     padding: '8px 16px',
@@ -232,7 +364,7 @@ export function TenantSubscriptionModal() {
                     cursor: 'pointer'
                   }}
                 >
-                  ← Cambiar Plan
+                  ← Cambiar Parámetros
                 </button>
                 <button
                   type="button"
@@ -251,7 +383,7 @@ export function TenantSubscriptionModal() {
                     gap: '6px'
                   }}
                 >
-                  {submittingPayment ? 'Procesando...' : '✅ Simular Pago Exitoso (Docente / Demo)'}
+                  {submittingPayment ? 'Procesando...' : '✅ Simular Acreditación Inmediata'}
                 </button>
               </div>
             </div>

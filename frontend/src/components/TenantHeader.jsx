@@ -1,12 +1,15 @@
-﻿import React from 'react';
+import React from 'react';
 import { useTenant } from '../context/TenantContext';
+import { useAuth } from '../contexts/AuthContext';
 
 export function TenantHeader() {
   const { currentTenant, organizations, switchTenant, setIsSubscriptionModalOpen } = useTenant();
+  const { user } = useAuth();
 
   if (!currentTenant) return null;
 
   const isExpired = currentTenant.isExpired;
+  const isSuperAdmin = user?.isSuperAdmin || user?.rol === 'SUPERADMIN';
 
   return (
     <header
@@ -66,10 +69,10 @@ export function TenantHeader() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-        {organizations && organizations.length > 1 && (
+        {isSuperAdmin && organizations && organizations.length > 1 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <label htmlFor="tenant-switcher-select" style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>
-              Cambiar Clínica:
+              SaaS Admin · Cambiar Clínica:
             </label>
             <select
               id="tenant-switcher-select"

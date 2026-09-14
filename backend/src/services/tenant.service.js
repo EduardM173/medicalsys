@@ -1,4 +1,5 @@
 const tenantRepository = require('../repositories/tenant.repository');
+const bcrypt = require('bcryptjs');
 
 class TenantError extends Error {
   constructor(statusCode, message, code = null) {
@@ -18,6 +19,19 @@ function normalizeSlug(str) {
     .replace(/[^a-z0-9_-]/g, '-');
 }
 
+async function getTenantClinicalConfig(schemaName) {
+  try {
+    const client = tenantRepository.getTenantClient(schemaName);
+    const config = await client.configuracion_clinica.findFirst({
+      where: { activa: true },
+      orderBy: { id_configuracion: 'asc' }
+    });
+    return config || null;
+  } catch (_e) {
+    return null;
+  }
+}
+
 class TenantService {
   async listOrganizations({ activeOnly = false } = {}) {
     const where = activeOnly ? { estado: 'ACTIVA' } : {};
@@ -26,27 +40,53 @@ class TenantService {
       orderBy: { nombre: 'asc' }
     });
 
-    return orgs.map((org) => ({
-      id: Number(org.id_organizacion),
-      codigo: org.codigo,
-      nombre: org.nombre,
-      tipo: org.tipo,
-      subdominio: org.subdominio,
-      schemaName: org.schema_name,
-      estado: org.estado,
-      plan: org.plan_suscripcion,
-      fechaSuscripcionFin: org.fecha_suscripcion_fin,
-      isExpired: org.fecha_suscripcion_fin ? new Date(org.fecha_suscripcion_fin) < new Date() : false
-    }));
+    const enriched = await Promise.all(
+      orgs.map(async (org) => {
+        const config = await getTenantClinicalConfig(org.schema_name);
+        return {
+          id: Number(org.id_organizacion),
+          codigo: org.codigo,
+          nombre: org.nombre,
+          tipo: org.tipo,
+          subdominio: org.subdominio,
+          schemaName: org.schema_name,
+          estado: org.estado,
+          plan: org.plan_suscripcion,
+          fechaSuscripcionFin: org.fecha_suscripcion_fin,
+          isExpired: org.fecha_suscripcion_fin ? new Date(org.fecha_suscripcion_fin) < new Date() : false,
+          nit: config?.nit || null,
+          razonSocial: config?.razon_social || `${org.nombre} S.R.L.`,
+          direccion: config?.direccion || null,
+          telefono: config?.telefono || null,
+          email: config?.email || null,
+          ciudad: config?.ciudad || null,
+          pais: config?.pais || 'Bolivia'
+        };
+      })
+    );
+
+    return enriched;
   }
 
   async getOrganizationByCode(code) {
     if (!code) return null;
     const clean = normalizeSlug(code);
-    const org = await tenantRepository.organizacion.findUnique({
+    let org = await tenantRepository.organizacion.findUnique({
       where: { codigo: clean }
     });
+    if (!org) {
+      org = await tenantRepository.organizacion.findFirst({
+        where: {
+          OR: [
+            { codigo: clean.replace(/-/g, '') },
+            { subdominio: clean.replace(/-/g, '') }
+          ]
+        }
+      });
+    }
     if (!org) return null;
+
+    const config = await getTenantClinicalConfig(org.schema_name);
 
     return {
       id: Number(org.id_organizacion),
@@ -58,7 +98,14 @@ class TenantService {
       estado: org.estado,
       plan: org.plan_suscripcion,
       fechaSuscripcionFin: org.fecha_suscripcion_fin,
-      isExpired: org.fecha_suscripcion_fin ? new Date(org.fecha_suscripcion_fin) < new Date() : false
+      isExpired: org.fecha_suscripcion_fin ? new Date(org.fecha_suscripcion_fin) < new Date() : false,
+      nit: config?.nit || null,
+      razonSocial: config?.razon_social || `${org.nombre} S.R.L.`,
+      direccion: config?.direccion || null,
+      telefono: config?.telefono || null,
+      email: config?.email || null,
+      ciudad: config?.ciudad || null,
+      pais: config?.pais || 'Bolivia'
     };
   }
 
@@ -66,9 +113,18 @@ class TenantService {
     if (!subdomain) return null;
     const clean = normalizeSlug(subdomain);
     const org = await tenantRepository.organizacion.findFirst({
-      where: { subdominio: clean }
+      where: {
+        OR: [
+          { subdominio: clean },
+          { subdominio: clean.replace(/-/g, '') },
+          { codigo: clean },
+          { codigo: clean.replace(/-/g, '') }
+        ]
+      }
     });
     if (!org) return null;
+
+    const config = await getTenantClinicalConfig(org.schema_name);
 
     return {
       id: Number(org.id_organizacion),
@@ -80,7 +136,14 @@ class TenantService {
       estado: org.estado,
       plan: org.plan_suscripcion,
       fechaSuscripcionFin: org.fecha_suscripcion_fin,
-      isExpired: org.fecha_suscripcion_fin ? new Date(org.fecha_suscripcion_fin) < new Date() : false
+      isExpired: org.fecha_suscripcion_fin ? new Date(org.fecha_suscripcion_fin) < new Date() : false,
+      nit: config?.nit || null,
+      razonSocial: config?.razon_social || `${org.nombre} S.R.L.`,
+      direccion: config?.direccion || null,
+      telefono: config?.telefono || null,
+      email: config?.email || null,
+      ciudad: config?.ciudad || null,
+      pais: config?.pais || 'Bolivia'
     };
   }
 
@@ -96,21 +159,49 @@ class TenantService {
       }
     });
 
-    return relations.map((rel) => ({
-      id: Number(rel.organizacion.id_organizacion),
-      codigo: rel.organizacion.codigo,
-      nombre: rel.organizacion.nombre,
-      tipo: rel.organizacion.tipo,
-      subdominio: rel.organizacion.subdominio,
-      rol: rel.rol_en_organizacion,
-      estado: rel.organizacion.estado,
-      plan: rel.organizacion.plan_suscripcion,
-      fechaSuscripcionFin: rel.organizacion.fecha_suscripcion_fin,
-      isExpired: rel.organizacion.fecha_suscripcion_fin ? new Date(rel.organizacion.fecha_suscripcion_fin) < new Date() : false
-    }));
+    const enriched = await Promise.all(
+      relations.map(async (rel) => {
+        const config = await getTenantClinicalConfig(rel.organizacion.schema_name);
+        return {
+          id: Number(rel.organizacion.id_organizacion),
+          codigo: rel.organizacion.codigo,
+          nombre: rel.organizacion.nombre,
+          tipo: rel.organizacion.tipo,
+          subdominio: rel.organizacion.subdominio,
+          rol: rel.rol_en_organizacion,
+          estado: rel.organizacion.estado,
+          plan: rel.organizacion.plan_suscripcion,
+          fechaSuscripcionFin: rel.organizacion.fecha_suscripcion_fin,
+          isExpired: rel.organizacion.fecha_suscripcion_fin ? new Date(rel.organizacion.fecha_suscripcion_fin) < new Date() : false,
+          nit: config?.nit || null,
+          razonSocial: config?.razon_social || `${rel.organizacion.nombre} S.R.L.`,
+          direccion: config?.direccion || null,
+          telefono: config?.telefono || null,
+          email: config?.email || null,
+          ciudad: config?.ciudad || null,
+          pais: config?.pais || 'Bolivia'
+        };
+      })
+    );
+
+    return enriched;
   }
 
-  async provisionTenant({ codigo, nombre, tipo = 'CLINICA', subdominio, nit, direccion, telefono, email, userId }) {
+  async provisionTenant({
+    codigo,
+    nombre,
+    tipo = 'CLINICA',
+    subdominio,
+    nit,
+    direccion,
+    telefono,
+    email,
+    userId,
+    adminEmail,
+    adminPassword,
+    adminNombres,
+    adminApellidos
+  }) {
     if (!codigo || !nombre || !nit) {
       throw new TenantError(400, 'Código, nombre y NIT son campos obligatorios para dar de alta un centro médico.');
     }
@@ -144,16 +235,50 @@ class TenantService {
 
     const created = await this.getOrganizationByCode(cleanCodigo);
 
-    if (userId && created) {
+    let adminAccount = null;
+    let targetUserId = userId;
+
+    if (adminEmail && typeof adminEmail === 'string' && adminEmail.trim()) {
+      const cleanEmail = adminEmail.trim().toLowerCase();
+      let user = await tenantRepository.usuario.findUnique({
+        where: { email: cleanEmail }
+      });
+
+      if (!user) {
+        const adminRole = await tenantRepository.rol.findFirst({
+          where: { codigo: 'ADMINISTRADOR' }
+        });
+        const hashedPassword = await bcrypt.hash(adminPassword || 'MedicalSys2026!', 10);
+        user = await tenantRepository.usuario.create({
+          data: {
+            email: cleanEmail,
+            password_hash: hashedPassword,
+            nombres: adminNombres || `Admin ${nombre}`,
+            apellidos: adminApellidos || 'Clínica',
+            id_rol: adminRole ? adminRole.id_rol : 1n,
+            estado: 'ACTIVO'
+          }
+        });
+      }
+      targetUserId = Number(user.id_usuario);
+      adminAccount = {
+        email: cleanEmail,
+        nombres: user.nombres,
+        apellidos: user.apellidos,
+        rol: 'ADMINISTRADOR'
+      };
+    }
+
+    if (targetUserId && created) {
       await tenantRepository.usuario_organizacion.upsert({
         where: {
           id_usuario_id_organizacion: {
-            id_usuario: BigInt(userId),
+            id_usuario: BigInt(targetUserId),
             id_organizacion: BigInt(created.id)
           }
         },
         create: {
-          id_usuario: BigInt(userId),
+          id_usuario: BigInt(targetUserId),
           id_organizacion: BigInt(created.id),
           rol_en_organizacion: 'ADMINISTRADOR',
           activo: true
@@ -164,7 +289,11 @@ class TenantService {
       });
     }
 
-    return created;
+    return {
+      ...created,
+      tenant: created,
+      admin: adminAccount
+    };
   }
 
   async generateRenewalQr({ tenantCode, meses = 1, montoPersonalizado }) {

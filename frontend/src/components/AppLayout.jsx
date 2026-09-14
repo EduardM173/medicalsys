@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TenantHeader } from './TenantHeader';
 import { TenantSubscriptionModal } from './TenantSubscriptionModal';
+import { TenantRenewalSuccessModal } from './TenantRenewalSuccessModal';
 import '../styles/layout.css';
 
 export function AppLayout() {
@@ -16,6 +17,7 @@ export function AppLayout() {
         </div>
       </div>
       <TenantSubscriptionModal />
+      <TenantRenewalSuccessModal />
     </div>
   );
 }

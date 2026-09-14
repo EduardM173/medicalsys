@@ -2,7 +2,7 @@ const { createRepository } = require('./repository.factory');
 const database = require('../config/prisma');
 
 module.exports = createRepository(
-  ['organizacion', 'usuario_organizacion', 'pago_suscripcion_tenant'],
+  ['organizacion', 'usuario_organizacion', 'pago_suscripcion_tenant', 'usuario', 'rol'],
   database,
   (client) => ({
     getTenantClient: (schemaName) => database.getTenantPrisma(schemaName),
