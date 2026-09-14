@@ -1,0 +1,23 @@
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { downloadPatientPortalDocument, getPatientPortalAppointments, getPatientPortalDocuments, getPatientPortalHistory, getPatientPortalNotifications } from '../services/api';
+import '../styles/patient-portal.css';
+function formatDate(value, withTime=false){if(!value)return '—';return new Intl.DateTimeFormat('es-BO',{dateStyle:'medium',...(withTime?{timeStyle:'short'}:{}),timeZone:'America/La_Paz'}).format(new Date(value));}
+function dash(v){return v||'No registrado';}
+export function PatientPortalPage(){
+ const {user}=useAuth(); const patientId=user?.patientId;
+ const [data,setData]=useState({history:null,documents:[],appointments:[],notifications:[]}); const [loading,setLoading]=useState(true); const [error,setError]=useState(''); const [downloading,setDownloading]=useState(null);
+ async function load(){if(!patientId){setError('La cuenta PACIENTE no está vinculada a un registro de paciente.');setLoading(false);return;}setLoading(true);try{const [history,documents,appointments,notifications]=await Promise.all([getPatientPortalHistory(patientId),getPatientPortalDocuments(patientId),getPatientPortalAppointments(patientId),getPatientPortalNotifications(patientId)]);setData({history,documents:documents.documents||[],appointments:appointments.appointments||[],notifications:notifications.notifications||[]});setError('');}catch(e){setError(e.status===404?'No fue posible acceder a la información solicitada.':'No fue posible cargar su portal.');}finally{setLoading(false);}}
+ useEffect(()=>{load();},[patientId]);
+ async function download(doc){setDownloading(doc.id);try{const blob=await downloadPatientPortalDocument(patientId,doc.id);const url=URL.createObjectURL(blob);const a=window.document.createElement('a');a.href=url;a.download=doc.nombreArchivo||`documento-${doc.id}`;window.document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(e){setError(e.status===404?'Documento no encontrado.':'No fue posible descargar el documento.');}finally{setDownloading(null);}}
+ if(loading)return <main className="patient-portal-page"><p>Cargando su información...</p></main>;
+ const h=data.history;
+ return <main className="patient-portal-page"><header><span className="login-kicker">Portal del paciente</span><h1>Mi información médica</h1><p>Acceso de solo lectura exclusivamente a sus datos.</p></header>
+ {error&&<p className="notice error-notice" role="alert">{error}</p>}
+ {h?.patient&&<section className="ui-card"><h2>{h.patient.nombres} {h.patient.apellidos}</h2><p>CI {h.patient.documentoIdentidad}{h.patient.complemento?` ${h.patient.complemento}`:''}</p></section>}
+ <section className="ui-card"><h2>Historial clínico</h2>{!h?.history?<p>No tiene historial clínico registrado.</p>:<><p><strong>Apertura:</strong> {formatDate(h.history.fechaApertura)}</p><dl><div><dt>Antecedentes</dt><dd>{dash(h.history.antecedentes)}</dd></div><div><dt>Alergias</dt><dd>{dash(h.history.alergias)}</dd></div><div><dt>Condiciones crónicas</dt><dd>{dash(h.history.condicionesCronicas)}</dd></div><div><dt>Observaciones</dt><dd>{dash(h.history.observacionesGenerales)}</dd></div></dl><h3>Atenciones</h3>{h.attentions?.length?h.attentions.map(a=><article key={a.id}><strong>{formatDate(a.fechaAtencion,true)} · {a.motivoConsulta}</strong><p><strong>Diagnóstico:</strong> {dash(a.diagnosticoDescripcion||a.diagnosticoCodigo)}</p><p><strong>Tratamiento:</strong> {dash(a.tratamiento)}</p><p><strong>Observaciones:</strong> {dash(a.observaciones)}</p></article>):<p>No existen atenciones registradas.</p>}</>}</section>
+ <section className="ui-card"><h2>Mis documentos</h2>{!data.documents.length?<p>No tiene documentos disponibles.</p>:data.documents.map(d=><article key={d.id}><strong>{d.titulo}</strong><p>{d.nombreArchivo} · {formatDate(d.fechaRegistro,true)}</p><button type="button" disabled={downloading===d.id} onClick={()=>download(d)}>{downloading===d.id?'Descargando...':'Descargar'}</button></article>)}</section>
+ <section className="ui-card"><h2>Mis citas</h2>{!data.appointments.length?<p>No tiene citas registradas.</p>:data.appointments.map(a=><article key={a.id}><strong>{formatDate(a.fechaHoraInicio,true)} · {a.estado}</strong><p>Dr(a). {a.medico.nombre} · {a.servicio.nombre}</p></article>)}</section>
+ <section className="ui-card"><h2>Mis notificaciones</h2>{!data.notifications.length?<p>No tiene notificaciones registradas.</p>:data.notifications.map(n=><article key={n.id}><strong>{n.tipo} · {n.estado}</strong><p>{formatDate(n.fechaCreacion,true)} · {n.mensaje}</p></article>)}</section>
+ </main>;
+}

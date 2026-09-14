@@ -141,6 +141,18 @@ export function getMedicalHistory(patientId) {
   return request(`/patients/${patientId}/medical-history`);
 }
 
+export function getPatientPortalHistory(patientId) { return request(`/patient/${patientId}/history`); }
+export function getPatientPortalDocuments(patientId) { return request(`/patient/${patientId}/documents`); }
+export async function downloadPatientPortalDocument(patientId, documentId) {
+  let response;
+  try { response = await fetch(`${apiUrl}/patient/${patientId}/documents/${documentId}/file`, { credentials: 'include' }); }
+  catch (_error) { throw new ApiError(0, 'No fue posible conectar con el servidor.'); }
+  if (!response.ok) { const data = await response.json().catch(() => ({})); throw new ApiError(response.status, data.message || 'No fue posible descargar el documento.'); }
+  return response.blob();
+}
+export function getPatientPortalAppointments(patientId) { return request(`/patient/${patientId}/appointments`); }
+export function getPatientPortalNotifications(patientId) { return request(`/patient/${patientId}/notifications`); }
+
 export function getMyAgenda(date) {
   return request(`/agenda/me?date=${encodeURIComponent(date)}`);
 }

@@ -38,7 +38,7 @@ async function login(emailInput, passwordInput) {
 
   const user = await repository.usuario.findUnique({
     where: { email },
-    include: { rol: true }
+    include: { rol: true, paciente: { select: { id_paciente: true } } }
   });
 
   const passwordMatches = user
@@ -54,6 +54,7 @@ async function login(emailInput, passwordInput) {
   }
 
   const safeUser = toSafeUser(user);
+  safeUser.patientId = user.paciente ? Number(user.paciente.id_paciente) : null;
   safeUser.permissions = await permissionsForUser(user.id_usuario, user.rol.codigo);
   const token = jwt.sign(
     { rol: safeUser.rol },
@@ -70,7 +71,7 @@ async function login(emailInput, passwordInput) {
 async function getCurrentUser(userId) {
   const user = await repository.usuario.findUnique({
     where: { id_usuario: BigInt(userId) },
-    include: { rol: true }
+    include: { rol: true, paciente: { select: { id_paciente: true } } }
   });
 
   if (!user) {
@@ -81,7 +82,24 @@ async function getCurrentUser(userId) {
     throw new AuthError(403, 'Usuario sin acceso habilitado.');
   }
 
-  return { ...toSafeUser(user), permissions: await permissionsForUser(user.id_usuario, user.rol.codigo) };
+  return { ...toSafeUser(user), patientId: user.paciente ? Number(user.paciente.id_paciente) : null, permissions: await permissionsForUser(user.id_usuario, user.rol.codigo) };
+}
+
+async function authenticateSession(userId) {
+  const user = await repository.usuario.findUnique({
+    where: { id_usuario: BigInt(userId) },
+    include: { rol: true, paciente: { select: { id_paciente: true } } }
+  });
+  if (!user || user.estado !== 'ACTIVO' || !user.rol.activo) {
+    throw new AuthError(401, 'Sesión sin acceso habilitado.');
+  }
+  return {
+    id: String(user.id_usuario),
+    idUsuario: String(user.id_usuario),
+    rol: user.rol.codigo,
+    patientId: user.paciente ? Number(user.paciente.id_paciente) : null,
+    permissions: await permissionsForUser(user.id_usuario, user.rol.codigo)
+  };
 }
 
 async function authenticateSession(userId) {

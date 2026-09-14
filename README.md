@@ -387,3 +387,29 @@ npm run build
 ```
 
 La suite de seguridad prueba 33 rutas con los cinco roles usando una base simulada, además de revocación, suspensión, rol desactivado, dependencias, autoedición y escalamiento. La verificación local también incluyó login OSI contra PostgreSQL y revisión de la interfaz con OSI, Médico y Recepcionista.
+
+## HU-32: Portal seguro del paciente
+
+La rama `feature/HU-32-portal-paciente` incorpora un portal de solo lectura exclusivo para `PACIENTE`.
+
+- `patient.portal.read` es el único permiso funcional asignado por defecto al rol `PACIENTE`.
+- El paciente consulta historial, documentos, citas y notificaciones únicamente mediante su sesión autenticada.
+- Los endpoints reciben el identificador del paciente para permitir pruebas de autorización por propiedad; si el identificador no corresponde al paciente autenticado, responden **404** para no revelar la existencia de otro paciente.
+- La descarga de documentos vuelve a comprobar que el documento pertenece a la historia clínica del paciente; un `documentId` de otro paciente también responde **404**.
+- No existen operaciones de escritura en el portal. Las rutas de atención, recetas, pacientes, facturación, agenda administrativa, notificaciones de envío y directorio continúan protegidas por sus permisos originales.
+- Cada consulta de historial o documento exitosamente atendida se registra en `security_audit`; los intentos de acceso cruzado también quedan registrados.
+- Médico y Recepcionista conservan sus permisos funcionales anteriores; el portal no les concede acceso adicional.
+
+Después de actualizar una instalación existente ejecute desde `backend`:
+
+```powershell
+npm run security:setup
+```
+
+Esto agrega de forma idempotente `patient.portal.read` a la política de `PACIENTE` sin eliminar otros permisos personalizados existentes.
+
+Pruebas específicas:
+
+```powershell
+npm run test:hu32
+```
