@@ -1,11 +1,12 @@
 const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 
-const patient = { id_paciente: 8n };
+const patient = { id_paciente: 8n, telefono: '65119078' };
 const outbound = { id_notificacion: 50n, id_cita: 11n, tipo: 'RECORDATORIO_CITA' };
 const created = [];
 const appointmentUpdates = [];
 const notificationUpdates = [];
+const queueUpdates = [];
 let alreadySeen = false;
 
 const db = {
@@ -28,6 +29,9 @@ const db = {
     create: async ({ data }) => { created.push(data); return data; },
     update: async (args) => { notificationUpdates.push(args); return args.data; }
   },
+  cola_notificacion: {
+    updateMany: async (args) => { queueUpdates.push(args); return { count: 1 }; }
+  },
   $transaction: async (callback) => callback(db)
 };
 require.cache[require.resolve('../src/config/prisma')] = { exports: db };
@@ -47,6 +51,7 @@ beforeEach(() => {
   created.length = 0;
   appointmentUpdates.length = 0;
   notificationUpdates.length = 0;
+  queueUpdates.length = 0;
   alreadySeen = false;
   delete process.env.GREENAPI_ID_INSTANCE;
 });
@@ -69,6 +74,20 @@ test('un mensaje distinto de SI se registra pero no modifica la cita', async () 
   assert.equal(created.length, 1);
   assert.equal(created[0].id_cita, null);
   assert.equal(appointmentUpdates.length, 0);
+});
+
+test('una respuesta NO deja la cita pendiente de reprogramación y cancela sus trabajos', async () => {
+  const result = await processGreenApiIncomingNotification(incoming('NO', 'GREEN-MSG-NO'));
+  assert.deepEqual(result, {
+    processed: true,
+    duplicate: false,
+    confirmed: false,
+    negative: true,
+    responseAction: 'PENDIENTE_REPROGRAMACION',
+    appointmentId: 11
+  });
+  assert.equal(appointmentUpdates[0].data.estado, 'PENDIENTE_REPROGRAMACION');
+  assert.equal(queueUpdates.length, 1);
 });
 
 test('un evento repetido no vuelve a confirmar ni registrar', async () => {

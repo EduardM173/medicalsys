@@ -228,6 +228,8 @@ GET  /api/billing/invoices?search=&patientId=&date=YYYY-MM-DD
 GET  /api/billing/invoices/:id
 
 GET  /api/notifications?patientId=ID&appointmentId=ID_OPCIONAL
+GET  /api/notifications/failures
+POST /api/notifications/failures/:jobId/retry
 ```
 
 Los endpoints de usuarios y horarios requieren sesión con rol `ADMINISTRADOR`. La creación y edición de médicos también requiere `ADMINISTRADOR`, pero la consulta (`GET /api/doctors`) está disponible además para `RECEPCIONISTA`, ya que la necesita para reservar citas. Los endpoints de citas y de servicios (`/api/appointments`, `/api/services`) requieren `RECEPCIONISTA` o `ADMINISTRADOR`. Sin sesión responden `401`; un rol sin permiso recibe `403` en esas operaciones.
@@ -306,6 +308,38 @@ Cuando un paciente con número registrado responda exactamente `SI` o `SÍ` a un
 cd backend
 npm run test:whatsapp-incoming
 ```
+
+### HU-35: cola automática de WhatsApp
+
+La zona de la clínica usa el identificador IANA válido `America/La_Paz`; `America/La_Poz` no existe en la base de zonas horarias. Al crear o reprogramar una cita se insertan, en la misma transacción PostgreSQL, una confirmación y un recordatorio en la tabla `cola_notificacion`. Por defecto la confirmación queda disponible de inmediato y el recordatorio 24 horas antes de la cita.
+
+Instale la migración después de actualizar el código y regenerar Prisma:
+
+```powershell
+cd backend
+npx prisma migrate deploy
+npm run prisma:generate
+```
+
+El backend inicia un worker local por defecto. Para ejecutar workers independientes (recomendado en producción), desactive el worker embebido en las instancias de API y arranque uno o más procesos separados:
+
+```env
+WHATSAPP_START_WORKER_IN_API=false
+WHATSAPP_REMINDER_MINUTES_BEFORE=1440
+WHATSAPP_MAX_ATTEMPTS=5
+WHATSAPP_RETRY_BASE_SECONDS=60
+WHATSAPP_RETRY_MAX_SECONDS=3600
+WHATSAPP_NO_RESPONSE_ACTION=PENDIENTE_REPROGRAMACION
+```
+
+```powershell
+cd backend
+npm run worker:whatsapp
+```
+
+Cada worker reclama el trabajo mediante una actualización condicional en PostgreSQL y renueva su bloqueo mientras llama al proveedor. Por ello puede desplegar más de uno sin que dos instancias procesen simultáneamente el mismo trabajo. Los reintentos usan espera incremental (1, 2, 4… minutos hasta el límite configurado) y, al agotarse, el mensaje aparece en la pestaña **Fallos y reintentos** de `/whatsapp`.
+
+En Green API active las notificaciones de estados de mensajes enviados por API y de estados salientes: MedicalSys procesa `sent`, `delivered`, `read` y `failed` desde la misma cola HTTP para mantener el historial y reintentar los fallos de entrega.
 
 ## Arquitectura
 
@@ -387,3 +421,29 @@ npm run build
 ```
 
 La suite de seguridad prueba 33 rutas con los cinco roles usando una base simulada, además de revocación, suspensión, rol desactivado, dependencias, autoedición y escalamiento. La verificación local también incluyó login OSI contra PostgreSQL y revisión de la interfaz con OSI, Médico y Recepcionista.
+
+## HU-32: Portal seguro del paciente
+
+La rama `feature/HU-32-portal-paciente` incorpora un portal de solo lectura exclusivo para `PACIENTE`.
+
+- `patient.portal.read` es el único permiso funcional asignado por defecto al rol `PACIENTE`.
+- El paciente consulta historial, documentos, citas y notificaciones únicamente mediante su sesión autenticada.
+- Los endpoints reciben el identificador del paciente para permitir pruebas de autorización por propiedad; si el identificador no corresponde al paciente autenticado, responden **404** para no revelar la existencia de otro paciente.
+- La descarga de documentos vuelve a comprobar que el documento pertenece a la historia clínica del paciente; un `documentId` de otro paciente también responde **404**.
+- No existen operaciones de escritura en el portal. Las rutas de atención, recetas, pacientes, facturación, agenda administrativa, notificaciones de envío y directorio continúan protegidas por sus permisos originales.
+- Cada consulta de historial o documento exitosamente atendida se registra en `security_audit`; los intentos de acceso cruzado también quedan registrados.
+- Médico y Recepcionista conservan sus permisos funcionales anteriores; el portal no les concede acceso adicional.
+
+Después de actualizar una instalación existente ejecute desde `backend`:
+
+```powershell
+npm run security:setup
+```
+
+Esto agrega de forma idempotente `patient.portal.read` a la política de `PACIENTE` sin eliminar otros permisos personalizados existentes.
+
+Pruebas específicas:
+
+```powershell
+npm run test:hu32
+```

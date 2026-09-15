@@ -82,6 +82,7 @@ model cita {
   consentimiento_informado consentimiento_informado[]
   factura                  factura[]
   notificacion             notificacion[]
+  cola_notificacion        cola_notificacion[]
   reserva_sala             reserva_sala?
 
   @@index([estado], map: "idx_cita_estado")
@@ -342,10 +343,37 @@ model notificacion {
   cita                 cita?               @relation(fields: [id_cita], references: [id_cita], map: "fk_notificacion_cita")
   usuario              usuario?            @relation(fields: [usuario_emisor], references: [id_usuario], map: "fk_notificacion_emisor")
   paciente             paciente            @relation(fields: [id_paciente], references: [id_paciente], map: "fk_notificacion_paciente")
+  cola_notificacion    cola_notificacion?
 
   @@index([id_campania], map: "idx_notificacion_campania")
   @@index([estado], map: "idx_notificacion_estado")
   @@index([id_paciente, fecha_creacion(sort: Desc)], map: "idx_notificacion_paciente_fecha")
+}
+
+/// Outbox persistente para mensajes de cita. Un trabajo representa un único
+/// mensaje saliente y se reclama de forma atómica por los workers.
+model cola_notificacion {
+  id_cola                    BigInt                       @id @default(autoincrement())
+  id_notificacion            BigInt                       @unique
+  id_cita                    BigInt
+  clave_idempotencia         String                       @unique @db.VarChar(255)
+  fecha_cita_programada      DateTime                     @db.Timestamptz(6)
+  fecha_disponible           DateTime                     @db.Timestamptz(6)
+  estado                     estado_cola_notificacion     @default(PENDIENTE)
+  intentos                   Int                          @default(0)
+  max_intentos               Int                          @default(5)
+  bloqueado_por              String?                      @db.VarChar(120)
+  bloqueado_hasta            DateTime?                    @db.Timestamptz(6)
+  ultimo_error               String?
+  fecha_procesada            DateTime?                    @db.Timestamptz(6)
+  fecha_creacion             DateTime                     @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion        DateTime                     @default(now()) @db.Timestamptz(6)
+  cita                       cita                         @relation(fields: [id_cita], references: [id_cita], onDelete: Cascade, map: "fk_cola_notificacion_cita")
+  notificacion               notificacion                 @relation(fields: [id_notificacion], references: [id_notificacion], onDelete: Cascade, map: "fk_cola_notificacion_notificacion")
+
+  @@index([estado, fecha_disponible], map: "idx_cola_notificacion_lista")
+  @@index([estado, bloqueado_hasta], map: "idx_cola_notificacion_bloqueo")
+  @@index([id_cita], map: "idx_cola_notificacion_cita")
 }
 
 model paciente {
@@ -484,6 +512,7 @@ enum estado_campania {
 enum estado_cita {
   PROGRAMADA
   CONFIRMADA
+  PENDIENTE_REPROGRAMACION
   EN_CONSULTA
   COMPLETADA
   CANCELADA
@@ -508,6 +537,14 @@ enum estado_notificacion {
   ENTREGADA
   LEIDA
   FALLIDA
+}
+
+enum estado_cola_notificacion {
+  PENDIENTE
+  PROCESANDO
+  ENVIADA
+  FALLIDA
+  CANCELADA
 }
 
 enum estado_reserva {

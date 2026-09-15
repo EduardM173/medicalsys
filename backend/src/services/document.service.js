@@ -90,19 +90,25 @@ async function listDocumentsByPatientId(patientIdInput) {
   };
 }
 
-async function getDocumentFileById(documentIdInput) {
+async function getDocumentFileById(documentIdInput, actor = null, expectedPatientId = null) {
   const documentId = parseId(documentIdInput, 'documento');
   const document = await repository.documento_clinico.findUnique({
     where: { id_documento: documentId },
     select: {
+      id_documento: true,
       nombre_archivo: true,
       storage_provider: true,
       storage_key: true,
-      mime_type: true
+      mime_type: true,
+      historia_clinica: { select: { id_paciente: true } }
     }
   });
 
   if (!document) {
+    throw new DocumentError(404, 'Documento clínico no encontrado.');
+  }
+
+  if (actor?.rol === 'PACIENTE' && expectedPatientId !== null && document.historia_clinica?.id_paciente !== BigInt(expectedPatientId)) {
     throw new DocumentError(404, 'Documento clínico no encontrado.');
   }
 

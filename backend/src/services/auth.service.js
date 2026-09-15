@@ -67,7 +67,7 @@ async function login(emailInput, passwordInput, activeTenantCode = null) {
 
   const user = await repository.usuario.findUnique({
     where: { email },
-    include: { rol: true }
+    include: { rol: true, paciente: { select: { id_paciente: true } } }
   });
 
   const passwordMatches = user
@@ -100,6 +100,7 @@ async function login(emailInput, passwordInput, activeTenantCode = null) {
   }
 
   const safeUser = toSafeUser(user, userOrgs);
+  safeUser.patientId = user.paciente ? Number(user.paciente.id_paciente) : null;
   safeUser.permissions = await permissionsForUser(user.id_usuario, user.rol.codigo);
   const token = jwt.sign(
     {
@@ -120,7 +121,7 @@ async function login(emailInput, passwordInput, activeTenantCode = null) {
 async function getCurrentUser(userId) {
   const user = await repository.usuario.findUnique({
     where: { id_usuario: BigInt(userId) },
-    include: { rol: true }
+    include: { rol: true, paciente: { select: { id_paciente: true } } }
   });
 
   if (!user) {
@@ -133,6 +134,7 @@ async function getCurrentUser(userId) {
 
   const userOrgs = await getUserOrganizations(user.id_usuario);
   const safeUser = toSafeUser(user, userOrgs);
+  safeUser.patientId = user.paciente ? Number(user.paciente.id_paciente) : null;
   safeUser.permissions = await permissionsForUser(user.id_usuario, user.rol.codigo);
   return safeUser;
 }
@@ -140,7 +142,7 @@ async function getCurrentUser(userId) {
 async function authenticateSession(userId) {
   const user = await repository.usuario.findUnique({
     where: { id_usuario: BigInt(userId) },
-    include: { rol: true }
+    include: { rol: true, paciente: { select: { id_paciente: true } } }
   });
   if (!user || user.estado !== 'ACTIVO' || !user.rol.activo) {
     throw new AuthError(401, 'Sesión sin acceso habilitado.');
@@ -152,6 +154,7 @@ async function authenticateSession(userId) {
     idUsuario: String(user.id_usuario),
     rol: user.rol.codigo,
     isSuperAdmin,
+    patientId: user.paciente ? Number(user.paciente.id_paciente) : null,
     organizaciones: userOrgs.map((o) => o.codigo),
     permissions: await permissionsForUser(user.id_usuario, user.rol.codigo)
   };

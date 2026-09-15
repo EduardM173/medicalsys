@@ -9,7 +9,8 @@ const CLINICAL_PERMISSIONS = new Set([
   'attention.write',
   'consents.manage',
   'documents.read',
-  'documents.write'
+  'documents.write',
+  'patient.portal.read'
 ]);
 
 function isClinicalPermission(permission) {
@@ -31,8 +32,19 @@ async function recordUnauthorizedAccess(actor, permission, target, details = {})
   }
 }
 
+async function recordClinicalRead(actor, action, target, details = {}) {
+  const actorId = actor?.id || actor?.idUsuario || actor?.id_usuario;
+  if (!actorId) return;
+  try {
+    await recordAudit(String(actorId), action, String(target), details);
+  } catch (_error) {
+    // La auditoría nunca debe romper una consulta clínica.
+  }
+}
+
 module.exports = {
   CLINICAL_PERMISSIONS,
   isClinicalPermission,
+  recordClinicalRead,
   recordUnauthorizedAccess
 };

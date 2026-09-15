@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
-import { createConsent, getConsentOptions } from '../services/api';
+import { generateConsentFromTemplate, getConsentOptions, getConsentTemplates } from '../services/api';
 import '../styles/consents.css';
 
 function formatAppointment(appointment) {
@@ -17,10 +17,9 @@ export function ConsentFormPage() {
   const navigate = useNavigate();
   const [options, setOptions] = useState(null);
   const [form, setForm] = useState({
+    templateId: '',
     patientId: '',
-    appointmentId: '',
-    procedure: '',
-    content: ''
+    appointmentId: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -28,10 +27,10 @@ export function ConsentFormPage() {
 
   useEffect(() => {
     let active = true;
-    getConsentOptions()
-      .then((response) => {
+    Promise.all([getConsentOptions(), getConsentTemplates()])
+      .then(([response, templatesResponse]) => {
         if (active) {
-          setOptions(response);
+          setOptions({ ...response, templates: templatesResponse.templates || [] });
           setError('');
         }
       })
@@ -68,11 +67,9 @@ export function ConsentFormPage() {
     setSaving(true);
     setError('');
     try {
-      const response = await createConsent({
+      const response = await generateConsentFromTemplate(form.templateId, {
         patientId: form.patientId,
-        appointmentId: form.appointmentId || null,
-        procedure: form.procedure,
-        content: form.content
+        appointmentId: form.appointmentId || null
       });
       navigate(`/consentimientos/${response.consent.id}`);
     } catch (requestError) {
@@ -125,10 +122,20 @@ export function ConsentFormPage() {
         <div className="consent-form-heading">
           <span className="login-kicker">Nuevo documento</span>
           <h2>Datos del consentimiento</h2>
-          <p>Los campos marcados con * son obligatorios. El contenido debe ser ingresado por el profesional.</p>
+          <p>Seleccione una plantilla aprobada. MedicalSys generará una copia versionada y el PDF antes de la firma.</p>
         </div>
 
         <div className="consent-form-grid">
+          <label>
+            <span>Plantilla del procedimiento *</span>
+            <select name="templateId" onChange={updateField} required value={form.templateId}>
+              <option value="">Seleccione una plantilla</option>
+              {options.templates.map((template) => (
+                <option key={template.id} value={template.id}>{template.title} · v{template.version}</option>
+              ))}
+            </select>
+            {options.templates.length === 0 && <small className="consent-error">No hay plantillas activas. Registre una antes de generar un consentimiento.</small>}
+          </label>
           <label>
             <span>Paciente *</span>
             <select name="patientId" onChange={updateField} required value={form.patientId}>
@@ -149,18 +156,8 @@ export function ConsentFormPage() {
           </label>
         </div>
 
-        <label className="consent-field">
-          <span>Procedimiento *</span>
-          <input maxLength="255" name="procedure" onChange={updateField} placeholder="Nombre del procedimiento" required type="text" value={form.procedure} />
-        </label>
-
-        <label className="consent-field">
-          <span>Contenido del consentimiento *</span>
-          <textarea name="content" onChange={updateField} placeholder="Ingrese el contenido informado que corresponde al procedimiento..." required rows="12" value={form.content} />
-        </label>
-
         <div className="consent-actions">
-          <Button disabled={saving} type="submit">{saving ? 'Generando...' : 'Generar consentimiento'}</Button>
+          <Button disabled={saving || !form.templateId} type="submit">{saving ? 'Generando PDF...' : 'Generar consentimiento y PDF'}</Button>
         </div>
       </form>
     </main>

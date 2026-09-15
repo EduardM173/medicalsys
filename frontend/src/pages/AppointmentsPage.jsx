@@ -26,6 +26,7 @@ function toLocalTimeInput(isoDate) {
 const statusLabels = {
   PROGRAMADA: 'Programada',
   CONFIRMADA: 'Confirmada',
+  PENDIENTE_REPROGRAMACION: 'Pendiente de reprogramación',
   EN_CONSULTA: 'En consulta',
   COMPLETADA: 'Completada',
   CANCELADA: 'Cancelada'
@@ -36,6 +37,7 @@ const statusLabels = {
 const statusTransitions = {
   PROGRAMADA: ['CONFIRMADA', 'CANCELADA'],
   CONFIRMADA: ['EN_CONSULTA', 'CANCELADA'],
+  PENDIENTE_REPROGRAMACION: ['CANCELADA'],
   EN_CONSULTA: ['COMPLETADA', 'CANCELADA'],
   COMPLETADA: [],
   CANCELADA: []

@@ -17,12 +17,20 @@ async function pollOnce() {
     const incoming = await whatsappService.receiveIncomingNotification();
     if (!incoming) return null;
 
-    const result = await notificationService.processGreenApiIncomingNotification(incoming.body);
+    const result = await notificationService.processGreenApiNotification(incoming.body);
     // El mensaje se elimina solo después de procesarlo, para que Green API no
     // bloquee la cola repitiendo el mismo evento indefinidamente.
     await whatsappService.acknowledgeIncomingNotification(incoming.receiptId);
     if (result.confirmed) {
       console.log(`Cita ${result.appointmentId} confirmada por respuesta de WhatsApp.`);
+    } else if (result.negative) {
+      console.log(`Cita ${result.appointmentId} actualizada a ${result.responseAction} por respuesta "NO" de WhatsApp.`);
+    } else if (result.processed === false) {
+      console.log(`[Green API] Mensaje entrante no procesado (motivo: ${result.reason}).`);
+    } else if (result.duplicate) {
+      console.log('[Green API] Mensaje entrante duplicado, se ignora.');
+    } else {
+      console.log(`[Green API] Mensaje entrante procesado sin cambios en ninguna cita. Detalle: ${JSON.stringify(result)}`);
     }
     return result;
   } catch (error) {

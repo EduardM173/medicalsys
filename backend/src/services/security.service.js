@@ -32,7 +32,7 @@ function expandRequiredPermissions(permissions) {
       }
     });
   };
-  [...expanded].forEach(addRequirements);
+   [...expanded].forEach(addRequirements);
   return [...expanded];
 }
 
@@ -43,6 +43,13 @@ async function permissionsForRole(role, data = repository) {
 }
 
 async function permissionsForUser(userId, role, data = repository) {
+  // HU-32: PACIENTE es un rol de portal de solo lectura. Aunque existiera
+  // una concesión temporal o una política antigua en la BD, nunca se le
+  // deben añadir permisos administrativos/clínicos de otros roles.
+  if (role === 'PACIENTE') {
+    return ['patient.portal.read'];
+  }
+
   const rolePermissions = await permissionsForRole(role, data);
   const grants = await data.getActiveUserGrants(userId);
   return expandRequiredPermissions([...rolePermissions, ...grants.map((grant) => grant.permission_code)])
