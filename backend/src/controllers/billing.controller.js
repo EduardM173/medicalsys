@@ -48,4 +48,37 @@ async function getIssuedInvoice(request, response, next) {
   } catch (error) { next(error); }
 }
 
-module.exports = { emitInvoice, getIssuedInvoice, getSummary, listIssuedInvoices, prepareInvoice };
+async function getInvoiceXml(request, response, next) {
+  try {
+    const { xml, filename } = await billingService.getInvoiceXml(request.params.id);
+    response.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    response.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    response.status(200).send(xml);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function cancelInvoice(request, response, next) {
+  try {
+    const motivo = request.body?.motivo || 1;
+    const result = await billingService.anularFactura(request.params.id, {
+      motivo,
+      usuarioId: request.user?.idUsuario
+    });
+    response.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = {
+  cancelInvoice,
+  emitInvoice,
+  getInvoiceXml,
+  getIssuedInvoice,
+  getSummary,
+  listIssuedInvoices,
+  prepareInvoice
+};
+

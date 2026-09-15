@@ -380,6 +380,18 @@ export function getIssuedInvoice(id) {
   return request(`/billing/invoices/${encodeURIComponent(id)}`);
 }
 
+export function getInvoiceXmlUrl(id) {
+  return `${apiUrl}/billing/invoices/${encodeURIComponent(id)}/xml`;
+}
+
+export function cancelInvoice(id, data = {}) {
+  return request(`/billing/invoices/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+
 // ==========================================
 // Documentos Clínicos y Exámenes (HU-13 / HU-18)
 // ==========================================

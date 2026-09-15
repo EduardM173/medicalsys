@@ -1,5 +1,8 @@
+const fs = require('fs');
+const path = require('path');
 const repository = require('../repositories/billing.repository');
 const SinFacturacionProvider = require('./sin/sin.service');
+const xmlBuilder = require('./sin/xml.builder');
 
 const paymentMethods = ['EFECTIVO', 'QR', 'TARJETA', 'TRANSFERENCIA', 'OTRO'];
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -322,13 +325,40 @@ async function emitirFacturaComputarizada(idFactura, userId) {
     throw new BillingError(400, 'La factura debe contener al menos un ítem detallado para ser emitida.');
   }
 
-  // MED-188: el adaptador SIN genera CUF, cadena QR y timestamp de emisión.
+  // MED-188 / HU-34: el adaptador SIN genera CUF real, XML normativo, cadena QR y timestamp de emisión.
+  const detalles = factura.detalle_factura.map((d) => ({
+    actividadEconomica: '862000',
+    codigoProductoSin: '99100',
+    codigoProducto: d.servicio_medico?.codigo || 'SERV-MED',
+    descripcion: d.descripcion,
+    cantidad: d.cantidad,
+    unidadMedida: 57,
+    precioUnitario: d.precio_unitario,
+    montoDescuento: '0.00',
+    subTotal: d.subtotal
+  }));
+
   const resultado = await SinFacturacionProvider.emitir({
     factura,
-    configuracion: factura.configuracion_clinica
+    configuracion: factura.configuracion_clinica,
+    detalles,
+    usuario: factura.usuario ? `${factura.usuario.nombres} ${factura.usuario.apellidos}` : 'admin_medsys'
   });
   if (!resultado.success) {
     throw new BillingError(502, resultado.errorMessage || 'El SIN rechazó la factura.');
+  }
+
+  // Persistir archivo físico del XML oficial para descargas y auditoría
+  if (resultado.xml) {
+    try {
+      const xmlDir = path.resolve(__dirname, '../../storage/facturas-xml');
+      if (!fs.existsSync(xmlDir)) {
+        fs.mkdirSync(xmlDir, { recursive: true });
+      }
+      await fs.promises.writeFile(path.join(xmlDir, `factura-${facturaId}.xml`), resultado.xml, 'utf8');
+    } catch (_err) {
+      // Ignorar fallas de escritura en disco
+    }
   }
 
   const fechaEmision = resultado.fechaEmision || new Date();
@@ -476,7 +506,7 @@ async function listIssuedInvoices(filters = {}) {
 async function getIssuedInvoiceById(idInput) {
   const invoiceId = parseId(idInput, 'factura');
   const invoice = await repository.factura.findFirst({
-    where: { id_factura: invoiceId, estado: 'EMITIDA' },
+    where: { id_factura: invoiceId, estado: { in: ['EMITIDA', 'ANULADA'] } },
     select: {
       id_factura: true,
       id_cita: true,
@@ -494,6 +524,7 @@ async function getIssuedInvoiceById(idInput) {
       sin_referencia: true,
       codigo_autorizacion: true,
       cuf: true,
+      qr_payload: true,
       paciente: {
         select: {
           id_paciente: true,
@@ -544,6 +575,7 @@ async function getIssuedInvoiceById(idInput) {
       sinReferencia: invoice.sin_referencia,
       codigoAutorizacion: invoice.codigo_autorizacion,
       cuf: invoice.cuf,
+      qrPayload: invoice.qr_payload,
       emitidaPor: invoice.usuario
         ? `${invoice.usuario.nombres} ${invoice.usuario.apellidos}`.trim()
         : null,
@@ -572,12 +604,127 @@ async function getBillingSummary() {
   return { summary: { total, pending, emittedToday } };
 }
 
+async function getInvoiceXml(idFactura) {
+  const facturaId = parseId(idFactura, 'factura');
+  const factura = await repository.factura.findUnique({
+    where: { id_factura: facturaId },
+    include: {
+      detalle_factura: {
+        include: { servicio_medico: true }
+      },
+      configuracion_clinica: true,
+      paciente: true
+    }
+  });
+
+  if (!factura) {
+    throw new BillingError(404, 'Factura no encontrada.');
+  }
+
+  if (factura.estado !== 'EMITIDA' && factura.estado !== 'ANULADA') {
+    throw new BillingError(400, 'La factura no ha sido emitida aún ante el SIN.');
+  }
+
+  const xmlDir = path.resolve(__dirname, '../../storage/facturas-xml');
+  const xmlFilePath = path.join(xmlDir, `factura-${factura.id_factura}.xml`);
+
+  if (fs.existsSync(xmlFilePath)) {
+    const xml = await fs.promises.readFile(xmlFilePath, 'utf8');
+    return { xml, filename: `factura-${factura.numero_factura}.xml` };
+  }
+
+  const detalles = factura.detalle_factura.map((d) => ({
+    actividadEconomica: '862000',
+    codigoProductoSin: '99100',
+    codigoProducto: d.servicio_medico?.codigo || 'SERV-MED',
+    descripcion: d.descripcion,
+    cantidad: d.cantidad,
+    unidadMedida: 57,
+    precioUnitario: d.precio_unitario,
+    montoDescuento: '0.00',
+    subTotal: d.subtotal
+  }));
+
+  const built = xmlBuilder.construirXmlFactura({
+    cabecera: {
+      nitEmisor: factura.configuracion_clinica?.nit || '4247012018',
+      razonSocialEmisor: factura.configuracion_clinica?.razon_social || 'MEDICALSYS S.R.L.',
+      municipio: factura.configuracion_clinica?.ciudad ? `${factura.configuracion_clinica.ciudad.toUpperCase()} - BOLIVIA` : 'LA PAZ - BOLIVIA',
+      telefono: factura.configuracion_clinica?.telefono || '22440000',
+      numeroFactura: parseInt(factura.numero_factura.replace(/\D/g, '').slice(-10) || '1', 10),
+      cuf: factura.cuf,
+      cufd: 'BQT5CTcKhWUVBNzzc1QjNFMzlENzY=Q1VtWGZVSUNZVUFc4OEFFNjMyOTVGQ',
+      fechaEmision: factura.fecha_emision,
+      nombreRazonSocial: factura.razon_social,
+      numeroDocumento: factura.nit_ci,
+      complemento: factura.complemento || null,
+      montoTotal: factura.total,
+      montoTotalSujetoIva: factura.total,
+      montoTotalMoneda: factura.total
+    },
+    detalles
+  });
+
+  return { xml: built.xml, filename: `factura-${factura.numero_factura}.xml` };
+}
+
+async function anularFactura(idFactura, { motivo = 1, usuarioId = null } = {}) {
+  const facturaId = parseId(idFactura, 'factura');
+  const factura = await repository.factura.findUnique({
+    where: { id_factura: facturaId },
+    include: { configuracion_clinica: true }
+  });
+
+  if (!factura) {
+    throw new BillingError(404, 'Factura no encontrada.');
+  }
+
+  if (factura.estado === 'ANULADA') {
+    throw new BillingError(400, 'La factura ya se encuentra anulada.');
+  }
+
+  if (factura.estado !== 'EMITIDA') {
+    throw new BillingError(400, 'Solo las facturas emitidas pueden ser anuladas.');
+  }
+
+  await SinFacturacionProvider.anular({
+    cuf: factura.cuf,
+    motivoAnulacion: motivo,
+    nit: factura.configuracion_clinica?.nit
+  });
+
+  const anulada = await repository.factura.update({
+    where: { id_factura: facturaId },
+    data: {
+      estado: 'ANULADA',
+      fecha_actualizacion: new Date()
+    },
+    include: {
+      detalle_factura: true,
+      configuracion_clinica: true,
+      paciente: true
+    }
+  });
+
+  return {
+    success: true,
+    id: Number(anulada.id_factura),
+    numeroFactura: anulada.numero_factura,
+    cuf: anulada.cuf,
+    estado: 'ANULADA',
+    fechaAnulacion: anulada.fecha_actualizacion
+  };
+}
+
 module.exports = {
   BillingError,
   emitirFacturaComputarizada,
   getBillingSummary,
   getIssuedInvoiceById,
+  getInvoiceXml,
+  anularFactura,
   listIssuedInvoices,
   paymentMethods,
   prepareInvoice
 };
+
