@@ -1,5 +1,17 @@
 const repository = require('../repositories/notification.repository');
-const whatsappService = require('./whatsapp/whatsapp.service');
+const {
+  fullName,
+  buildConfirmationMessage,
+  buildReminderMessage
+} = require('./whatsapp/appointment-message');
+const { normalizeWhatsappPhone } = require('./whatsapp/phone');
+const {
+  scheduleNotificationForAppointment,
+  cancelAppointmentNotificationJobs,
+  listFailedNotificationJobs,
+  retryFailedNotificationJob,
+  retryAfterDeliveryFailure
+} = require('./whatsapp/whatsapp-notification-queue.service');
 
 // Ventana usada para listar citas candidatas a recordatorio en el MVP
 // (MED-230): no se implementa un scheduler/cron, sino una acción manual
@@ -8,9 +20,6 @@ const REMINDER_WINDOW_HOURS = 72;
 
 // Estados de cita que siguen "vigentes" (no cancelada ni completada).
 const activeAppointmentStates = ['PROGRAMADA', 'CONFIRMADA', 'EN_CONSULTA'];
-
-// Acepta números bolivianos de 8 dígitos o cualquier número en formato E.164.
-const phonePattern = /^\+?\d{7,15}$/;
 
 class NotificationError extends Error {
   constructor(statusCode, message) {
@@ -157,73 +166,47 @@ async function findCitaOrThrow(citaId) {
 // PA-03 (HU-24): la confirmación (y el recordatorio) sólo pueden enviarse
 // cuando el paciente cuenta con un medio de contacto válido.
 function assertValidPhone(patient) {
-  const rawPhone = typeof patient.telefono === 'string' ? patient.telefono.trim() : '';
-  if (!rawPhone || !phonePattern.test(rawPhone)) {
-    throw new NotificationError(
-      400,
-      'El paciente no cuenta con un número de teléfono válido para enviar la notificación por WhatsApp.'
-    );
+  try {
+    return normalizeWhatsappPhone(patient.telefono);
+  } catch (error) {
+    throw new NotificationError(400, error.message);
   }
-  // Normaliza a formato internacional; los números de prueba se registran
-  // sin código de país (Bolivia, +591) en el seed del proyecto.
-  if (rawPhone.startsWith('+')) return rawPhone;
-  return `+591${rawPhone.replace(/^0+/, '')}`;
-}
-
-function formatFechaHora(date) {
-  const fecha = new Intl.DateTimeFormat('es-BO', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    timeZone: 'America/La_Paz'
-  }).format(date);
-  const hora = new Intl.DateTimeFormat('es-BO', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'America/La_Paz'
-  }).format(date);
-  return { fecha, hora, texto: `${fecha} a las ${hora}` };
-}
-
-function fullName(nombres, apellidos) {
-  return `${nombres} ${apellidos}`.trim();
-}
-
-// PA-02 (HU-24 y HU-25): el mensaje se construye con datos reales de la
-// cita: paciente, médico, fecha y hora.
-function buildConfirmationMessage(cita) {
-  const pacienteNombre = fullName(cita.paciente.nombres, cita.paciente.apellidos);
-  const medicoNombre = fullName(cita.medico.usuario.nombres, cita.medico.usuario.apellidos);
-  const { texto } = formatFechaHora(cita.fecha_hora_inicio);
-  return `*MedicalSys:* Estimado(a) ${pacienteNombre}, le confirmamos su cita para el ${texto} `
-    + `con el Dr(a). ${medicoNombre} (${cita.servicio_medico.nombre}). `
-    + 'Responda *SI* para confirmar su asistencia.';
-}
-
-function buildReminderMessage(cita) {
-  const pacienteNombre = fullName(cita.paciente.nombres, cita.paciente.apellidos);
-  const medicoNombre = fullName(cita.medico.usuario.nombres, cita.medico.usuario.apellidos);
-  const { texto } = formatFechaHora(cita.fecha_hora_inicio);
-  return `*Recordatorio MedicalSys:* Hola ${pacienteNombre}, le recordamos su cita el ${texto} `
-    + `con el Dr(a). ${medicoNombre} (${cita.servicio_medico.nombre}). `
-    + 'Por favor confirme su asistencia respondiendo *SI*.';
 }
 
 function digitsFromWhatsappId(value) {
   return String(value || '').split('@')[0].replace(/\D/g, '');
 }
 
-function phoneVariantsFromWhatsappId(value) {
-  const digits = digitsFromWhatsappId(value);
-  if (!digits) return [];
-  const variants = new Set([digits, `+${digits}`]);
-  // Los datos históricos del MVP pueden estar guardados con o sin +591.
-  if (digits.startsWith('591') && digits.length > 8) {
-    variants.add(digits.slice(3));
-    variants.add(`+${digits.slice(3)}`);
-  }
-  return [...variants];
+// Deja solo dígitos, sin importar cómo se haya escrito el teléfono del
+// paciente en el registro (espacios, guiones, paréntesis, "00" en vez de
+// "+", etc.).
+function phoneDigitsOnly(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+// Busca al paciente dueño del número que escribió, comparando solo dígitos
+// (ignora espacios/guiones/paréntesis guardados en paciente.telefono y
+// tolera que el registro tenga o no el código de país 591).
+async function findPatientsByWhatsappSender(sender) {
+  const senderDigits = digitsFromWhatsappId(sender);
+  if (!senderDigits) return [];
+  const senderDigitsWithoutCountryCode = senderDigits.startsWith('591') && senderDigits.length > 8
+    ? senderDigits.slice(3)
+    : null;
+
+  const candidates = await repository.paciente.findMany({
+    where: { activo: true, telefono: { not: null } },
+    select: { id_paciente: true, telefono: true }
+  });
+
+  return candidates.filter((candidate) => {
+    const candidateDigits = phoneDigitsOnly(candidate.telefono);
+    if (!candidateDigits) return false;
+    if (candidateDigits === senderDigits) return true;
+    if (senderDigitsWithoutCountryCode && candidateDigits === senderDigitsWithoutCountryCode) return true;
+    if (candidateDigits.length <= 8 && `591${candidateDigits}` === senderDigits) return true;
+    return false;
+  });
 }
 
 function incomingTextFromGreenApi(payload) {
@@ -237,6 +220,15 @@ function incomingTextFromGreenApi(payload) {
 
 function isPositiveConfirmation(text) {
   return /^s[ií][.!]*$/iu.test(String(text || '').trim());
+}
+
+function isNegativeConfirmation(text) {
+  return /^no[.!]*$/iu.test(String(text || '').trim());
+}
+
+function negativeResponseAction() {
+  const configured = String(process.env.WHATSAPP_NO_RESPONSE_ACTION || 'PENDIENTE_REPROGRAMACION').toUpperCase();
+  return configured === 'CANCELAR' ? 'CANCELADA' : 'PENDIENTE_REPROGRAMACION';
 }
 
 function quotedProviderReference(payload) {
@@ -304,14 +296,13 @@ async function processGreenApiIncomingNotification(payload) {
   });
   if (duplicate) return { processed: true, duplicate: true, confirmed: false };
 
-  const patients = await repository.paciente.findMany({
-    where: { telefono: { in: phoneVariantsFromWhatsappId(sender) }, activo: true },
-    select: { id_paciente: true }
-  });
+  const patients = await findPatientsByWhatsappSender(sender);
   if (patients.length !== 1) return { processed: false, reason: 'unknown_or_ambiguous_sender' };
 
   const patient = patients[0];
-  const confirmation = isPositiveConfirmation(text)
+  const isPositive = isPositiveConfirmation(text);
+  const isNegative = isNegativeConfirmation(text);
+  const confirmation = (isPositive || isNegative)
     ? await findPendingNotificationForPatient(patient.id_paciente, quotedProviderReference(payload))
     : null;
   const receivedAt = Number.isFinite(Number(payload.timestamp))
@@ -343,24 +334,102 @@ async function processGreenApiIncomingNotification(payload) {
 
     if (!confirmation?.id_cita) return { duplicate: false, confirmed: false, appointmentId: null };
 
+    const nextState = isPositive ? 'CONFIRMADA' : negativeResponseAction();
     const updated = await tx.cita.updateMany({
       where: { id_cita: confirmation.id_cita, estado: 'PROGRAMADA' },
-      data: { estado: 'CONFIRMADA', fecha_actualizacion: new Date() }
+      data: { estado: nextState, fecha_actualizacion: new Date() }
     });
     if (updated.count > 0) {
       await tx.notificacion.update({
         where: { id_notificacion: confirmation.id_notificacion },
         data: { estado: 'LEIDA', fecha_lectura: receivedAt }
       });
+      if (isNegative) {
+        await cancelAppointmentNotificationJobs(tx, confirmation.id_cita);
+      }
     }
-    return {
-      duplicate: false,
-      confirmed: updated.count > 0,
-      appointmentId: Number(confirmation.id_cita)
-    };
+    if (isNegative) {
+      return {
+        duplicate: false,
+        confirmed: false,
+        negative: updated.count > 0,
+        responseAction: updated.count > 0 ? nextState : null,
+        appointmentId: Number(confirmation.id_cita)
+      };
+    }
+    return { duplicate: false, confirmed: updated.count > 0, appointmentId: Number(confirmation.id_cita) };
   });
 
   return { processed: true, ...result };
+}
+
+// Green API entrega estos eventos por la misma cola HTTP que los mensajes
+// entrantes. `idMessage` coincide con la referencia que devolvió sendMessage.
+async function processGreenApiOutgoingStatusNotification(payload) {
+  if (payload?.typeWebhook !== 'outgoingMessageStatus') {
+    return { processed: false, reason: 'unsupported_event' };
+  }
+
+  const expectedInstance = String(process.env.GREENAPI_ID_INSTANCE || '');
+  if (expectedInstance && String(payload?.instanceData?.idInstance || '') !== expectedInstance) {
+    return { processed: false, reason: 'unexpected_instance' };
+  }
+
+  const providerReference = String(payload?.idMessage || '');
+  const status = String(payload?.status || '').toLowerCase();
+  if (!providerReference || !['sent', 'delivered', 'read', 'failed'].includes(status)) {
+    return { processed: false, reason: 'invalid_status' };
+  }
+
+  const notification = await repository.notificacion.findFirst({
+    where: { proveedor_referencia: providerReference, direccion: 'SALIENTE' },
+    select: { id_notificacion: true, estado: true }
+  });
+  if (!notification) return { processed: false, reason: 'unknown_message' };
+
+  const occurredAt = Number.isFinite(Number(payload.timestamp))
+    ? new Date(Number(payload.timestamp) * 1000)
+    : new Date();
+
+  if (status === 'failed') {
+    const retry = await retryAfterDeliveryFailure(
+      notification.id_notificacion,
+      'Green API informó que el mensaje no pudo ser entregado.',
+      occurredAt
+    );
+    await repository.notificacion.update({
+      where: { id_notificacion: notification.id_notificacion },
+      data: {
+        estado: retry.exhausted ? 'FALLIDA' : 'PENDIENTE',
+        proveedor_referencia: 'Green API informó que el mensaje no pudo ser entregado.'
+      }
+    });
+    return { processed: true, status, retried: retry.updated && !retry.exhausted };
+  }
+
+  // Los estados pueden llegar fuera de orden; nunca se rebaja LEIDA ni
+  // ENTREGADA a ENVIADA por una notificación tardía de Green API.
+  if (notification.estado === 'LEIDA' || (notification.estado === 'ENTREGADA' && status === 'sent')) {
+    return { processed: true, status, ignored: true };
+  }
+
+  const data = status === 'read'
+    ? { estado: 'LEIDA', fecha_entrega: occurredAt, fecha_lectura: occurredAt }
+    : status === 'delivered'
+      ? { estado: 'ENTREGADA', fecha_entrega: occurredAt }
+      : { estado: 'ENVIADA', fecha_envio: occurredAt };
+  await repository.notificacion.update({ where: { id_notificacion: notification.id_notificacion }, data });
+  return { processed: true, status };
+}
+
+async function processGreenApiNotification(payload) {
+  if (payload?.typeWebhook === 'incomingMessageReceived') {
+    return processGreenApiIncomingNotification(payload);
+  }
+  if (payload?.typeWebhook === 'outgoingMessageStatus') {
+    return processGreenApiOutgoingStatusNotification(payload);
+  }
+  return { processed: false, reason: 'unsupported_event' };
 }
 
 function toAppointmentSummary(cita) {
@@ -398,34 +467,20 @@ function toNotification(notificacion) {
   };
 }
 
-// Ejecuta el envío por WhatsApp y persiste el intento (éxito o fallo) en la
-// tabla `notificacion`, cualquiera sea el resultado informado por el
-// proveedor (MED-216 / MED-228, PA-04 / PA-05).
+// La API ya no llama al proveedor directamente. Programa el mismo trabajo
+// persistente que el alta de cita; el worker independiente es quien envía.
 async function sendAndRegister({ cita, tipo, mensaje, emitidoPorUserId }) {
-  const telefono = assertValidPhone(cita.paciente);
-  const resultadoEnvio = await whatsappService.sendMessage({ to: telefono, body: mensaje });
-
-  const notificacion = await repository.notificacion.create({
-    data: {
-      id_paciente: cita.paciente.id_paciente,
-      id_cita: cita.id_cita,
-      usuario_emisor: emitidoPorUserId ? BigInt(emitidoPorUserId) : null,
-      tipo,
-      direccion: 'SALIENTE',
-      canal: 'WHATSAPP',
-      telefono_destino: telefono,
-      mensaje,
-      fecha_envio: new Date(),
-      estado: resultadoEnvio.success ? 'ENVIADA' : 'FALLIDA',
-      proveedor_referencia: resultadoEnvio.providerReference || resultadoEnvio.errorMessage || null
-    },
-    select: notificationSelect
-  });
+  // Conserva la validación HTTP para la acción manual; al registrar una cita
+  // sin teléfono se conserva la cita y se genera un fallo visible en cola.
+  assertValidPhone(cita.paciente);
+  const queued = await scheduleNotificationForAppointment(cita, tipo, emitidoPorUserId, { runNow: true });
 
   return {
-    ...toNotification(notificacion),
-    exito: resultadoEnvio.success,
-    error: resultadoEnvio.success ? null : (resultadoEnvio.errorMessage || 'No fue posible enviar el mensaje por WhatsApp.')
+    ...queued,
+    mensaje,
+    exito: queued.estado !== 'FALLIDA',
+    error: queued.estado === 'FALLIDA' ? queued.ultimoError : null,
+    enCola: queued.estado === 'PENDIENTE'
   };
 }
 
@@ -459,6 +514,19 @@ async function sendAppointmentConfirmation(citaIdInput, emitidoPorUserId) {
   }
   if (cita.estado === 'COMPLETADA') {
     throw new NotificationError(400, 'No se puede confirmar por WhatsApp: la cita ya fue completada.');
+  }
+
+  const existing = await repository.notificacion.findFirst({
+    where: {
+      id_cita: cita.id_cita,
+      tipo: 'CONFIRMACION_CITA',
+      estado: { in: ['ENVIADA', 'ENTREGADA', 'LEIDA'] }
+    },
+    orderBy: { fecha_creacion: 'desc' },
+    select: notificationSelect
+  });
+  if (existing) {
+    return { ...toNotification(existing), exito: true, duplicado: true, error: null };
   }
 
   // PA-02: mensaje con datos reales de paciente, médico, fecha y hora.
@@ -591,7 +659,11 @@ async function runAppointmentReminders(citaIdsInput, emitidoPorUserId) {
 module.exports = {
   NotificationError,
   listPatientNotificationHistory,
+  listFailedNotificationJobs,
+  retryFailedNotificationJob,
+  processGreenApiNotification,
   processGreenApiIncomingNotification,
+  processGreenApiOutgoingStatusNotification,
   listConfirmationCandidates,
   sendAppointmentConfirmation,
   listReminderCandidates,

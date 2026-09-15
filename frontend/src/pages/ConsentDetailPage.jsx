@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/Button';
-import { SignatureCanvas } from '../components/SignatureCanvas';
 import { HashBox } from '../components/HashBox';
-import { getConsent, signConsent } from '../services/api';
+import { getConsent, signConsentWithCertificate } from '../services/api';
 import '../styles/consents.css';
 
 function formatDate(value) {
@@ -31,7 +30,14 @@ export function ConsentDetailPage() {
   const [consent, setConsent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [signatureData, setSignatureData] = useState(null);
+  const [signature, setSignature] = useState({
+    signerType: 'PACIENTE',
+    signerName: '',
+    signerCi: '',
+    tutorRelationship: '',
+    certificate: '',
+    signature: ''
+  });
   const [signing, setSigning] = useState(false);
   const [signError, setSignError] = useState('');
 
@@ -56,8 +62,8 @@ export function ConsentDetailPage() {
   }, [consentId]);
 
   async function handleSign() {
-    if (!signatureData) {
-      setSignError('Debe dibujar su firma antes de confirmar.');
+    if (!signature.certificate.trim() || !signature.signature.trim() || !signature.signerName.trim() || !signature.signerCi.trim()) {
+      setSignError('Complete los datos del firmante, el certificado X.509 y la firma criptográfica.');
       return;
     }
 
@@ -65,7 +71,7 @@ export function ConsentDetailPage() {
     setSignError('');
 
     try {
-      const response = await signConsent(consentId, signatureData);
+      const response = await signConsentWithCertificate(consentId, signature);
       setConsent(response.consent);
     } catch (requestError) {
       setSignError(
@@ -94,6 +100,10 @@ export function ConsentDetailPage() {
   const isSigned = consent.status === 'FIRMADO';
   const isAnulado = consent.status === 'ANULADO';
   const isSignable = canSign(consent.status);
+  const updateSignature = (event) => {
+    const { name, value } = event.target;
+    setSignature((current) => ({ ...current, [name]: value }));
+  };
 
   return (
     <main className="consent-page">
@@ -151,7 +161,7 @@ export function ConsentDetailPage() {
                 </div>
                 <div>
                   <dt>Huella criptográfica SHA-256</dt>
-                  <dd>{consent.signatureHash ? <HashBox hash={consent.signatureHash} /> : '—'}</dd>
+                  <dd>{consent.signature?.documentHash || consent.signatureHash ? <HashBox hash={consent.signature?.documentHash || consent.signatureHash} /> : '—'}</dd>
                 </div>
               </dl>
             </div>
@@ -168,15 +178,18 @@ export function ConsentDetailPage() {
             </div>
           )}
 
-          {/* Estado: GENERADO / PENDIENTE_FIRMA — Área de firma activa */}
+          {/* HU-33: se envía la firma PKI sobre el hash del PDF, no un trazo. */}
           {isSignable && (
             <div className="signature-capture">
-              <p className="signature-instructions">Dibuje su firma en el área de abajo utilizando el mouse o el dedo en pantalla táctil.</p>
-
-              <SignatureCanvas
-                disabled={signing}
-                onSignatureChange={setSignatureData}
-              />
+              <p className="signature-instructions">Use el certificado digital del paciente o tutor. La firma debe corresponder al hash SHA-256 del PDF generado.</p>
+              <div className="consent-form-grid">
+                <label><span>Firmante *</span><select name="signerType" value={signature.signerType} onChange={updateSignature} disabled={signing}><option value="PACIENTE">Paciente</option><option value="TUTOR">Tutor</option></select></label>
+                <label><span>CI del firmante *</span><input name="signerCi" value={signature.signerCi} onChange={updateSignature} disabled={signing} required /></label>
+                <label><span>Nombre completo *</span><input name="signerName" value={signature.signerName} onChange={updateSignature} disabled={signing} required /></label>
+                {signature.signerType === 'TUTOR' && <label><span>Relación con el paciente *</span><input name="tutorRelationship" value={signature.tutorRelationship} onChange={updateSignature} disabled={signing} required /></label>}
+              </div>
+              <label className="consent-field"><span>Certificado digital X.509 PEM *</span><textarea name="certificate" value={signature.certificate} onChange={updateSignature} disabled={signing} rows="6" placeholder="-----BEGIN CERTIFICATE-----" required /></label>
+              <label className="consent-field"><span>Firma hexadecimal del hash del PDF *</span><textarea name="signature" value={signature.signature} onChange={updateSignature} disabled={signing} rows="3" placeholder="Firma generada por el certificado/proveedor autorizado" required /></label>
 
               {signError && (
                 <p className="notice error-notice consent-notice" role="alert">{signError}</p>
@@ -184,22 +197,16 @@ export function ConsentDetailPage() {
 
               <div className="signature-actions">
                 <Button
-                  disabled={signing || !signatureData}
+                  disabled={signing}
                   onClick={handleSign}
                   type="button"
                 >
-                  {signing ? 'Registrando firma...' : '✓ Confirmar y Firmar Documento'}
+                  {signing ? 'Validando firma...' : '✓ Validar y Firmar Documento'}
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Estado ya firmado: Canvas deshabilitado visual */}
-          {(isSigned || isAnulado) && (
-            <div className="signature-capture signature-capture-locked">
-              <SignatureCanvas disabled />
-            </div>
-          )}
         </section>
       </section>
     </main>
