@@ -10,6 +10,9 @@ export function TenantHeader() {
 
   const isExpired = currentTenant.isExpired;
   const isSuperAdmin = user?.isSuperAdmin || user?.rol === 'SUPERADMIN';
+  // El estado de suscripción y sus cobros son administrativos; no deben
+  // distraer ni exponerse a usuarios clínicos, recepción, pacientes u OSI.
+  const canManageSubscription = isSuperAdmin || user?.rol === 'ADMINISTRADOR';
 
   return (
     <header
@@ -43,27 +46,11 @@ export function TenantHeader() {
           🏥
         </div>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <strong style={{ fontSize: '0.98rem', color: 'var(--color-navy, #10294c)' }}>
-              {currentTenant.nombre}
-            </strong>
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontFamily: 'monospace',
-                background: '#f1f5f9',
-                color: '#475569',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                border: '1px solid #cbd5e1'
-              }}
-              title="Aislamiento físico en PostgreSQL a nivel de esquema de base de datos"
-            >
-              DB: {currentTenant.schemaName}
-            </span>
-          </div>
+          <strong style={{ fontSize: '0.98rem', color: 'var(--color-navy, #10294c)' }}>
+            {currentTenant.nombre}
+          </strong>
           <small style={{ color: '#64748b', fontSize: '0.78rem' }}>
-            SaaS Multitenancy por Infraestructura · {currentTenant.subdominio}.localhost
+            Centro médico seleccionado
           </small>
         </div>
       </div>
@@ -98,7 +85,7 @@ export function TenantHeader() {
           </div>
         )}
 
-        <div
+        {canManageSubscription && <div
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -114,9 +101,9 @@ export function TenantHeader() {
         >
           <span>{isExpired ? '🔴' : '🟢'}</span>
           <span>{isExpired ? 'Suscripción Vencida' : 'Plan Activo'}</span>
-        </div>
+        </div>}
 
-        <button
+        {canManageSubscription && <button
           type="button"
           onClick={() => setIsSubscriptionModalOpen(true)}
           style={{
@@ -135,7 +122,7 @@ export function TenantHeader() {
           }}
         >
           💳 {isExpired ? 'Renovar Ahora (QR)' : 'Gestionar Plan / QR'}
-        </button>
+        </button>}
       </div>
     </header>
   );
