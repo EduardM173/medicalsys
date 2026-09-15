@@ -650,7 +650,7 @@ async function getConsentHistory(userIdInput, filters = {}) {
     where.estado = filters.estado;
   }
 
-  const consents = await repository.consentimiento_informado.findMany({
+  const consents = await repository.consentimiento_informado.findPage({
     where,
     orderBy: { fecha_generacion: 'desc' },
     select: consentSelect
@@ -662,15 +662,14 @@ async function getConsentHistory(userIdInput, filters = {}) {
 async function getConsentOptions(userIdInput) {
   const doctor = await findAuthenticatedDoctor(userIdInput);
   const [patients, appointments] = await Promise.all([
-    repository.paciente.findMany({
+    repository.paciente.findPage({
       where: { activo: true },
       orderBy: [{ apellidos: 'asc' }, { nombres: 'asc' }],
       select: { id_paciente: true, nombres: true, apellidos: true }
     }),
-    repository.cita.findMany({
+    repository.cita.findPage({
       where: { id_medico: doctor.id_medico },
       orderBy: { fecha_hora_inicio: 'desc' },
-      take: 100,
       select: {
         id_cita: true,
         id_paciente: true,

@@ -1,3 +1,4 @@
+import { useSecureDraft } from '../hooks/useSecureDraft';
 import React, { useState } from 'react';
 import { ApiError } from '../services/api';
 import { Button } from './Button';
@@ -5,7 +6,7 @@ import { Input } from './Input';
 
 export function DoctorForm({ availableUsers = [], initialDoctor = null, onCancel, onSave }) {
   const editing = Boolean(initialDoctor);
-  const [form, setForm] = useState({
+  const [form, setForm, clearDraft] = useSecureDraft(`doctor:${initialDoctor?.id || 'new'}`, {
     usuarioId: editing ? initialDoctor.usuarioId : (availableUsers[0]?.id || ''),
     matriculaProfesional: initialDoctor?.matriculaProfesional || '',
     especialidad: initialDoctor?.especialidad || '',
@@ -35,6 +36,7 @@ export function DoctorForm({ availableUsers = [], initialDoctor = null, onCancel
             especialidad: form.especialidad
           };
       await onSave(payload);
+      clearDraft();
     } catch (requestError) {
       setError(requestError instanceof ApiError
         ? requestError.message

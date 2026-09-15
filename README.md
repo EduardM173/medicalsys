@@ -448,6 +448,24 @@ Pruebas específicas:
 npm run test:hu32
 ```
 
+## HU-37: conectividad y disponibilidad
+
+## Matriz RBAC base y mínimo privilegio
+
+Las políticas estándar se mantienen centralizadas en `backend/src/security/permissions.js`. La base mínima es: Administrador gestiona todos los módulos administrativos y clínicos; OSI administra únicamente usuarios, roles, permisos y auditoría; Médico consulta pacientes e historial, registra atenciones/documentos/consentimientos y consulta su agenda, salas y horarios; Recepcionista gestiona pacientes, citas, salas, facturación, notificaciones y catálogos; Paciente accede solamente a su portal propio.
+
+Para corregir instalaciones que tenían políticas antiguas, ejecute una sola vez desde `backend`:
+
+```powershell
+npm run security:reconcile
+```
+
+Esto normaliza únicamente los cinco roles estándar y deja intactos los roles personalizados y las concesiones temporales. La matriz de Seguridad sigue siendo el mecanismo para excepciones temporales aprobadas.
+
+La aplicación incorpora paginación real, páginas diferidas, compresión, cancelación y reintentos solo de lectura, indicadores de conexión y borradores cifrados. La PWA almacena únicamente recursos estáticos: no convierte el sistema en una clínica offline ni reenvía escrituras automáticamente.
+
+Configuración, despliegue con dos instancias, respaldo/restauración, pruebas y estado explícito de cada PA están en [el informe HU-37](docs/HU-37-informe.md). Ejecutar `npm test` en backend y `npm run build` en frontend. Esta historia no modifica modelos ni migraciones Prisma.
+
 ## HU-36: anuncios y campañas de salud
 
 El paciente inicia sesión con `paciente@medicalsys.test` / `MedicalSys2026!` y abre **Anuncios y beneficios** (`/anuncios`). Allí solo aparecen campañas activas, vigentes y compatibles con su edad, sexo, ubicación, condiciones clínicas y nivel Bronce/Plata/Oro. Puede excluirse de marketing, autorizar WhatsApp de forma separada y registrar una promoción sobre uno de los servicios asociados.

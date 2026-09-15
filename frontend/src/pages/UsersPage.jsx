@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,6 +9,7 @@ import { createUser, deactivateUser, getUserRoles, getUsers, updateUser } from '
 import '../styles/users.css';
 
 export function UsersPage() {
+  const paginationKey = useListPagination();
   const { user: currentUser } = useAuth();
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -22,7 +24,7 @@ export function UsersPage() {
 
   async function loadUsers() {
     try {
-      const [response, roleResponse] = await Promise.all([getUsers(), getUserRoles()]);
+      const [response, roleResponse] = await Promise.all([getUsers({ search, role: roleFilter, status: statusFilter }), getUserRoles()]);
       setUsers(response.users); setRoles(roleResponse.roles);
       setError('');
     } catch (requestError) {
@@ -33,8 +35,9 @@ export function UsersPage() {
   }
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    const timer = setTimeout(loadUsers, 300);
+    return () => clearTimeout(timer);
+  }, [search, roleFilter, statusFilter, paginationKey]);
 
   function openCreateForm() {
     setEditingUser(null);

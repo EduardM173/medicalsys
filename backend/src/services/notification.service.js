@@ -121,7 +121,7 @@ async function listPatientNotificationHistory({ patientId: patientIdInput, appoi
     }
   }
 
-  const notifications = await repository.notificacion.findMany({
+  const notifications = await repository.notificacion.findPage({
     where: {
       id_paciente: patientId,
       tipo: { in: historyNotificationTypes },
@@ -490,13 +490,12 @@ async function sendAndRegister({ cita, tipo, mensaje, emitidoPorUserId }) {
 
 // Citas activas y futuras disponibles para solicitar una confirmación.
 async function listConfirmationCandidates() {
-  const citas = await repository.cita.findMany({
+  const citas = await repository.cita.findPage({
     where: {
       estado: { in: activeAppointmentStates },
       fecha_hora_inicio: { gt: new Date() }
     },
     orderBy: { fecha_hora_inicio: 'asc' },
-    take: 200,
     select: appointmentSelect
   });
   return citas.map(toAppointmentSummary);
@@ -545,7 +544,7 @@ async function listReminderCandidates() {
   const now = new Date();
   const windowEnd = new Date(now.getTime() + REMINDER_WINDOW_HOURS * 60 * 60 * 1000);
 
-  const citas = await repository.cita.findMany({
+  const citas = await repository.cita.findPage({
     where: {
       estado: { in: activeAppointmentStates },
       fecha_hora_inicio: { gt: now, lte: windowEnd }

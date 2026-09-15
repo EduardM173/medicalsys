@@ -166,8 +166,11 @@ async function createUser(input, db = repository, tenantId = null) {
   }
 }
 
-async function listUsers({ tenantId = null, isSuperAdmin = false } = {}) {
+async function listUsers({ tenantId = null, isSuperAdmin = false, search = '', role = '', status = '' } = {}) {
   const where = {};
+  if (search.trim()) where.OR = ['nombres', 'apellidos', 'email'].map((field) => ({ [field]: { contains: search.trim().slice(0, 100), mode: 'insensitive' } }));
+  if (role) where.rol = { codigo: role };
+  if (['ACTIVO', 'INACTIVO', 'BLOQUEADO'].includes(status)) where.estado = status;
   if (tenantId) {
     where.usuario_organizacion = {
       some: {
@@ -177,7 +180,7 @@ async function listUsers({ tenantId = null, isSuperAdmin = false } = {}) {
     };
   }
 
-  const users = await repository.usuario.findMany({
+  const users = await repository.usuario.findPage({
     where,
     orderBy: [{ apellidos: 'asc' }, { nombres: 'asc' }],
     select: safeUserSelect

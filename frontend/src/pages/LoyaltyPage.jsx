@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -28,6 +29,7 @@ function formatDate(isoString) {
 }
 
 export function LoyaltyPage() {
+  const paginationKey = useListPagination();
   const [patients, setPatients] = useState([]);
   const [stats, setStats] = useState({
     totalPacientes: 0,
@@ -73,11 +75,11 @@ export function LoyaltyPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, selectedEstado, selectedNivel]);
+  }, [search, selectedEstado, selectedNivel, paginationKey]);
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, paginationKey]);
 
   function handleOpenEnroll(patient) {
     setSelectedPatient(patient);

@@ -19,7 +19,7 @@ async function listUsers(request, response, next) {
   try {
     const tenantId = request.tenant?.id;
     const isSuperAdmin = request.user?.rol === 'SUPERADMIN' && !request.hasExplicitTenant;
-    const users = await userService.listUsers({ tenantId, isSuperAdmin });
+    const users = await userService.listUsers({ tenantId, isSuperAdmin, search: String(request.query.search || ''), role: String(request.query.role || ''), status: String(request.query.status || '') });
     response.status(200).json({ users });
   } catch (error) {
     next(error);

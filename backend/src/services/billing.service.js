@@ -454,7 +454,7 @@ async function listIssuedInvoices(filters = {}) {
       { nit_ci: { contains: search, mode: 'insensitive' } }
     ];
   }
-  const invoices = await repository.factura.findMany({
+  const invoices = await repository.factura.findPage({
     where,
     orderBy: [{ fecha_emision: 'desc' }, { id_factura: 'desc' }],
     take: 100,

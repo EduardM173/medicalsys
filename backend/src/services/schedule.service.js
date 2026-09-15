@@ -77,7 +77,7 @@ async function findDoctor(doctorId) {
 }
 
 async function listDoctors() {
-  const doctors = await repository.medico.findMany({
+  const doctors = await repository.medico.findPage({
     where: { activo: true, usuario: { estado: 'ACTIVO' } },
     orderBy: [{ usuario: { apellidos: 'asc' } }, { usuario: { nombres: 'asc' } }],
     include: { usuario: { select: { nombres: true, apellidos: true } } }
@@ -88,7 +88,7 @@ async function listDoctors() {
 async function listSchedulesByDoctor(doctorIdInput, options = {}) {
   const doctorId = parseId(doctorIdInput, 'médico');
   const doctor = await findDoctor(doctorId);
-  const schedules = await repository.horario_medico.findMany({
+  const schedules = await repository.horario_medico.findPage({
     where: {
       id_medico: doctorId,
       ...(options.activeOnly ? { activo: true } : {})

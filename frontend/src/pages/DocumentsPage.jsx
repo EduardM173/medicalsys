@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -34,6 +35,7 @@ function documentLabel(patient) {
 }
 
 export function DocumentsPage() {
+  const paginationKey = useListPagination();
   const { patientId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -62,11 +64,11 @@ export function DocumentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [patientId]);
+  }, [patientId, paginationKey]);
 
   useEffect(() => {
     loadDocuments();
-  }, [loadDocuments]);
+  }, [loadDocuments, paginationKey]);
 
   async function openDocument(document) {
     setOpeningId(document.id);

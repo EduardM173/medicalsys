@@ -35,7 +35,7 @@ async function getTenantClinicalConfig(schemaName) {
 class TenantService {
   async listOrganizations({ activeOnly = false } = {}) {
     const where = activeOnly ? { estado: 'ACTIVA' } : {};
-    const orgs = await tenantRepository.organizacion.findMany({
+    const orgs = await tenantRepository.organizacion.findPage({
       where,
       orderBy: { nombre: 'asc' }
     });
@@ -149,7 +149,7 @@ class TenantService {
 
   async getUserOrganizations(userId) {
     if (!userId) return [];
-    const relations = await tenantRepository.usuario_organizacion.findMany({
+    const relations = await tenantRepository.usuario_organizacion.findPage({
       where: {
         id_usuario: BigInt(userId),
         activo: true

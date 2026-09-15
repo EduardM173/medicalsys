@@ -98,6 +98,9 @@ BEGIN
     EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.receta (LIKE public.receta INCLUDING ALL)';
     EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.documento_clinico (LIKE public.documento_clinico INCLUDING ALL)';
     EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.consentimiento_informado (LIKE public.consentimiento_informado INCLUDING ALL)';
+    EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.plantilla_consentimiento (LIKE public.plantilla_consentimiento INCLUDING ALL)';
+    EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.firma_digital_consentimiento (LIKE public.firma_digital_consentimiento INCLUDING ALL)';
+    EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.anulacion_consentimiento (LIKE public.anulacion_consentimiento INCLUDING ALL)';
     EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.factura (LIKE public.factura INCLUDING ALL)';
     EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.detalle_factura (LIKE public.detalle_factura INCLUDING ALL)';
     EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.notificacion (LIKE public.notificacion INCLUDING ALL)';

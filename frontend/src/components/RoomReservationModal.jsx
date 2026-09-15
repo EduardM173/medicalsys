@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
 import { createRoomReservation, getAvailableRooms, getPendingAppointments } from '../services/api';
+import { ListPagination, useListPagination } from './ListPagination';
 
 export function RoomReservationModal({ isOpen, onClose, selectedRoom, rooms, onReservationCreated }) {
+  const paginationKey = useListPagination();
   const [appointments, setAppointments] = useState([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [idCita, setIdCita] = useState('');
@@ -28,9 +30,9 @@ export function RoomReservationModal({ isOpen, onClose, selectedRoom, rooms, onR
           setAppointments(appts);
           // Si hay citas, preseleccionar la primera cita que no tenga reserva activa
           const unassigned = appts.filter((a) => !a.reserva || a.reserva.estado !== 'ACTIVA');
-          if (unassigned.length > 0) {
+          if (!idCita && unassigned.length > 0) {
             selectAppointment(unassigned[0]);
-          } else if (appts.length > 0) {
+          } else if (!idCita && appts.length > 0) {
             selectAppointment(appts[0]);
           }
         }
@@ -43,7 +45,7 @@ export function RoomReservationModal({ isOpen, onClose, selectedRoom, rooms, onR
 
     loadAppts();
     return () => { active = false; };
-  }, [isOpen]);
+  }, [isOpen, paginationKey]);
 
   function selectAppointment(appt) {
     if (!appt) return;
@@ -102,7 +104,7 @@ export function RoomReservationModal({ isOpen, onClose, selectedRoom, rooms, onR
 
     check();
     return () => { active = false; };
-  }, [fecha, horaInicio, horaFin]);
+  }, [fecha, horaInicio, horaFin, paginationKey]);
 
   if (!isOpen) return null;
 
@@ -162,6 +164,7 @@ export function RoomReservationModal({ isOpen, onClose, selectedRoom, rooms, onR
         {error && <div className="modal-error" role="alert">{error}</div>}
 
         <form onSubmit={handleSubmit}>
+          <ListPagination />
           <div className="modal-body">
             <div className="modal-field">
               <label htmlFor="idCitaSelect">
@@ -215,14 +218,14 @@ export function RoomReservationModal({ isOpen, onClose, selectedRoom, rooms, onR
                   const isAvail = availableList.some((r) => r.id === room.id);
                   return (
                     <option key={room.id} value={room.id}>
-                      {room.nombre} ({room.tipo}) - {isAvail ? '✓ Disponible' : '⚠ Ocupada/No disponible'}
+                      {room.nombre} ({room.tipo}) - {isAvail ? '✓ Disponible' : 'Se verificará al reservar'}
                     </option>
                   );
                 })}
               </select>
               {!checkingAvailability && availableList.length > 0 && !isSelectedRoomAvailable && (
                 <small style={{ color: 'var(--color-danger)' }}>
-                  ⚠ La sala seleccionada tiene un solapamiento en ese horario.
+                  La sala no figura en esta página de resultados. Su disponibilidad se valida al reservar.
                 </small>
               )}
             </div>

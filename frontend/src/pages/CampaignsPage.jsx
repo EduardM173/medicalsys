@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../components/Button';
 import { PageContext } from '../components/PageContext';
@@ -30,6 +31,7 @@ function formatDate(isoString) {
 }
 
 export function CampaignsPage() {
+  const paginationKey = useListPagination();
   const [campaigns, setCampaigns] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -71,11 +73,11 @@ export function CampaignsPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, selectedEstado]);
+  }, [search, selectedEstado, paginationKey]);
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, paginationKey]);
 
   function handleOpenCreate() {
     setEditingCampaign(null);

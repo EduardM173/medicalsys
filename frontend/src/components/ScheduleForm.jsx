@@ -1,3 +1,4 @@
+import { useSecureDraft } from '../hooks/useSecureDraft';
 import React, { useState } from 'react';
 import { ApiError } from '../services/api';
 import { Button } from './Button';
@@ -15,7 +16,7 @@ const weekDays = [
 
 export function ScheduleForm({ initialSchedule = null, doctorName, onCancel, onSave }) {
   const editing = Boolean(initialSchedule);
-  const [form, setForm] = useState({
+  const [form, setForm, clearDraft] = useSecureDraft(`schedule:${doctorName}:${initialSchedule?.id || 'new'}`, {
     diaSemana: initialSchedule?.diaSemana || 1,
     horaInicio: initialSchedule?.horaInicio || '08:00',
     horaFin: initialSchedule?.horaFin || '12:00',
@@ -45,6 +46,7 @@ export function ScheduleForm({ initialSchedule = null, doctorName, onCancel, onS
         horaFin: form.horaFin,
         ...(editing ? { activo: form.activo } : {})
       });
+      clearDraft();
     } catch (requestError) {
       setError(requestError instanceof ApiError
         ? requestError.message

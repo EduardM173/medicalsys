@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '../components/Button';
 import {
@@ -36,6 +37,7 @@ function requestErrorMessage(requestError, fallback) {
 // HU-35: las acciones manuales solo priorizan trabajos en la outbox; el
 // worker persistente realiza el envío y el panel expone sus fallos finales.
 export function WhatsAppNotificationsPage() {
+  const paginationKey = useListPagination();
   const [activeTab, setActiveTab] = useState('confirmations');
 
   return (
@@ -84,6 +86,7 @@ export function WhatsAppNotificationsPage() {
 // ==========================================
 
 function ConfirmationsPanel() {
+  const paginationKey = useListPagination();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -101,11 +104,11 @@ function ConfirmationsPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [paginationKey]);
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, paginationKey]);
 
   async function handleSend(appointment) {
     setBusyId(appointment.id);
@@ -194,6 +197,7 @@ function ConfirmationsPanel() {
 // ==========================================
 
 function RemindersPanel() {
+  const paginationKey = useListPagination();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -215,11 +219,11 @@ function RemindersPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [paginationKey]);
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, paginationKey]);
 
   function toggleSelected(id) {
     setSelectedIds((current) => {
@@ -356,6 +360,7 @@ function RemindersPanel() {
 }
 
 function SendResult({ result }) {
+  const paginationKey = useListPagination();
   if (!result) return <span className="whatsapp-result-pending">—</span>;
 
   if (result.duplicado) {
@@ -378,6 +383,7 @@ function SendResult({ result }) {
 }
 
 function FailuresPanel() {
+  const paginationKey = useListPagination();
   const [failures, setFailures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -394,9 +400,9 @@ function FailuresPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [paginationKey]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, paginationKey]);
 
   async function handleRetry(failure) {
     setRetryingId(failure.queueId);

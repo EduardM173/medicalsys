@@ -81,7 +81,7 @@ async function getAgendaForAuthenticatedDoctor(userIdInput, dateInput) {
   }
 
   const range = getDateRange(date);
-  const appointments = await repository.cita.findMany({
+  const appointments = await repository.cita.findPage({
     where: {
       id_medico: doctor.id_medico,
       fecha_hora_inicio: { gte: range.start, lt: range.end }

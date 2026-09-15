@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AttentionModal } from '../components/AttentionModal';
@@ -54,6 +55,7 @@ function changeDate(value, days) {
 }
 
 export function AgendaPage() {
+  const paginationKey = useListPagination();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -94,7 +96,7 @@ export function AgendaPage() {
 
   useEffect(() => {
     loadAgenda();
-  }, [selectedDate]);
+  }, [selectedDate, paginationKey]);
 
   const activeCount = useMemo(
     () => agenda?.appointments.filter((appointment) => appointment.status !== 'CANCELADA').length || 0,

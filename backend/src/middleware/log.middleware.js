@@ -9,14 +9,12 @@ function requestLogger(request, response, next) {
   response.on('finish', () => {
     const entry = {
       method: request.method,
-      path: request.originalUrl,
+      path: request.route?.path || request.path.replace(/\/\d+(?=\/|$)/g, '/:id'),
       status: response.statusCode,
       durationMs: Date.now() - startedAt,
       user: request.user?.id ? { id: request.user.id, rol: request.user.rol } : null
     };
-    if (['POST', 'PUT', 'PATCH'].includes(request.method) && request.body) {
-      entry.body = sanitize(request.body);
-    }
+    // No query terms, personal data or medical form bodies in access logs.
     logger.info(entry);
   });
   next();

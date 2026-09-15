@@ -125,7 +125,7 @@ async function createDoctor(input) {
 
 async function listDoctors(searchInput = '') {
   const search = typeof searchInput === 'string' ? searchInput.trim().slice(0, 100) : '';
-  const doctors = await repository.medico.findMany({
+  const doctors = await repository.medico.findPage({
     where: search ? {
       OR: [
         { matricula_profesional: { contains: search, mode: 'insensitive' } },

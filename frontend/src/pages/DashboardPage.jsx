@@ -7,6 +7,7 @@ export function DashboardPage() {
   const { user } = useAuth();
   const { currentTenant, organizations, switchTenant, refreshTenant } = useTenant();
   const isSuperAdmin = user?.isSuperAdmin || user?.rol === 'SUPERADMIN';
+  const canManageSubscription = isSuperAdmin || user?.rol === 'ADMINISTRADOR';
   const [isProvisionOpen, setIsProvisionOpen] = useState(false);
 
   return (
@@ -39,12 +40,12 @@ export function DashboardPage() {
           </dl>
         </section>
 
-        {/* Ficha Técnica de la Organización / Centro Médico */}
+        {/* Información útil del centro; infraestructura solo se consulta en monitoreo interno. */}
         {currentTenant && (
           <section className="dashboard-card" style={{ height: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span className="login-kicker">Centro Médico / Tenant Activo</span>
-              <span style={{
+              <span className="login-kicker">Centro médico</span>
+              {canManageSubscription && <span style={{
                 fontSize: '0.75rem',
                 fontWeight: 700,
                 padding: '3px 8px',
@@ -54,7 +55,7 @@ export function DashboardPage() {
                 border: `1px solid ${currentTenant.isExpired ? '#fca5a5' : '#a7f3d0'}`
               }}>
                 {currentTenant.isExpired ? '🔴 Suscripción Vencida' : '🟢 Plan Activo'}
-              </span>
+              </span>}
             </div>
 
             <h2 style={{ fontSize: '1.35rem', margin: '0 0 16px', color: 'var(--color-navy, #10294c)' }}>
@@ -66,10 +67,10 @@ export function DashboardPage() {
                 <dt>Razón Social</dt>
                 <dd><strong>{currentTenant.razonSocial || currentTenant.nombre}</strong></dd>
               </div>
-              <div>
+              {canManageSubscription && <div>
                 <dt>NIT Institucional</dt>
                 <dd><code>{currentTenant.nit || 'Sin registrar'}</code></dd>
-              </div>
+              </div>}
               <div>
                 <dt>Ubicación / Dirección</dt>
                 <dd>{currentTenant.direccion || 'Sin registrar'}</dd>
@@ -82,18 +83,10 @@ export function DashboardPage() {
                 <dt>Correo Oficial</dt>
                 <dd>{currentTenant.email || 'Sin registrar'}</dd>
               </div>
-              <div>
-                <dt>Aislamiento PostgreSQL</dt>
-                <dd><code style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', border: '1px solid #cbd5e1' }}>Esquema: {currentTenant.schemaName}</code></dd>
-              </div>
-              <div>
-                <dt>Subdominio SaaS</dt>
-                <dd>{currentTenant.subdominio}.localhost</dd>
-              </div>
-              <div>
+              {canManageSubscription && <div>
                 <dt>Plan Contratado</dt>
                 <dd>{currentTenant.plan} · Vigencia: {currentTenant.fechaSuscripcionFin ? new Date(currentTenant.fechaSuscripcionFin).toLocaleDateString('es-ES') : 'Indefinida'}</dd>
-              </div>
+              </div>}
             </dl>
           </section>
         )}
@@ -168,8 +161,6 @@ export function DashboardPage() {
                     <div><strong>Dirección:</strong> {org.direccion || 'No especificada'}</div>
                     <div><strong>Teléfono:</strong> {org.telefono || 'Sin teléfono'}</div>
                     <div><strong>Contacto:</strong> {org.email || 'Sin correo'}</div>
-                    <div><strong>Esquema DB:</strong> <code>{org.schemaName}</code></div>
-                    <div><strong>Subdominio:</strong> {org.subdominio}.localhost</div>
                     <div><strong>Plan:</strong> {org.isExpired ? '🔴 Vencido' : '🟢 Activo'} ({org.plan})</div>
                   </div>
                   {!isActiveTenant && (

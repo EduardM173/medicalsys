@@ -1,3 +1,5 @@
+import { useSecureDraft } from '../hooks/useSecureDraft';
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '../components/Button';
@@ -49,6 +51,7 @@ function formatFechaEmision(value) {
 }
 
 function TicketUi({ data, emitted = false }) {
+  const paginationKey = useListPagination();
   return (
     <div className={`ticket${emitted ? ' ticket-emitida' : ''}`}>
       <header className="ticket-header">
@@ -115,6 +118,7 @@ function TicketUi({ data, emitted = false }) {
 }
 
 export function BillingPreparationPage() {
+  const paginationKey = useListPagination();
   const [patients, setPatients] = useState([]);
   const [services, setServices] = useState([]);
   const [appointments, setAppointments] = useState([]);
@@ -129,7 +133,7 @@ export function BillingPreparationPage() {
   const [selectedServiceId, setSelectedServiceId] = useState('');
   const [summary, setSummary] = useState({ total: 0, pending: 0, emittedToday: 0 });
   const ticketRef = useRef(null);
-  const [form, setForm] = useState({
+  const [form, setForm, clearDraft] = useSecureDraft(`billing:new`, {
     pacienteId: '',
     citaId: '',
     nitCi: '',
@@ -138,7 +142,7 @@ export function BillingPreparationPage() {
     email: '',
     metodoPago: 'EFECTIVO'
   });
-  const [items, setItems] = useState([]);
+  const [items, setItems, clearItemsDraft] = useSecureDraft('billing:new:items', []);
 
   useEffect(() => {
     let active = true;
@@ -161,7 +165,7 @@ export function BillingPreparationPage() {
     }
     loadOptions();
     return () => { active = false; };
-  }, []);
+  }, [paginationKey]);
 
   const servicesById = useMemo(
     () => new Map(services.map((service) => [String(service.id), service])),
@@ -204,7 +208,7 @@ export function BillingPreparationPage() {
       conceptos,
       total: localTotalCents / 100
     };
-  }, [preview, patients, form, items, servicesById, localTotalCents]);
+  }, [preview, patients, form, items, servicesById, localTotalCents, paginationKey]);
 
   function markChanged() {
     setPreview(null);
@@ -312,6 +316,8 @@ export function BillingPreparationPage() {
         }))
       });
       setPreview(response.preview);
+      clearDraft();
+      clearItemsDraft();
     } catch (requestError) {
       setError(requestError instanceof ApiError
         ? requestError.message
