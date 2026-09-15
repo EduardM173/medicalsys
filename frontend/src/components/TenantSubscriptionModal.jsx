@@ -71,7 +71,6 @@ export function TenantSubscriptionModal() {
     try {
       setLoadingQr(true);
       setError('');
-      setPaymentSuccess(null);
       setPollingStatus('');
 
       if (gatewayMode === 'bnb') {
