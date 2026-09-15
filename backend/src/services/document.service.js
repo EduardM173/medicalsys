@@ -56,7 +56,20 @@ async function listDocumentsByPatientId(patientIdInput) {
       complemento: true,
       historia_clinica: {
         select: {
-          documento_clinico: {
+          id_historia: true
+        }
+      }
+    }
+  });
+
+  if (!patient) {
+    throw new DocumentError(404, 'Paciente no encontrado.');
+  }
+
+  return {
+    patient: toPatient(patient),
+    documents: patient.historia_clinica ? (await repository.documento_clinico.findPage({
+            where: { id_historia: patient.historia_clinica.id_historia },
             orderBy: { fecha_registro: 'desc' },
             select: {
               id_documento: true,
@@ -74,19 +87,7 @@ async function listDocumentsByPatientId(patientIdInput) {
                 }
               }
             }
-          }
-        }
-      }
-    }
-  });
-
-  if (!patient) {
-    throw new DocumentError(404, 'Paciente no encontrado.');
-  }
-
-  return {
-    patient: toPatient(patient),
-    documents: patient.historia_clinica?.documento_clinico.map(toDocument) || []
+          })).map(toDocument) : []
   };
 }
 

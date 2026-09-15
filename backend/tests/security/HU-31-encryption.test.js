@@ -120,9 +120,9 @@ function contractFor(table, tableName, auditLog) {
       }
       return null;
     },
-    findMany: async ({ where, take, select } = {}) => {
+    findMany: async ({ where, skip = 0, take, select } = {}) => {
       const rows = [...table.values()].filter((record) => matchesWhere(record, where));
-      const limited = typeof take === 'number' ? rows.slice(0, take) : rows;
+      const limited = typeof take === 'number' ? rows.slice(skip, skip + take) : rows;
       return limited.map((record) => project(cloneRecord(record), select));
     },
     create: async ({ data, select } = {}) => {
@@ -358,6 +358,11 @@ test('PA-04: médico autorizado recibe datos descifrados a través de la API', a
     }
   });
 
+  // HU-37 fetches attention pages independently instead of loading the entire
+  // nested history. Seed the actual attention table used by that query.
+  fakeDb.tables.atencion_medica.clear();
+  const attentionFixture = fakeDb.tables.paciente.get(1n).historia_clinica.atencion_medica[0];
+  fakeDb.tables.atencion_medica.set(1n, { ...attentionFixture, id_historia: 1n });
   const { defaults } = require('../../src/security/permissions');
   const app = express();
   app.use((request, _response, next) => {

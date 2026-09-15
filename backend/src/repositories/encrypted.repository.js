@@ -1,4 +1,5 @@
 const database = require('../config/prisma');
+const { Prisma } = require('@prisma/client');
 const { createRepository } = require('./repository.factory');
 const {
   decrypt,
@@ -55,7 +56,7 @@ const BLIND_INDEX_FIELDS = {
 };
 
 const WRITE_KEYS = ['create', 'createMany', 'update', 'updateMany', 'upsert'];
-const READ_KEYS = ['findFirst', 'findMany', 'findUnique'];
+const READ_KEYS = ['findFirst', 'findMany', 'findPage', 'findUnique'];
 
 function modelEncryptedFields(modelName) {
   return ENCRYPTED_FIELDS[modelName] || [];
@@ -79,6 +80,7 @@ function encryptAssignment(modelName, assignment) {
 
 function decryptTree(node) {
   if (node instanceof Date) return node;
+  if (Prisma.Decimal.isDecimal(node)) return node;
   if (Array.isArray(node)) return node.map(decryptTree);
   if (node && typeof node === 'object') {
     const output = {};
@@ -137,10 +139,16 @@ function createEncryptedRepository(modelNames, client = database, decorate = nul
     repo[modelName] = wrapEncryptedModel(base[modelName], modelName);
   }
 
-  repo.transaction = (work, options) => client.$transaction(
-    (transactionClient) => work(createEncryptedRepository(modelNames, transactionClient, decorate)),
-    options
-  );
+  // Delegar al repositorio base conserva el cliente del tenant activo. Usar
+  // directamente `client.$transaction` aquí enviaba operaciones al schema
+  // public cuando el repositorio se había creado antes de resolver el tenant.
+  repo.transaction = (work, options) => base.transaction((transactionRepository) => {
+    const encryptedTransaction = {};
+    for (const modelName of modelNames) {
+      encryptedTransaction[modelName] = wrapEncryptedModel(transactionRepository[modelName], modelName);
+    }
+    return work(Object.freeze(encryptedTransaction));
+  }, options);
 
   /**
    * Rotación de claves: relee una fila, descifra con su versión original y

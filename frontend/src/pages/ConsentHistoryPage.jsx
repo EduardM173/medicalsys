@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -46,6 +47,7 @@ function patientDocument(patient) {
 }
 
 export function ConsentHistoryPage() {
+  const paginationKey = useListPagination();
   const navigate = useNavigate();
   const [consents, setConsents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +69,7 @@ export function ConsentHistoryPage() {
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [paginationKey]);
 
   const pendingCount = consents.filter((consent) => isPending(consent.status)).length;
   const signedTodayCount = consents.filter(

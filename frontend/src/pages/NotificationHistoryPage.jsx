@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useState } from 'react';
 import { Button } from '../components/Button';
 import { PageContext } from '../components/PageContext';
@@ -37,6 +38,7 @@ function historyError(error) {
 }
 
 export function NotificationHistoryPage() {
+  const paginationKey = useListPagination();
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [filters, setFilters] = useState({ patientId: '', appointmentId: '' });
@@ -53,7 +55,15 @@ export function NotificationHistoryPage() {
       .catch(() => { if (active) setError('No fue posible cargar el historial de notificaciones.'); })
       .finally(() => { if (active) setLoadingPatients(false); });
     return () => { active = false; };
-  }, []);
+  }, [paginationKey]);
+
+  useEffect(() => {
+    if (!result || !filters.patientId) return;
+    let active = true;
+    getNotificationHistory(filters).then((response) => { if (active) setResult(response); })
+      .catch((requestError) => { if (active) setError(historyError(requestError)); });
+    return () => { active = false; };
+  }, [paginationKey]);
 
   async function changePatient(event) {
     const patientId = event.target.value;

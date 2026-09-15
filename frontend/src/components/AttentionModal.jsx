@@ -1,3 +1,5 @@
+import { useListPagination, ListPagination } from './ListPagination';
+import { useSecureDraft } from '../hooks/useSecureDraft';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from './Button';
 import { createAttention, getAttentionOptions } from '../services/api';
@@ -22,12 +24,13 @@ export function AttentionModal({
   onCancel,
   onSave
 }) {
+  const paginationKey = useListPagination();
   const [options, setOptions] = useState(null);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const [form, setForm] = useState({
+  const [form, setForm, clearDraft, draftNotice] = useSecureDraft(`attention:${patientId || 'new'}:${appointmentId || 'new'}`, {
     patientId: patientId ? String(patientId) : initialData.patientId ? String(initialData.patientId) : '',
     doctorId: initialData.doctorId ? String(initialData.doctorId) : '',
     appointmentId: appointmentId ? String(appointmentId) : initialData.appointmentId ? String(initialData.appointmentId) : '',
@@ -52,9 +55,6 @@ export function AttentionModal({
       .then((data) => {
         if (!active) return;
         setOptions(data);
-        if (data.currentDoctor && !form.doctorId) {
-          setForm((prev) => ({ ...prev, doctorId: String(data.currentDoctor.id) }));
-        }
       })
       .catch(() => {
         if (active) setError('No fue posible cargar las opciones de atención.');
@@ -63,14 +63,14 @@ export function AttentionModal({
         if (active) setLoadingOptions(false);
       });
     return () => { active = false; };
-  }, []);
+  }, [paginationKey]);
 
   const filteredAppointments = useMemo(() => {
     if (!options?.appointments || !form.patientId) return [];
     return options.appointments.filter(
       (cita) => cita.pacienteId === Number(form.patientId)
     );
-  }, [options, form.patientId]);
+  }, [options, form.patientId, paginationKey]);
 
   // Cálculo automático del IMC
   const calculatedImc = useMemo(() => {
@@ -95,7 +95,7 @@ export function AttentionModal({
       color = 'var(--color-danger)';
     }
     return { value: imc.toFixed(1), category, color };
-  }, [form.pesoKg, form.tallaCm]);
+  }, [form.pesoKg, form.tallaCm, paginationKey]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -131,7 +131,7 @@ export function AttentionModal({
     try {
       const payload = {
         patientId: form.patientId,
-        doctorId: form.doctorId || undefined,
+        doctorId: form.doctorId || (options?.currentDoctor ? String(options.currentDoctor.id) : undefined),
         appointmentId: form.appointmentId || undefined,
         motivoConsulta: form.motivoConsulta,
         anamnesis: form.anamnesis || undefined,
@@ -149,6 +149,7 @@ export function AttentionModal({
       };
 
       const response = await createAttention(payload);
+      clearDraft();
       if (onSave) {
         onSave(response.attention);
       }
@@ -162,6 +163,7 @@ export function AttentionModal({
   return (
     <div className="attention-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="attention-modal-title">
       <div className="attention-modal-container">
+        <ListPagination />
         <header className="attention-modal-header">
           <div>
             <span className="login-kicker">Historial Clínico</span>
@@ -179,6 +181,7 @@ export function AttentionModal({
         </header>
 
         {error && <p className="notice error-notice" role="alert">{error}</p>}
+        {draftNotice && <p className="notice" role="status">{draftNotice}</p>}
 
         <form className="attention-form" onSubmit={handleSubmit}>
           {/* SECCIÓN 1: VINCULACIÓN */}

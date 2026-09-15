@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -25,6 +26,7 @@ function canSign(status) {
 }
 
 export function ConsentDetailPage() {
+  const paginationKey = useListPagination();
   const { consentId } = useParams();
   const navigate = useNavigate();
   const [consent, setConsent] = useState(null);
@@ -59,7 +61,7 @@ export function ConsentDetailPage() {
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [consentId]);
+  }, [consentId, paginationKey]);
 
   async function handleSign() {
     if (!signature.certificate.trim() || !signature.signature.trim() || !signature.signerName.trim() || !signature.signerCi.trim()) {

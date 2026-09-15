@@ -115,7 +115,7 @@ async function findRole(roleCode, db = repository) {
   return role;
 }
 
-async function createUser(input, db = repository) {
+async function createUser(input, db = repository, tenantId = null) {
   const nombres = requiredText(input.nombres, 'Nombres');
   const apellidos = requiredText(input.apellidos, 'Apellidos');
   const email = normalizeEmail(input.email);
@@ -145,6 +145,18 @@ async function createUser(input, db = repository) {
       },
       select: safeUserSelect
     });
+
+    if (tenantId && db.usuario_organizacion) {
+      await db.usuario_organizacion.create({
+        data: {
+          id_usuario: user.id_usuario,
+          id_organizacion: BigInt(tenantId),
+          rol_en_organizacion: roleCode,
+          activo: true
+        }
+      });
+    }
+
     return toSafeUser(user);
   } catch (error) {
     if (repository.isUniqueConstraintError(error)) {
@@ -154,8 +166,22 @@ async function createUser(input, db = repository) {
   }
 }
 
-async function listUsers() {
-  const users = await repository.usuario.findMany({
+async function listUsers({ tenantId = null, isSuperAdmin = false, search = '', role = '', status = '' } = {}) {
+  const where = {};
+  if (search.trim()) where.OR = ['nombres', 'apellidos', 'email'].map((field) => ({ [field]: { contains: search.trim().slice(0, 100), mode: 'insensitive' } }));
+  if (role) where.rol = { codigo: role };
+  if (['ACTIVO', 'INACTIVO', 'BLOQUEADO'].includes(status)) where.estado = status;
+  if (tenantId) {
+    where.usuario_organizacion = {
+      some: {
+        id_organizacion: BigInt(tenantId),
+        activo: true
+      }
+    };
+  }
+
+  const users = await repository.usuario.findPage({
+    where,
     orderBy: [{ apellidos: 'asc' }, { nombres: 'asc' }],
     select: safeUserSelect
   });
@@ -167,10 +193,19 @@ async function listRoles() {
   return roles.map((role) => ({ code: role.codigo, name: role.nombre, description: role.descripcion }));
 }
 
-async function getUserById(idInput) {
+async function getUserById(idInput, { tenantId = null, isSuperAdmin = false } = {}) {
   const id = parseUserId(idInput);
-  const user = await repository.usuario.findUnique({
-    where: { id_usuario: id },
+  const where = { id_usuario: id };
+  if (tenantId && !isSuperAdmin) {
+    where.usuario_organizacion = {
+      some: {
+        id_organizacion: BigInt(tenantId),
+        activo: true
+      }
+    };
+  }
+  const user = await repository.usuario.findFirst({
+    where,
     select: safeUserSelect
   });
   if (!user) {
@@ -179,7 +214,7 @@ async function getUserById(idInput) {
   return toSafeUser(user);
 }
 
-async function updateUser(idInput, input, db = repository) {
+async function updateUser(idInput, input, db = repository, tenantId = null) {
   const id = parseUserId(idInput);
   const existingUser = await db.usuario.findUnique({ where: { id_usuario: id } });
   if (!existingUser) {
@@ -194,6 +229,12 @@ async function updateUser(idInput, input, db = repository) {
   if (input.rol !== undefined) {
     const role = await findRole(validateRole(input.rol), db);
     data.id_rol = role.id_rol;
+    if (tenantId && db.usuario_organizacion) {
+      await db.usuario_organizacion.updateMany({
+        where: { id_usuario: id, id_organizacion: BigInt(tenantId) },
+        data: { rol_en_organizacion: role.codigo }
+      });
+    }
   }
 
   if (Object.keys(data).length === 1) {
@@ -208,7 +249,7 @@ async function updateUser(idInput, input, db = repository) {
   return toSafeUser(user);
 }
 
-async function deactivateUser(idInput, db = repository) {
+async function deactivateUser(idInput, db = repository, tenantId = null) {
   const id = parseUserId(idInput);
   const existingUser = await db.usuario.findUnique({ where: { id_usuario: id } });
   if (!existingUser) {
@@ -218,9 +259,15 @@ async function deactivateUser(idInput, db = repository) {
     where: { id_usuario: id },
     data: { estado: 'INACTIVO', fecha_actualizacion: new Date() }
   });
+  if (tenantId && db.usuario_organizacion) {
+    await db.usuario_organizacion.updateMany({
+      where: { id_usuario: id, id_organizacion: BigInt(tenantId) },
+      data: { activo: false }
+    });
+  }
 }
 
-async function mutateUser(action, idInput, input, actor) {
+async function mutateUser(action, idInput, input, actor, tenantId = null) {
   return repository.transaction(async (db) => {
     await db.security.lockAdministration();
     const account = await db.usuario.findUnique({ where: { id_usuario: BigInt(actor.id) }, include: { rol: true } });
@@ -232,6 +279,20 @@ async function mutateUser(action, idInput, input, actor) {
       throw new UserError(400, 'No puede cambiar su propio rol o estado desde esta pantalla.');
     }
     const before = id ? await db.usuario.findUnique({ where: { id_usuario: id }, select: safeUserSelect }) : null;
+
+    if (id && tenantId && actor.rol !== 'SUPERADMIN' && db.usuario_organizacion) {
+      const membership = await db.usuario_organizacion.findFirst({
+        where: {
+          id_usuario: id,
+          id_organizacion: BigInt(tenantId),
+          activo: true
+        }
+      });
+      if (!membership) {
+        throw new UserError(403, 'El usuario no pertenece a la organización activa.');
+      }
+    }
+
     if (!actorPermissions.includes('security.manage')) {
       const targetRoles = [before?.rol.codigo, input.rol].filter(Boolean);
       for (const targetRole of targetRoles) {
@@ -249,9 +310,9 @@ async function mutateUser(action, idInput, input, actor) {
       if (doctor || patient) throw new UserError(400, 'El usuario tiene un perfil médico o de paciente vinculado; no se puede cambiar su rol.');
     }
     let result;
-    if (action === 'CREATE') result = await createUser(input, db);
-    else if (action === 'UPDATE') result = await updateUser(idInput, input, db);
-    else await deactivateUser(idInput, db);
+    if (action === 'CREATE') result = await createUser(input, db, tenantId);
+    else if (action === 'UPDATE') result = await updateUser(idInput, input, db, tenantId);
+    else await deactivateUser(idInput, db, tenantId);
     await recordAudit(db.security, actor.id, 'USER_' + action, idInput || result.id, {
       before: before ? { rol: before.rol.codigo, estado: before.estado } : null,
       after: result ? { rol: result.rol, estado: result.estado } : { estado: 'INACTIVO' }

@@ -45,6 +45,7 @@ const MAX_DEPTH = 12;
 function isSensitiveKey(key) {
   if (typeof key !== 'string') return false;
   const normalized = key.toLowerCase().replace(/_/g, '');
+  if (['key', 'privatekey', 'encryptionkey'].includes(normalized)) return true;
   return SENSITIVE_TOKENS.some((token) => normalized.includes(token));
 }
 
@@ -71,10 +72,11 @@ function sanitize(input, depth = 0) {
 }
 
 function write(level, args) {
-  const safeArgs = args.map((arg) => sanitize(arg));
-  if (level === 'error') console.error(...safeArgs);
-  else if (level === 'warn') console.warn(...safeArgs);
-  else console.log(...safeArgs);
+  const entry = JSON.stringify({ time: new Date().toISOString(), level, ...
+    (args.length === 1 && typeof args[0] === 'object' ? sanitize(args[0]) : { message: args.map((arg) => sanitize(arg)) }) });
+  if (level === 'error') console.error(entry);
+  else if (level === 'warn') console.warn(entry);
+  else console.log(entry);
 }
 
 const logger = {

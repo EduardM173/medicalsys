@@ -491,10 +491,9 @@ async function processNextNotificationJob(workerId = workerIdentity()) {
 }
 
 async function listFailedNotificationJobs() {
-  const jobs = await repository.cola_notificacion.findMany({
+  const jobs = await repository.cola_notificacion.findPage({
     where: { estado: 'FALLIDA' },
     orderBy: [{ fecha_actualizacion: 'desc' }, { id_cola: 'desc' }],
-    take: 100,
     include: jobInclude
   });
   return jobs.map((job) => ({

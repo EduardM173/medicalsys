@@ -52,7 +52,7 @@ function serializeReservation(res) {
 }
 
 class RoomService {
-  async listRooms(filters = {}) {
+async listRooms(filters = {}) {
     const where = {};
     if (filters.tipo && VALID_ROOM_TYPES.includes(filters.tipo.toUpperCase())) {
       where.tipo = filters.tipo.toUpperCase();
@@ -61,7 +61,7 @@ class RoomService {
       where.estado = filters.estado.toUpperCase();
     }
 
-    const rooms = await repository.sala.findMany({
+    const rooms = await repository.sala.findPage({
       where,
       orderBy: { nombre: 'asc' }
     });
@@ -131,7 +131,7 @@ class RoomService {
       where.tipo = tipo.toUpperCase();
     }
 
-    const availableRooms = await repository.sala.findMany({
+    const availableRooms = await repository.sala.findPage({
       where,
       orderBy: { nombre: 'asc' }
     });
@@ -139,8 +139,8 @@ class RoomService {
     return availableRooms.map(serializeRoom);
   }
 
-  async listPendingAppointments() {
-    const appointments = await repository.cita.findMany({
+async listPendingAppointments() {
+    const appointments = await repository.cita.findPage({
       where: {
         estado: { in: ['PROGRAMADA', 'CONFIRMADA'] }
       },
@@ -187,7 +187,7 @@ class RoomService {
     }));
   }
 
-  async listReservations(filters = {}) {
+async listReservations(filters = {}) {
     const where = {};
 
     if (filters.idSala) {
@@ -202,7 +202,7 @@ class RoomService {
       where.fecha_hora_inicio = { gte: startOfDay, lte: endOfDay };
     }
 
-    const reservations = await repository.reserva_sala.findMany({
+    const reservations = await repository.reserva_sala.findPage({
       where,
       orderBy: { fecha_hora_inicio: 'asc' },
       include: {

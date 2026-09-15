@@ -1,9 +1,10 @@
+import { useListPagination } from '../components/ListPagination';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../components/Button';
 import { PageContext } from '../components/PageContext';
 import { CampaignModal } from '../components/CampaignModal';
 import { ConfirmModal } from '../components/ConfirmModal';
-import { getCampaigns, createCampaign, updateCampaign, deleteCampaign } from '../services/api';
+import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getCampaignMetrics, sendCampaignWhatsApp } from '../services/api';
 import '../styles/campaigns-loyalty.css';
 
 const STATUS_LABELS = {
@@ -30,6 +31,7 @@ function formatDate(isoString) {
 }
 
 export function CampaignsPage() {
+  const paginationKey = useListPagination();
   const [campaigns, setCampaigns] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -71,11 +73,11 @@ export function CampaignsPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, selectedEstado]);
+  }, [search, selectedEstado, paginationKey]);
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, paginationKey]);
 
   function handleOpenCreate() {
     setEditingCampaign(null);
@@ -108,6 +110,21 @@ export function CampaignsPage() {
     } catch (err) {
       setError(err.message || 'No fue posible actualizar el estado.');
     }
+  }
+
+  async function handleSend(campaign) {
+    try {
+      const result = await sendCampaignWhatsApp(campaign.id);
+      setSuccessMsg(`Difusión procesada: ${result.sent} enviados, ${result.failed} fallidos y ${result.excluded} excluidos.`);
+      await loadData();
+    } catch (err) { setError(err.message || 'No fue posible enviar la campaña.'); }
+  }
+
+  async function handleMetrics(campaign) {
+    try {
+      const metrics = await getCampaignMetrics(campaign.id);
+      setSuccessMsg(`${campaign.nombre}: presupuesto Bs ${metrics.budget}, usado Bs ${metrics.spent}, alcance ${metrics.reach}, envíos ${metrics.sent}, entregas ${metrics.delivered}, conversiones ${metrics.conversions} (${metrics.conversionRate}%).`);
+    } catch (err) { setError(err.message || 'No fue posible consultar las métricas.'); }
   }
 
   function handleRequestDelete(campaign) {
@@ -283,6 +300,8 @@ export function CampaignsPage() {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+                        <button type="button" className="btn-action-text" onClick={() => handleMetrics(c)}>Métricas</button>
+                        {c.estado === 'ACTIVA' && c.whatsappHabilitado && <button type="button" className="btn-action-text btn-edit" onClick={() => handleSend(c)}>Enviar WhatsApp</button>}
                         {c.estado === 'BORRADOR' && (
                           <button
                             type="button"

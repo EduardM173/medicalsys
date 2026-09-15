@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
@@ -55,6 +56,7 @@ function SinBadge({ value, referencia }) {
 }
 
 function InvoiceDetail({ invoiceId }) {
+  const paginationKey = useListPagination();
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -65,15 +67,17 @@ function InvoiceDetail({ invoiceId }) {
   const [cancelError, setCancelError] = useState('');
 
   const fetchInvoice = useCallback(() => {
+    let active = true;
     setLoading(true);
     getIssuedInvoice(invoiceId)
-      .then((response) => { setInvoice(response.invoice); })
-      .catch((requestError) => { setError(requestError.status === 404 ? 'Factura no encontrada.' : requestError.message || 'No fue posible cargar la información de facturación.'); })
-      .finally(() => { setLoading(false); });
-  }, [invoiceId]);
+      .then((response) => { if (active) setInvoice(response.invoice); })
+      .catch((requestError) => { if (active) setError(requestError.status === 404 ? 'Factura no encontrada.' : requestError.message || 'No fue posible cargar la información de facturación.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [invoiceId, paginationKey]);
 
   useEffect(() => {
-    fetchInvoice();
+    return fetchInvoice();
   }, [fetchInvoice]);
 
   const handleCopyCuf = () => {
@@ -97,7 +101,6 @@ function InvoiceDetail({ invoiceId }) {
       setCancelling(false);
     }
   };
-
   if (loading) return <main className="billing-page invoice-query-page"><p className="invoice-state">Cargando factura...</p></main>;
   if (error) return <main className="billing-page invoice-query-page"><p className="billing-alert error" role="alert">{error}</p><Link className="button button-secondary" to="/facturacion">Volver a facturas</Link></main>;
 
@@ -270,6 +273,7 @@ function InvoiceDetail({ invoiceId }) {
 
 
 export function BillingInvoicesPage() {
+  const paginationKey = useListPagination();
   const { invoiceId } = useParams();
   const [invoices, setInvoices] = useState([]);
   const [patients, setPatients] = useState([]);
@@ -282,17 +286,17 @@ export function BillingInvoicesPage() {
     try { setInvoices((await getIssuedInvoices(query)).invoices); }
     catch (requestError) { setError(requestError.status === 403 ? 'No tiene permisos para consultar información de facturación.' : requestError.message || 'No fue posible cargar la información de facturación.'); }
     finally { setLoading(false); }
-  }, []);
+  }, [paginationKey]);
   useEffect(() => {
     if (invoiceId) return undefined;
     let active = true;
-    Promise.all([getIssuedInvoices({}), getPatients()]).then(([invoiceResponse, patientResponse]) => {
+    Promise.all([getIssuedInvoices(applied), getPatients()]).then(([invoiceResponse, patientResponse]) => {
       if (!active) return;
       setInvoices(invoiceResponse.invoices); setPatients(patientResponse.patients);
     }).catch((requestError) => { if (active) setError(requestError.message || 'No fue posible cargar la información de facturación.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [invoiceId]);
+  }, [invoiceId, paginationKey]);
   if (invoiceId) return <InvoiceDetail invoiceId={invoiceId} />;
   function submit(event) {
     event.preventDefault(); setApplied(filters); loadInvoices(filters);
@@ -312,7 +316,7 @@ export function BillingInvoicesPage() {
     </form>
     {error && <p className="billing-alert error" role="alert">{error}</p>}
     <section className="ui-card invoice-list-card">
-      <div className="invoice-list-heading"><div><h2>Facturas emitidas</h2><p>Se muestran hasta 100 resultados, desde la emisión más reciente.</p></div><strong>{invoices.length}</strong></div>
+      <div className="invoice-list-heading"><div><h2>Facturas emitidas</h2><p>Resultados paginados, desde la emisión más reciente.</p></div><strong>{invoices.length}</strong></div>
       {loading ? <p className="invoice-state">Cargando facturas emitidas...</p> : invoices.length === 0 ? <p className="invoice-state">{hasFilters ? 'No se encontraron facturas con los criterios seleccionados.' : 'No hay facturas emitidas registradas.'}</p> :
         <div className="billing-table-wrap"><table className="billing-table invoice-list"><thead><tr><th>N° factura</th><th>Paciente / receptor</th><th>Fecha</th><th>Total</th><th>Estado</th><th>Resultado SIN</th><th>Acción</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><strong>{invoice.numeroFactura}</strong><small>{invoice.receptor.nitCi || 'Sin NIT/CI'}</small></td><td>{invoice.paciente.nombre}<small>{invoice.receptor.razonSocial}</small></td><td>{formatDate(invoice.fechaEmision)}</td><td className="invoice-money"><strong>{formatMoney(invoice.total)}</strong></td><td><span className="invoice-badge invoice-issued">{invoice.estado}</span></td><td><SinBadge value={invoice.sinEstado} /></td><td><Link className="invoice-detail-link" to={`/facturacion/${invoice.id}`}>Ver detalle</Link></td></tr>)}</tbody></table></div>}
     </section>

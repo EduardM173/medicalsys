@@ -1,3 +1,4 @@
+import { useSecureDraft } from '../hooks/useSecureDraft';
 import React, { useState } from 'react';
 import { ApiError } from '../services/api';
 import { Button } from './Button';
@@ -5,7 +6,7 @@ import { Input } from './Input';
 
 export function PatientForm({ initialPatient = null, onCancel, onSave }) {
   const editing = Boolean(initialPatient);
-  const [form, setForm] = useState({
+  const [form, setForm, clearDraft, draftNotice] = useSecureDraft(`patient:${initialPatient?.id || 'new'}`, {
     documentoIdentidad: initialPatient?.documentoIdentidad || '',
     complemento: initialPatient?.complemento || '',
     nombres: initialPatient?.nombres || '',
@@ -32,6 +33,7 @@ export function PatientForm({ initialPatient = null, onCancel, onSave }) {
     setSubmitting(true);
     try {
       await onSave(form);
+      clearDraft();
     } catch (requestError) {
       setError(requestError instanceof ApiError
         ? requestError.message
@@ -73,6 +75,7 @@ export function PatientForm({ initialPatient = null, onCancel, onSave }) {
       </div>
 
       {error && <p className="form-error" role="alert">{error}</p>}
+      {draftNotice && <p role="status">{draftNotice}</p>}
 
       <div className="form-actions">
         <Button disabled={submitting} onClick={onCancel} variant="secondary">Cancelar</Button>

@@ -1,5 +1,9 @@
+import { fetchWithPolicy } from './transport';
+import { clearDrafts } from './secure-drafts';
+import { listKey } from '../components/ListPagination';
+const pendingSearches = new Map();
 const apiUrl = import.meta.env.VITE_API_URL
-  || `${window.location.protocol}//${window.location.hostname}:3000/api`;
+  || (import.meta.env.PROD ? '/api' : `${window.location.protocol}//${window.location.hostname}:3000/api`);
 
 export class ApiError extends Error {
   constructor(status, message) {
@@ -8,15 +12,79 @@ export class ApiError extends Error {
   }
 }
 
+const AUTH_TOKEN_KEY = 'medicalsys_token';
+
+export function getStoredToken() {
+  try {
+    return sessionStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem(AUTH_TOKEN_KEY) || '';
+  } catch (_e) {
+    return '';
+  }
+}
+
+export function setStoredToken(token) {
+  try {
+    if (token) {
+      sessionStorage.removeItem('medicalsys_signed_out');
+      sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
+    } else {
+      sessionStorage.removeItem(AUTH_TOKEN_KEY);
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+  } catch (_e) {}
+}
+
 async function request(path, options = {}) {
   let response;
+  const view = window.location.pathname;
+  const cleanPath = path.split('?')[0];
+  const query = new URLSearchParams(path.split('?')[1] || '');
+  if (!options.method || options.method === 'GET') {
+    query.set('page', new URLSearchParams(window.location.search).get(listKey(cleanPath)) || '1');
+    query.set('pageSize', '20');
+    const prefix = listKey(cleanPath) + '_';
+    for (const [key, value] of new URLSearchParams(window.location.search)) if (key.startsWith(prefix)) query.set('page_' + key.slice(prefix.length), value);
+    path = cleanPath + '?' + query.toString();
+  }
+  let searchController;
+  if ((!options.method || options.method === 'GET') && query.has('search')) {
+    pendingSearches.get(cleanPath)?.abort();
+    searchController = new AbortController();
+    pendingSearches.set(cleanPath, searchController);
+  }
 
   const isFormData = options.body instanceof FormData;
-  const defaultHeaders = isFormData ? {} : { 'Content-Type': 'application/json' };
+  
+  // Resolución profesional de tenant por URL: subdominio (*.localhost) o query param (?tenant=...)
+  let urlTenant = null;
+  try {
+    const host = window.location.hostname.toLowerCase();
+    if (host.endsWith('.localhost')) {
+      const sub = host.replace('.localhost', '');
+      if (sub && sub !== 'www') urlTenant = sub;
+    }
+    if (!urlTenant) {
+      const q = new URLSearchParams(window.location.search).get('tenant');
+      if (q) urlTenant = q.trim().toLowerCase();
+    }
+  } catch (_e) {}
+
+  const isLoginPath = cleanPath === '/auth/login';
+  // En el portal central (localhost sin subdominio), no enviar un tenant heredado de localStorage para el login
+  const activeTenant = urlTenant || (!isLoginPath ? localStorage.getItem('medicalsys_active_tenant') : null);
+  const token = getStoredToken();
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+  const tenantHeaders = activeTenant ? { 'X-Tenant-Code': activeTenant } : {};
+
+  const defaultHeaders = isFormData
+    ? { ...tenantHeaders, ...authHeaders }
+    : { 'Content-Type': 'application/json', ...tenantHeaders, ...authHeaders };
 
   try {
-    response = await fetch(`${apiUrl}${path}`, {
+    response = await fetchWithPolicy(`${apiUrl}${path}`, {
       credentials: 'include',
+      signal: searchController?.signal,
       ...options,
       headers: {
         ...defaultHeaders,
@@ -24,28 +92,48 @@ async function request(path, options = {}) {
       }
     });
   } catch (_error) {
-    throw new ApiError(0, 'No fue posible conectar con el servidor.');
+    if (_error.name === 'AbortError') throw _error;
+    throw new ApiError(0, _error.message || 'No fue posible conectar con el servidor.');
+  } finally {
+    if (searchController && pendingSearches.get(cleanPath) === searchController) pendingSearches.delete(cleanPath);
+  }
+
+  if (options.responseType === 'blob') {
+    if (!response.ok) throw new ApiError(response.status, 'No fue posible descargar el documento.');
+    return response.blob();
   }
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    if (path !== '/auth/me' && [401, 403].includes(response.status)) window.dispatchEvent(new Event('permissions-changed'));
+    if (cleanPath !== '/auth/me' && [401, 403].includes(response.status)) window.dispatchEvent(new Event('permissions-changed'));
     throw new ApiError(response.status, data.message || 'No fue posible procesar la solicitud.');
   }
 
+  const pagination = data.pagination || JSON.parse(response.headers.get('X-Pagination') || 'null');
+  if (pagination) window.dispatchEvent(new CustomEvent('list-pagination', { detail: { path: cleanPath, view, pagination } }));
   return data;
 }
+export function getReadiness(signal) { return request('/ready', { signal, timeoutMs: 3000 }); }
 
 export function getHealth() {
   return request('/health');
 }
 
-export function loginRequest(credentials) {
-  return request('/auth/login', {
+export async function loginRequest(credentials) {
+  const data = await request('/auth/login', {
     method: 'POST',
     body: JSON.stringify(credentials)
   });
+  if (data && data.token) {
+    sessionStorage.removeItem('medicalsys_signed_out');
+    const host = window.location.hostname.toLowerCase();
+    const isRootPortal = host === 'localhost' || host === '127.0.0.1';
+    if (!isRootPortal) {
+      setStoredToken(data.token);
+    }
+  }
+  return data;
 }
 
 export function forgotPasswordRequest(email) {
@@ -55,16 +143,23 @@ export function forgotPasswordRequest(email) {
   });
 }
 
-export function getMe() {
+export async function getMe() {
+  if (sessionStorage.getItem('medicalsys_signed_out') === 'true') throw new ApiError(401, 'Sesión cerrada.');
   return request('/auth/me');
 }
 
-export function logoutRequest() {
+export async function logoutRequest() {
+  sessionStorage.setItem('medicalsys_signed_out', 'true');
+  await clearDrafts();
+  setStoredToken(null);
+  try {
+    localStorage.removeItem('medicalsys_active_tenant');
+  } catch (_e) {}
   return request('/auth/logout', { method: 'POST' });
 }
 
-export function getUsers() {
-  return request('/users');
+export function getUsers(filters = {}) {
+  return request('/users?' + new URLSearchParams(filters));
 }
 
 export function createUser(user) {
@@ -85,9 +180,9 @@ export function deactivateUser(id) {
   return request(`/users/${id}`, { method: 'DELETE' });
 }
 
-export function getDoctors(search = '') {
+export function getDoctors(search = '', options = {}) {
   const query = search ? `?search=${encodeURIComponent(search)}` : '';
-  return request(`/doctors${query}`);
+  return request(`/doctors${query}`, options);
 }
 
 export function getDoctor(id) {
@@ -120,9 +215,9 @@ export function updateSchedule(scheduleId, schedule) {
   });
 }
 
-export function getPatients(search = '') {
+export function getPatients(search = '', options = {}) {
   const query = search ? `?search=${encodeURIComponent(search)}` : '';
-  return request(`/patients${query}`);
+  return request(`/patients${query}`, options);
 }
 
 export function getPatient(id) {
@@ -144,14 +239,17 @@ export function getMedicalHistory(patientId) {
 export function getPatientPortalHistory(patientId) { return request(`/patient/${patientId}/history`); }
 export function getPatientPortalDocuments(patientId) { return request(`/patient/${patientId}/documents`); }
 export async function downloadPatientPortalDocument(patientId, documentId) {
-  let response;
-  try { response = await fetch(`${apiUrl}/patient/${patientId}/documents/${documentId}/file`, { credentials: 'include' }); }
-  catch (_error) { throw new ApiError(0, 'No fue posible conectar con el servidor.'); }
-  if (!response.ok) { const data = await response.json().catch(() => ({})); throw new ApiError(response.status, data.message || 'No fue posible descargar el documento.'); }
-  return response.blob();
+  return request(`/patient/${patientId}/documents/${documentId}/file`, { responseType: 'blob', timeoutMs: 60000 });
 }
 export function getPatientPortalAppointments(patientId) { return request(`/patient/${patientId}/appointments`); }
 export function getPatientPortalNotifications(patientId) { return request(`/patient/${patientId}/notifications`); }
+export function getPatientAnnouncements(patientId) { return request(`/patient/${patientId}/announcements`); }
+export function updatePatientMarketingPreferences(patientId, preferences) {
+  return request(`/patient/${patientId}/marketing-preferences`, { method: 'PATCH', body: JSON.stringify(preferences) });
+}
+export function usePatientPromotion(patientId, campaignId, data) {
+  return request(`/patient/${patientId}/announcements/${campaignId}/use`, { method: 'POST', body: JSON.stringify(data) });
+}
 
 export function getMyAgenda(date) {
   return request(`/agenda/me?date=${encodeURIComponent(date)}`);
@@ -303,24 +401,7 @@ export function getClinicalDocuments(patientId) {
 }
 
 export async function getClinicalDocumentFile(documentId) {
-  let response;
-  try {
-    response = await fetch(`${apiUrl}/documents/${documentId}/file`, {
-      credentials: 'include'
-    });
-  } catch (_error) {
-    throw new ApiError(0, 'No fue posible conectar con el servidor.');
-  }
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new ApiError(
-      response.status,
-      data.message || 'No fue posible abrir el documento clínico.'
-    );
-  }
-
-  return response.blob();
+  return request(`/documents/${documentId}/file`, { responseType: 'blob', timeoutMs: 60000 });
 }
 
 export function getPatientDocuments(patientId, { tipo } = {}) {
@@ -493,6 +574,14 @@ export function deleteCampaign(id) {
   });
 }
 
+export function sendCampaignWhatsApp(id) {
+  return request(`/campaigns/${id}/send`, { method: 'POST' });
+}
+
+export function getCampaignMetrics(id) {
+  return request(`/campaigns/${id}/metrics`);
+}
+
 // ==========================================
 // HU-28: Fidelización de Pacientes
 // ==========================================
@@ -529,5 +618,53 @@ export function removeLoyaltyPatient(patientId) {
   return request(`/loyalty/patients/${patientId}`, {
     method: 'DELETE'
   });
+}
+
+// ==========================================
+// HU-30: Multitenencia SaaS y Suscripciones
+// ==========================================
+
+export function getCurrentTenant() {
+  return request('/tenants/current');
+}
+
+export function getTenantCatalog() {
+  return request('/tenants/catalog');
+}
+
+export function getMyOrganizations() {
+  return request('/tenants/my-organizations');
+}
+
+export function provisionTenant(data) {
+  return request('/tenants/provision', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export function generateTenantRenewalQr(data) {
+  return request('/tenants/subscription/renew-qr', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export function confirmTenantPayment(data) {
+  return request('/tenants/subscription/confirm-payment', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export function generateBnbRenewalQr(data) {
+  return request('/tenants/subscription/renew-bnb-qr', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export function checkBnbQrStatus(qrId) {
+  return request(`/tenants/subscription/bnb-status/${encodeURIComponent(qrId)}`);
 }
 

@@ -1,10 +1,21 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { getMe, loginRequest, logoutRequest } from '../services/api';
+import { getMe, loginRequest, logoutRequest, setStoredToken } from '../services/api';
 const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const refreshUser = useCallback(async () => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlToken = params.get('token');
+      if (urlToken) {
+        setStoredToken(urlToken);
+        params.delete('token');
+        const cleanSearch = params.toString() ? `?${params.toString()}` : '';
+        window.history.replaceState({}, document.title, `${window.location.pathname}${cleanSearch}`);
+      }
+    } catch (_e) {}
+
     try { const response = await getMe(); setUser(response.user); }
     catch (error) { if (error.status === 401 || error.status === 403) setUser(null); }
     finally { setLoading(false); }
@@ -21,9 +32,11 @@ export function AuthProvider({ children }) {
     };
   }, [refreshUser]);
   async function login(email, password) {
-    const response = await loginRequest({ email, password }); setUser(response.user); return response.user;
+    const response = await loginRequest({ email, password });
+    setUser(response.user);
+    return { ...response.user, token: response.token };
   }
-  async function logout() { await logoutRequest(); setUser(null); }
+  async function logout() { try { await logoutRequest(); } finally { setUser(null); } }
   return <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>{children}</AuthContext.Provider>;
 }
 export function useAuth() {

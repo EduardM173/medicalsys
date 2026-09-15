@@ -1,6 +1,7 @@
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const express = require('express');
+const compression = require('compression');
 const appointmentRoutes = require('./routes/appointment.routes');
 const agendaRoutes = require('./routes/agenda.routes');
 const attentionRoutes = require('./routes/attention.routes');
@@ -22,7 +23,9 @@ const patientRoutes = require('./routes/patient.routes');
 const roomRoutes = require('./routes/room.routes');
 const scheduleRoutes = require('./routes/schedule.routes');
 const serviceRoutes = require('./routes/service.routes');
+const tenantRoutes = require('./routes/tenant.routes');
 const userRoutes = require('./routes/user.routes');
+const tenantMiddleware = require('./middleware/tenant.middleware');
 const errorHandler = require('./middleware/error.middleware');
 const requestLogger = require('./middleware/log.middleware');
 const { enforceHttps } = require('./middleware/security.middleware');
@@ -31,17 +34,43 @@ const app = express();
 app.enable('trust proxy');
 app.use(enforceHttps());
 
+function isOriginAllowed(origin) {
+  if (!origin) return true;
+  const configured = process.env.FRONTEND_URL || 'http://localhost:5173';
+  if (origin === configured || origin === 'http://localhost:5173') return true;
+  // Permitir subdominios de localhost para SaaS multi-tenant (ej. cumed.localhost:5173)
+  if (/^https?:\/\/[a-z0-9-]+\.localhost(?::\d+)?$/.test(origin)) return true;
+  if (/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(origin)) return true;
+  return false;
+}
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true
+  origin: (origin, callback) => {
+    if (isOriginAllowed(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Bloqueado por CORS: origen no permitido (${origin})`));
+    }
+  },
+  credentials: true,
+  exposedHeaders: ['X-Pagination']
 }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(requestLogger);
+app.use(compression({ threshold: 1024, filter: (request, response) =>
+  !request.headers.authorization && !request.headers.cookie && !request.headers['x-tenant-code']
+    ? compression.filter(request, response)
+    : /^application\/json/.test(String(response.getHeader('Content-Type') || ''))
+      && !request.path.startsWith('/api/auth') }));
+app.use(require('./middleware/availability.middleware'));
+app.use(require('./middleware/pagination.middleware'));
 
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/security', require('./routes/security.routes'));
+app.use(tenantMiddleware);
+app.use('/api/tenants', tenantRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/atenciones', attentionRoutes);

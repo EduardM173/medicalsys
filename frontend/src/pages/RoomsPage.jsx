@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { can } from '../security/permissions';
@@ -16,6 +17,7 @@ function formatDate(isoString) {
 }
 
 export function RoomsPage() {
+  const paginationKey = useListPagination();
   const { user } = useAuth();
   const canReserve = can(user, 'rooms.write');
   const [activeTab, setActiveTab] = useState('rooms'); // 'rooms' | 'reservations'
@@ -34,7 +36,7 @@ export function RoomsPage() {
     setLoading(true);
     try {
       const [roomsData, reservationsData] = await Promise.all([
-        getRooms(),
+        getRooms(selectedType === 'all' ? {} : { tipo: selectedType.toUpperCase() }),
         getRoomReservations()
       ]);
       setRooms(roomsData);
@@ -49,7 +51,7 @@ export function RoomsPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [selectedType, paginationKey]);
 
   async function handleCancelReservation(reservationId) {
     if (!canReserve) return;

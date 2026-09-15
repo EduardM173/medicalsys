@@ -247,7 +247,7 @@ async function createAttention(userId, input) {
 
 async function getAttentionsByHistoryId(historyIdInput) {
   const historyId = parseId(historyIdInput, 'historia clínica');
-  const attentions = await repository.atencion_medica.findMany({
+  const attentions = await repository.atencion_medica.findPage({
     where: { id_historia: historyId },
     orderBy: { fecha_atencion: 'desc' },
     include: {
@@ -266,7 +266,7 @@ async function getAttentionOptions(userId) {
   });
 
   const [patients, doctors, appointments] = await Promise.all([
-    repository.paciente.findMany({
+    repository.paciente.findPage({
       where: { activo: true },
       orderBy: [{ apellidos: 'asc' }, { nombres: 'asc' }],
       select: {
@@ -277,17 +277,16 @@ async function getAttentionOptions(userId) {
         complemento: true
       }
     }),
-    repository.medico.findMany({
+    repository.medico.findPage({
       where: { activo: true },
       include: { usuario: true }
     }),
-    repository.cita.findMany({
+    repository.cita.findPage({
       where: {
         ...(doctor ? { id_medico: doctor.id_medico } : {}),
         estado: { in: ['PROGRAMADA', 'CONFIRMADA', 'EN_CONSULTA'] }
       },
       orderBy: { fecha_hora_inicio: 'desc' },
-      take: 100,
       include: {
         paciente: true,
         servicio_medico: true

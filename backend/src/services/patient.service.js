@@ -166,7 +166,7 @@ async function createPatient(input) {
 async function listPatients(searchInput = '') {
   const search = typeof searchInput === 'string' ? normalizeSpacing(searchInput).slice(0, 100) : '';
   const terms = search ? search.split(' ') : [];
-  const patients = await repository.paciente.findMany({
+  const patients = await repository.paciente.findPage({
     where: {
       activo: true,
       ...(terms.length ? {

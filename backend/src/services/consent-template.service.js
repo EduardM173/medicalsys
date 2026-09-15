@@ -82,7 +82,7 @@ function toDoctor(doctor) {
 }
 
 async function listTemplates({ activeOnly = false } = {}) {
-  const templates = await repository.plantilla_consentimiento.findMany({
+  const templates = await repository.plantilla_consentimiento.findPage({
     where: activeOnly ? { activa: true } : {},
     orderBy: [{ codigo: 'asc' }, { version: 'desc' }]
   });

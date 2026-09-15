@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '../components/Button';
 import { DoctorForm } from '../components/DoctorForm';
@@ -5,6 +6,7 @@ import { createDoctor, getDoctor, getDoctors, getUsers, updateDoctor } from '../
 import '../styles/doctors.css';
 
 export function DoctorsPage() {
+  const paginationKey = useListPagination();
   const [doctors, setDoctors] = useState([]);
   const [users, setUsers] = useState([]);
   const [associatedUserIds, setAssociatedUserIds] = useState(new Set());
@@ -19,7 +21,7 @@ export function DoctorsPage() {
 
   const availableUsers = useMemo(() => {
     return users.filter((user) => user.rol === 'MEDICO' && !associatedUserIds.has(user.id));
-  }, [associatedUserIds, users]);
+  }, [associatedUserIds, users, paginationKey]);
 
   async function loadReferenceData() {
     try {
@@ -46,12 +48,12 @@ export function DoctorsPage() {
 
   useEffect(() => {
     loadReferenceData();
-  }, []);
+  }, [paginationKey]);
 
   useEffect(() => {
     const timeout = setTimeout(() => loadDoctors(search), 400);
     return () => clearTimeout(timeout);
-  }, [search]);
+  }, [search, paginationKey]);
 
   async function fetchDoctor(id) {
     setDetailLoading(true);

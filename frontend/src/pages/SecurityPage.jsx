@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -17,6 +18,7 @@ function localInputValue(date) {
 function tomorrowLocal() { return localInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)); }
 
 export function SecurityPage() {
+  const paginationKey = useListPagination();
   const { refreshUser } = useAuth();
   const [matrix, setMatrix] = useState(null);
   const [drafts, setDrafts] = useState({});
@@ -36,13 +38,13 @@ export function SecurityPage() {
     setMatrix(data);
     setDrafts(Object.fromEntries(data.roles.map((role) => [role.code, role.permissions])));
     setEvents(audit.events); setUsers(userData.users); setGrants(grantData.grants);
-  }, []);
+  }, [paginationKey]);
 
   useEffect(() => {
     let active = true;
     load().catch((requestError) => { if (active) setError(requestError.message); });
     return () => { active = false; };
-  }, [load]);
+  }, [load, paginationKey]);
 
   function toggle(role, code) {
     setNotice(''); setError('');

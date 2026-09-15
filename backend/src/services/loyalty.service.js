@@ -73,7 +73,7 @@ async function listPatientsWithLoyalty({ search = '', estado = '', nivel = '', s
   }
 
   const [patients, stats] = await Promise.all([
-    repository.paciente.findMany({
+    repository.paciente.findPage({
       where: patientWhere,
       orderBy: [{ apellidos: 'asc' }, { nombres: 'asc' }],
       include: {

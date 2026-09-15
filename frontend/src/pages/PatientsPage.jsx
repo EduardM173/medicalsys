@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -23,6 +24,7 @@ function documentLabel(patient) {
 }
 
 export function PatientsPage() {
+  const paginationKey = useListPagination();
   const { user } = useAuth();
   const navigate = useNavigate();
   const canWrite = can(user, 'patients.write');
@@ -40,10 +42,11 @@ export function PatientsPage() {
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     const timeout = setTimeout(async () => {
       setLoading(true);
       try {
-        const response = await getPatients(search.trim());
+        const response = await getPatients(search.trim(), { signal: controller.signal });
         if (active) {
           setPatients(response.patients);
           setError('');
@@ -57,9 +60,10 @@ export function PatientsPage() {
 
     return () => {
       active = false;
+      controller.abort();
       clearTimeout(timeout);
     };
-  }, [search, refreshKey]);
+  }, [search, refreshKey, paginationKey]);
 
   async function fetchPatient(id) {
     setDetailLoading(true);

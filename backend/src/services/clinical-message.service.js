@@ -84,7 +84,7 @@ async function sendMessage({ userId, historyId, contenido, destinatarioRole }) {
  */
 async function listMessages(historyId) {
   const parsedHistoryId = parseId(historyId, 'historia clínica');
-  const messages = await repository.mensaje_clinico.findMany({
+  const messages = await repository.mensaje_clinico.findPage({
     where: { id_historia: parsedHistoryId },
     orderBy: { fecha_envio: 'desc' }
   });

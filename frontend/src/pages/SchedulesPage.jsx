@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '../components/Button';
 import { ScheduleForm } from '../components/ScheduleForm';
@@ -20,6 +21,7 @@ const weekDays = [
 ];
 
 export function SchedulesPage() {
+  const paginationKey = useListPagination();
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [schedules, setSchedules] = useState([]);
@@ -69,11 +71,11 @@ export function SchedulesPage() {
 
   useEffect(() => {
     loadDoctors();
-  }, []);
+  }, [paginationKey]);
 
   useEffect(() => {
     loadSchedules(selectedDoctorId);
-  }, [selectedDoctorId]);
+  }, [selectedDoctorId, paginationKey]);
 
   function changeDoctor(event) {
     setSelectedDoctorId(event.target.value);

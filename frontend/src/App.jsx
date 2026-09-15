@@ -1,38 +1,41 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthorizedRoute } from './components/AdminRoute';
 import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
-import { AppointmentsPage } from './pages/AppointmentsPage';
-import { BillingPreparationPage } from './pages/BillingPreparationPage';
-import { BillingInvoicesPage } from './pages/BillingInvoicesPage';
-import { AgendaPage } from './pages/AgendaPage';
-import { ConsentDetailPage } from './pages/ConsentDetailPage';
-import { ConsentFormPage } from './pages/ConsentFormPage';
-import { ConsentHistoryPage } from './pages/ConsentHistoryPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { DoctorsPage } from './pages/DoctorsPage';
-import { DocumentsPage } from './pages/DocumentsPage';
-import { LoginPage } from './pages/LoginPage';
-import { MedicalHistoryPage } from './pages/MedicalHistoryPage';
-import { PatientsPage } from './pages/PatientsPage';
-import { PatientPortalPage } from './pages/PatientPortalPage';
-import { RoomsPage } from './pages/RoomsPage';
-import { SchedulesPage } from './pages/SchedulesPage';
-import { UsersPage } from './pages/UsersPage';
-import { WhatsAppNotificationsPage } from './pages/WhatsAppNotificationsPage';
-import { NotificationHistoryPage } from './pages/NotificationHistoryPage';
-import { SecurityPage } from './pages/SecurityPage';
-import { CampaignsPage } from './pages/CampaignsPage';
-import { LoyaltyPage } from './pages/LoyaltyPage';
+const AppointmentsPage = lazy(() => import('./pages/AppointmentsPage').then(module => ({ default: module.AppointmentsPage })));
+const BillingPreparationPage = lazy(() => import('./pages/BillingPreparationPage').then(module => ({ default: module.BillingPreparationPage })));
+const BillingInvoicesPage = lazy(() => import('./pages/BillingInvoicesPage').then(module => ({ default: module.BillingInvoicesPage })));
+const AgendaPage = lazy(() => import('./pages/AgendaPage').then(module => ({ default: module.AgendaPage })));
+const ConsentDetailPage = lazy(() => import('./pages/ConsentDetailPage').then(module => ({ default: module.ConsentDetailPage })));
+const ConsentFormPage = lazy(() => import('./pages/ConsentFormPage').then(module => ({ default: module.ConsentFormPage })));
+const ConsentHistoryPage = lazy(() => import('./pages/ConsentHistoryPage').then(module => ({ default: module.ConsentHistoryPage })));
+const DashboardPage = lazy(() => import('./pages/DashboardPage').then(module => ({ default: module.DashboardPage })));
+const DoctorsPage = lazy(() => import('./pages/DoctorsPage').then(module => ({ default: module.DoctorsPage })));
+const DocumentsPage = lazy(() => import('./pages/DocumentsPage').then(module => ({ default: module.DocumentsPage })));
+const LoginPage = lazy(() => import('./pages/LoginPage').then(module => ({ default: module.LoginPage })));
+const MedicalHistoryPage = lazy(() => import('./pages/MedicalHistoryPage').then(module => ({ default: module.MedicalHistoryPage })));
+const PatientsPage = lazy(() => import('./pages/PatientsPage').then(module => ({ default: module.PatientsPage })));
+const PatientPortalPage = lazy(() => import('./pages/PatientPortalPage').then(module => ({ default: module.PatientPortalPage })));
+const RoomsPage = lazy(() => import('./pages/RoomsPage').then(module => ({ default: module.RoomsPage })));
+const SchedulesPage = lazy(() => import('./pages/SchedulesPage').then(module => ({ default: module.SchedulesPage })));
+const UsersPage = lazy(() => import('./pages/UsersPage').then(module => ({ default: module.UsersPage })));
+const WhatsAppNotificationsPage = lazy(() => import('./pages/WhatsAppNotificationsPage').then(module => ({ default: module.WhatsAppNotificationsPage })));
+const NotificationHistoryPage = lazy(() => import('./pages/NotificationHistoryPage').then(module => ({ default: module.NotificationHistoryPage })));
+const SecurityPage = lazy(() => import('./pages/SecurityPage').then(module => ({ default: module.SecurityPage })));
+const CampaignsPage = lazy(() => import('./pages/CampaignsPage').then(module => ({ default: module.CampaignsPage })));
+const LoyaltyPage = lazy(() => import('./pages/LoyaltyPage').then(module => ({ default: module.LoyaltyPage })));
+const AnnouncementsPage = lazy(() => import('./pages/AnnouncementsPage').then(module => ({ default: module.AnnouncementsPage })));
+import { TenantProvider } from './context/TenantContext';
 
 function App() {
-  return <BrowserRouter><AuthProvider><Routes>
+  return <BrowserRouter><TenantProvider><AuthProvider><Suspense fallback={<div className='page-loading' role='status'>Cargando sección…</div>}><Routes>
     <Route path="/login" element={<LoginPage />} />
     <Route element={<ProtectedRoute />}><Route element={<AppLayout />}>
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route element={<AuthorizedRoute permission="patient.portal.read" />}><Route path="/mi-portal" element={<PatientPortalPage />} /></Route>
+      <Route element={<AuthorizedRoute permission="patient.portal.read" />}><Route path="/anuncios" element={<AnnouncementsPage />} /></Route>
       <Route element={<AuthorizedRoute permission="patients.read" />}><Route path="/pacientes" element={<PatientsPage />} /></Route>
       <Route element={<AuthorizedRoute permission="history.read" />}><Route path="/historial-clinico/:patientId" element={<MedicalHistoryPage />} /></Route>
       <Route element={<AuthorizedRoute permission="documents.read" />}><Route path="/pacientes/:patientId/documentos" element={<DocumentsPage />} /></Route>
@@ -57,6 +60,6 @@ function App() {
       <Route element={<AuthorizedRoute permission="loyalty.manage" />}><Route path="/fidelizacion" element={<LoyaltyPage />} /></Route>
     </Route></Route>
     <Route path="*" element={<Navigate replace to="/dashboard" />} />
-  </Routes></AuthProvider></BrowserRouter>;
+  </Routes></Suspense></AuthProvider></TenantProvider></BrowserRouter>;
 }
 export default App;
