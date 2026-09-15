@@ -447,3 +447,20 @@ Pruebas específicas:
 ```powershell
 npm run test:hu32
 ```
+
+## HU-36: anuncios y campañas de salud
+
+El paciente inicia sesión con `paciente@medicalsys.test` / `MedicalSys2026!` y abre **Anuncios y beneficios** (`/anuncios`). Allí solo aparecen campañas activas, vigentes y compatibles con su edad, sexo, ubicación, condiciones clínicas y nivel Bronce/Plata/Oro. Puede excluirse de marketing, autorizar WhatsApp de forma separada y registrar una promoción sobre uno de los servicios asociados.
+
+El Administrador usa **Campañas de Salud** (`/campanias`) para programar contenido, imagen, segmento, servicios, descuento, puntos y canal WhatsApp. La pantalla también consulta presupuesto, alcance, entregas y conversiones reales. Las campañas futuras pasan a `PROGRAMADA`, las vigentes a `ACTIVA` y las vencidas a `FINALIZADA` al consultar o ejecutar el módulo.
+
+Después de actualizar esta historia ejecute desde `backend`:
+
+```powershell
+npx prisma migrate deploy
+npx prisma generate
+npm run prisma:seed
+npm run test:hu36
+```
+
+Los envíos promocionales requieren simultáneamente suscripción y consentimiento explícito para WhatsApp. El uso de beneficios exige una clave idempotente, se limita a fechas y servicios configurados, suma puntos no negativos y registra los cambios de nivel. Los umbrales se configuran con `LOYALTY_SILVER_POINTS` y `LOYALTY_GOLD_POINTS`.

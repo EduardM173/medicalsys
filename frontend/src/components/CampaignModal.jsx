@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
+import { getServices } from '../services/api';
 
 const PROMO_TYPES = [
   { value: 'GENERAL', label: 'Campaña General / Preventiva' },
@@ -37,8 +38,11 @@ export function CampaignModal({ isOpen, onClose, campaign, onSave }) {
     fechaInicio: '',
     fechaFin: '',
     estado: 'BORRADOR',
-    presupuesto: 0
+    presupuesto: 0,
+    contenidoPublicable: '', imagenUrl: '', edadMin: '', edadMax: '', sexo: '', ubicacion: '',
+    condiciones: '', nivel: '', whatsappHabilitado: false, puntosConversion: 0, servicioIds: []
   });
+  const [services, setServices] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -57,7 +61,13 @@ export function CampaignModal({ isOpen, onClose, campaign, onSave }) {
         fechaInicio: campaign.fechaInicio ? campaign.fechaInicio.slice(0, 10) : '',
         fechaFin: campaign.fechaFin ? campaign.fechaFin.slice(0, 10) : '',
         estado: campaign.estado || 'BORRADOR',
-        presupuesto: campaign.presupuesto || 0
+        presupuesto: campaign.presupuesto || 0,
+        contenidoPublicable: campaign.contenidoPublicable || campaign.descripcion || '',
+        imagenUrl: campaign.imagenUrl || '', edadMin: campaign.segmento?.edadMin ?? '', edadMax: campaign.segmento?.edadMax ?? '',
+        sexo: campaign.segmento?.sexo || '', ubicacion: campaign.segmento?.ubicacion || '',
+        condiciones: (campaign.segmento?.condiciones || []).join(', '), nivel: campaign.segmento?.nivel || '',
+        whatsappHabilitado: Boolean(campaign.whatsappHabilitado), puntosConversion: campaign.puntosConversion || 0,
+        servicioIds: (campaign.servicios || []).map((service) => String(service.id))
       });
     } else {
       setFormData({
@@ -70,11 +80,17 @@ export function CampaignModal({ isOpen, onClose, campaign, onSave }) {
         fechaInicio: '',
         fechaFin: '',
         estado: 'BORRADOR',
-        presupuesto: 0
+        presupuesto: 0,
+        contenidoPublicable: '', imagenUrl: '', edadMin: '', edadMax: '', sexo: '', ubicacion: '',
+        condiciones: '', nivel: '', whatsappHabilitado: false, puntosConversion: 0, servicioIds: []
       });
     }
     setError('');
   }, [campaign, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) getServices().then((response) => setServices(response.services || [])).catch(() => setServices([]));
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -107,7 +123,13 @@ export function CampaignModal({ isOpen, onClose, campaign, onSave }) {
         presupuesto: Number(formData.presupuesto) || 0,
         estado: formData.estado,
         fechaInicio: formData.fechaInicio ? `${formData.fechaInicio}T00:00:00.000Z` : null,
-        fechaFin: formData.fechaFin ? `${formData.fechaFin}T23:59:59.000Z` : null
+        fechaFin: formData.fechaFin ? `${formData.fechaFin}T23:59:59.000Z` : null,
+        contenidoPublicable: formData.contenidoPublicable,
+        imagenUrl: formData.imagenUrl,
+        segmento: { edadMin: formData.edadMin, edadMax: formData.edadMax, sexo: formData.sexo, ubicacion: formData.ubicacion, condiciones: formData.condiciones.split(',').map((item) => item.trim()).filter(Boolean), nivel: formData.nivel },
+        whatsappHabilitado: formData.whatsappHabilitado,
+        puntosConversion: Number(formData.puntosConversion) || 0,
+        servicioIds: formData.servicioIds
       });
       onClose();
     } catch (err) {
@@ -148,6 +170,15 @@ export function CampaignModal({ isOpen, onClose, campaign, onSave }) {
               placeholder="Ej. Jornada de Prevención Cardiovascular & Hipertensión"
               required
             />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: '14px' }}>
+            <label htmlFor="campo-publicable" style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px' }}>Contenido visible en la zona de anuncios</label>
+            <textarea id="campo-publicable" className="ui-input" rows="3" value={formData.contenidoPublicable} onChange={(e) => setFormData({ ...formData, contenidoPublicable: e.target.value })} placeholder="Mensaje breve, claro y accionable para el paciente" />
+          </div>
+          <div className="form-group" style={{ marginBottom: '14px' }}>
+            <label htmlFor="campo-imagen" style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px' }}>URL de imagen (opcional)</label>
+            <input id="campo-imagen" type="url" className="ui-input" value={formData.imagenUrl} onChange={(e) => setFormData({ ...formData, imagenUrl: e.target.value })} placeholder="https://..." />
           </div>
 
           <div className="form-group" style={{ marginBottom: '14px' }}>
@@ -225,6 +256,30 @@ export function CampaignModal({ isOpen, onClose, campaign, onSave }) {
                 required
               />
             )}
+          </div>
+
+          <fieldset style={{ border: '1px solid #dbe5f2', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
+            <legend style={{ fontWeight: 700, fontSize: '.85rem' }}>Segmentación efectiva</legend>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+              <input aria-label="Edad mínima" type="number" min="0" className="ui-input" placeholder="Edad mínima" value={formData.edadMin} onChange={(e) => setFormData({ ...formData, edadMin: e.target.value })} />
+              <input aria-label="Edad máxima" type="number" min="0" className="ui-input" placeholder="Edad máxima" value={formData.edadMax} onChange={(e) => setFormData({ ...formData, edadMax: e.target.value })} />
+              <select aria-label="Sexo" className="ui-input" value={formData.sexo} onChange={(e) => setFormData({ ...formData, sexo: e.target.value })}><option value="">Cualquier sexo</option><option value="FEMENINO">Femenino</option><option value="MASCULINO">Masculino</option><option value="OTRO">Otro</option></select>
+              <select aria-label="Nivel de fidelización" className="ui-input" value={formData.nivel} onChange={(e) => setFormData({ ...formData, nivel: e.target.value })}><option value="">Cualquier nivel</option><option value="BRONCE">Bronce</option><option value="PLATA">Plata</option><option value="ORO">Oro</option></select>
+              <input aria-label="Ubicación" className="ui-input" placeholder="Ubicación, ej. La Paz" value={formData.ubicacion} onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })} />
+              <input aria-label="Condiciones" className="ui-input" placeholder="Condiciones separadas por coma" value={formData.condiciones} onChange={(e) => setFormData({ ...formData, condiciones: e.target.value })} />
+            </div>
+          </fieldset>
+
+          <div className="form-group" style={{ marginBottom: '14px' }}>
+            <label style={{ display: 'block', fontWeight: 700, fontSize: '.85rem', marginBottom: '8px' }}>Servicios donde aplica la promoción</label>
+            <div style={{ maxHeight: '130px', overflowY: 'auto', border: '1px solid #dbe5f2', borderRadius: '10px', padding: '10px', display: 'grid', gap: '7px' }}>
+              {services.length ? services.map((service) => <label key={service.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><input type="checkbox" checked={formData.servicioIds.includes(String(service.id))} onChange={(e) => setFormData({ ...formData, servicioIds: e.target.checked ? [...formData.servicioIds, String(service.id)] : formData.servicioIds.filter((id) => id !== String(service.id)) })} /> {service.nombre} · Bs {service.precioBase}</label>) : <span style={{ color: '#64748b' }}>No hay servicios disponibles.</span>}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '9px', fontWeight: 650 }}><input type="checkbox" checked={formData.whatsappHabilitado} onChange={(e) => setFormData({ ...formData, whatsappHabilitado: e.target.checked })} /> Habilitar difusión por WhatsApp</label>
+            <div><label htmlFor="campo-puntos" style={{ display: 'block', fontWeight: 600, fontSize: '.85rem', marginBottom: '6px' }}>Puntos por uso</label><input id="campo-puntos" type="number" min="0" step="1" className="ui-input" value={formData.puntosConversion} onChange={(e) => setFormData({ ...formData, puntosConversion: e.target.value })} /></div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>

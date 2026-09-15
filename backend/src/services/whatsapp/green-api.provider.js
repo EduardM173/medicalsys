@@ -14,7 +14,7 @@
  *   WHATSAPP_PROVIDER=GREEN_API
  *   GREENAPI_API_URL=https://xxxx.api.greenapi.com   (tal cual aparece en tu consola, sin / al final)
  *   GREENAPI_ID_INSTANCE=1101000001
- *   GREENAPI_API_TOKEN_INSTANCE=d75b3a66374942c5b3c019c698abc2067e151558acbd412345
+ *   GREENAPI_API_TOKEN_INSTANCE=tu_token_secreto
  *
  * Si estas variables no están configuradas, whatsapp.service.js utiliza
  * automáticamente el proveedor simulado (simulated.provider.js).

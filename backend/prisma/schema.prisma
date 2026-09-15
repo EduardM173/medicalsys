@@ -9,33 +9,33 @@ datasource db {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model atencion_medica {
-  id_atencion                BigInt              @id @default(autoincrement())
-  id_historia                BigInt
-  id_medico                  BigInt
-  id_cita                    BigInt?             @unique
-  fecha_atencion             DateTime            @default(now()) @db.Timestamptz(6)
+  id_atencion                    BigInt              @id @default(autoincrement())
+  id_historia                    BigInt
+  id_medico                      BigInt
+  id_cita                        BigInt?             @unique
+  fecha_atencion                 DateTime            @default(now()) @db.Timestamptz(6)
   // HU-31: campos cifrados AES-256-GCM (holgura para ciphertext hex).
-  motivo_consulta            String
-  anamnesis                  String?
-  diagnostico_codigo         String?             @db.VarChar(255)
-  diagnostico_codigo_blind_index String?         @db.VarChar(64)
-  diagnostico_descripcion    String?
-  tratamiento                String?
-  observaciones              String?
-  presion_sistolica          Int?                @db.SmallInt
-  presion_diastolica         Int?                @db.SmallInt
-  frecuencia_cardiaca        Int?                @db.SmallInt
-  temperatura                Decimal?            @db.Decimal(4, 1)
-  saturacion_oxigeno         Int?                @db.SmallInt
-  peso_kg                    Decimal?            @db.Decimal(6, 2)
-  talla_cm                   Decimal?            @db.Decimal(6, 2)
-  fecha_creacion             DateTime            @default(now()) @db.Timestamptz(6)
-  fecha_actualizacion        DateTime            @default(now()) @db.Timestamptz(6)
-  cita                       cita?               @relation(fields: [id_cita], references: [id_cita], map: "fk_atencion_cita")
-  historia_clinica           historia_clinica    @relation(fields: [id_historia], references: [id_historia], map: "fk_atencion_historia")
-  medico                     medico              @relation(fields: [id_medico], references: [id_medico], map: "fk_atencion_medico")
-  documento_clinico          documento_clinico[]
-  receta                     receta[]
+  motivo_consulta                String
+  anamnesis                      String?
+  diagnostico_codigo             String?             @db.VarChar(255)
+  diagnostico_codigo_blind_index String?             @db.VarChar(64)
+  diagnostico_descripcion        String?
+  tratamiento                    String?
+  observaciones                  String?
+  presion_sistolica              Int?                @db.SmallInt
+  presion_diastolica             Int?                @db.SmallInt
+  frecuencia_cardiaca            Int?                @db.SmallInt
+  temperatura                    Decimal?            @db.Decimal(4, 1)
+  saturacion_oxigeno             Int?                @db.SmallInt
+  peso_kg                        Decimal?            @db.Decimal(6, 2)
+  talla_cm                       Decimal?            @db.Decimal(6, 2)
+  fecha_creacion                 DateTime            @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion            DateTime            @default(now()) @db.Timestamptz(6)
+  cita                           cita?               @relation(fields: [id_cita], references: [id_cita], map: "fk_atencion_cita")
+  historia_clinica               historia_clinica    @relation(fields: [id_historia], references: [id_historia], map: "fk_atencion_historia")
+  medico                         medico              @relation(fields: [id_medico], references: [id_medico], map: "fk_atencion_medico")
+  documento_clinico              documento_clinico[]
+  receta                         receta[]
 
   @@index([id_historia, fecha_atencion(sort: Desc)], map: "idx_atencion_historia_fecha")
   @@index([diagnostico_codigo_blind_index], map: "idx_atencion_diagnostico_blind")
@@ -43,21 +43,34 @@ model atencion_medica {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model campania {
-  id_campania         BigInt          @id @default(autoincrement())
-  creada_por          BigInt?
-  nombre              String          @db.VarChar(180)
-  descripcion         String?
-  fecha_inicio        DateTime?       @db.Timestamptz(6)
-  fecha_fin           DateTime?       @db.Timestamptz(6)
-  estado              estado_campania @default(BORRADOR)
-  tipo_promocion      String?         @default("GENERAL") @db.VarChar(50)
-  descuento_porcentaje Decimal?       @default(0) @db.Decimal(5, 2)
-  publico_objetivo    String?         @db.VarChar(200)
-  presupuesto         Decimal?        @default(0) @db.Decimal(10, 2)
-  fecha_creacion      DateTime        @default(now()) @db.Timestamptz(6)
-  fecha_actualizacion DateTime        @default(now()) @db.Timestamptz(6)
-  usuario             usuario?        @relation(fields: [creada_por], references: [id_usuario], map: "fk_campania_creada_por")
-  notificacion        notificacion[]
+  id_campania          BigInt                  @id @default(autoincrement())
+  creada_por           BigInt?
+  nombre               String                  @db.VarChar(180)
+  descripcion          String?
+  fecha_inicio         DateTime?               @db.Timestamptz(6)
+  fecha_fin            DateTime?               @db.Timestamptz(6)
+  estado               estado_campania         @default(BORRADOR)
+  tipo_promocion       String?                 @default("GENERAL") @db.VarChar(50)
+  descuento_porcentaje Decimal?                @default(0) @db.Decimal(5, 2)
+  publico_objetivo     String?                 @db.VarChar(200)
+  presupuesto          Decimal?                @default(0) @db.Decimal(10, 2)
+  contenido_publicable String?
+  imagen_url           String?                 @db.VarChar(500)
+  segmento_edad_min    Int?
+  segmento_edad_max    Int?
+  segmento_sexo        String?                 @db.VarChar(20)
+  segmento_ubicacion   String?                 @db.VarChar(120)
+  segmento_condiciones Json?
+  segmento_nivel       String?                 @db.VarChar(20)
+  whatsapp_habilitado  Boolean                 @default(false)
+  puntos_conversion    Int                     @default(0)
+  fecha_creacion       DateTime                @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion  DateTime                @default(now()) @db.Timestamptz(6)
+  usuario              usuario?                @relation(fields: [creada_por], references: [id_usuario], map: "fk_campania_creada_por")
+  notificacion         notificacion[]
+  servicios            campania_servicio[]
+  destinatarios        campania_destinatario[]
+  usos                 promocion_uso[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -107,30 +120,30 @@ model configuracion_clinica {
 }
 
 model consentimiento_informado {
-  id_consentimiento BigInt                @id @default(autoincrement())
-  id_documento      BigInt?               @unique
+  id_consentimiento BigInt                        @id @default(autoincrement())
+  id_documento      BigInt?                       @unique
   id_paciente       BigInt
   id_medico         BigInt
   id_cita           BigInt?
   // HU-33: plantilla fuente y versión exacta utilizada al generar (PA-01/PA-02).
   id_plantilla      BigInt?
-  version_plantilla Int?                  @default(1)
-  folio             String                @unique @db.VarChar(50)
-  procedimiento     String                @db.VarChar(255)
+  version_plantilla Int?                          @default(1)
+  folio             String                        @unique @db.VarChar(50)
+  procedimiento     String                        @db.VarChar(255)
   contenido         String
-  estado            estado_consentimiento @default(GENERADO)
+  estado            estado_consentimiento         @default(GENERADO)
   // HU-33: documento PDF inmutable previo a la firma (MED-309).
-  pdf_path          String?               @db.VarChar(500)
-  pdf_hash          String?               @db.VarChar(64)
-  firma_storage_key String?               @db.VarChar(500)
-  firma_hash_sha256 String?               @db.VarChar(64)
-  fecha_generacion  DateTime              @default(now()) @db.Timestamptz(6)
-  fecha_firma       DateTime?             @db.Timestamptz(6)
-  cita              cita?                 @relation(fields: [id_cita], references: [id_cita], map: "fk_consentimiento_cita")
-  documento_clinico documento_clinico?    @relation(fields: [id_documento], references: [id_documento], map: "fk_consentimiento_documento")
-  medico            medico                @relation(fields: [id_medico], references: [id_medico], map: "fk_consentimiento_medico")
-  paciente          paciente              @relation(fields: [id_paciente], references: [id_paciente], map: "fk_consentimiento_paciente")
-  plantilla         plantilla_consentimiento? @relation(fields: [id_plantilla], references: [id_plantilla], map: "fk_consentimiento_plantilla")
+  pdf_path          String?                       @db.VarChar(500)
+  pdf_hash          String?                       @db.VarChar(64)
+  firma_storage_key String?                       @db.VarChar(500)
+  firma_hash_sha256 String?                       @db.VarChar(64)
+  fecha_generacion  DateTime                      @default(now()) @db.Timestamptz(6)
+  fecha_firma       DateTime?                     @db.Timestamptz(6)
+  cita              cita?                         @relation(fields: [id_cita], references: [id_cita], map: "fk_consentimiento_cita")
+  documento_clinico documento_clinico?            @relation(fields: [id_documento], references: [id_documento], map: "fk_consentimiento_documento")
+  medico            medico                        @relation(fields: [id_medico], references: [id_medico], map: "fk_consentimiento_medico")
+  paciente          paciente                      @relation(fields: [id_paciente], references: [id_paciente], map: "fk_consentimiento_paciente")
+  plantilla         plantilla_consentimiento?     @relation(fields: [id_plantilla], references: [id_plantilla], map: "fk_consentimiento_plantilla")
   firma             firma_digital_consentimiento?
   anulacion         anulacion_consentimiento?
 
@@ -139,15 +152,15 @@ model consentimiento_informado {
 
 /// HU-33: catálogo de plantillas de consentimiento informado con versionado.
 model plantilla_consentimiento {
-  id_plantilla        BigInt      @id @default(autoincrement())
-  codigo              String      @unique @db.VarChar(50)
-  titulo              String      @db.VarChar(180)
-  tipo_procedimiento  String      @db.VarChar(100)
-  contenido           String
-  version             Int         @default(1)
-  activa              Boolean     @default(true)
-  fecha_creacion      DateTime    @default(now()) @db.Timestamptz(6)
-  fecha_actualizacion DateTime    @default(now()) @db.Timestamptz(6)
+  id_plantilla             BigInt                     @id @default(autoincrement())
+  codigo                   String                     @unique @db.VarChar(50)
+  titulo                   String                     @db.VarChar(180)
+  tipo_procedimiento       String                     @db.VarChar(100)
+  contenido                String
+  version                  Int                        @default(1)
+  activa                   Boolean                    @default(true)
+  fecha_creacion           DateTime                   @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion      DateTime                   @default(now()) @db.Timestamptz(6)
   consentimiento_informado consentimiento_informado[]
 
   @@index([codigo, activa], map: "idx_plantilla_consentimiento_activa")
@@ -155,22 +168,22 @@ model plantilla_consentimiento {
 
 /// HU-33: metadatos PKI de la firma digital (X.509 + SHA256withRSA).
 model firma_digital_consentimiento {
-  id_firma              BigInt      @id @default(autoincrement())
-  id_consentimiento     BigInt      @unique
-  tipo_firmante         tipo_firmante @default(PACIENTE)
-  nombre_firmante       String      @db.VarChar(180)
-  ci_firmante           String      @db.VarChar(40)
-  relacion_tutor        String?     @db.VarChar(80)
-  certificado_pem       String
-  emisor_ca             String      @db.VarChar(255)
-  serial_number         String      @db.VarChar(100)
-  valido_desde          DateTime    @db.Timestamptz(6)
-  valido_hasta          DateTime    @db.Timestamptz(6)
-  algoritmo             String      @db.VarChar(50)
-  fecha_firma           DateTime    @default(now()) @db.Timestamptz(6)
-  hash_documento        String?     @db.VarChar(64)
-  firma_bruta           String
-  resultado_validacion  Boolean     @default(true)
+  id_firma                 BigInt                   @id @default(autoincrement())
+  id_consentimiento        BigInt                   @unique
+  tipo_firmante            tipo_firmante            @default(PACIENTE)
+  nombre_firmante          String                   @db.VarChar(180)
+  ci_firmante              String                   @db.VarChar(40)
+  relacion_tutor           String?                  @db.VarChar(80)
+  certificado_pem          String
+  emisor_ca                String                   @db.VarChar(255)
+  serial_number            String                   @db.VarChar(100)
+  valido_desde             DateTime                 @db.Timestamptz(6)
+  valido_hasta             DateTime                 @db.Timestamptz(6)
+  algoritmo                String                   @db.VarChar(50)
+  fecha_firma              DateTime                 @default(now()) @db.Timestamptz(6)
+  hash_documento           String?                  @db.VarChar(64)
+  firma_bruta              String
+  resultado_validacion     Boolean                  @default(true)
   consentimiento_informado consentimiento_informado @relation(fields: [id_consentimiento], references: [id_consentimiento], map: "fk_firma_consentimiento")
 
   @@index([emisor_ca], map: "idx_firma_consentimiento_emisor")
@@ -178,11 +191,11 @@ model firma_digital_consentimiento {
 
 /// HU-33: anulación lógica. Nunca se elimina físicamente el documento ni la firma.
 model anulacion_consentimiento {
-  id_anulacion          BigInt      @id @default(autoincrement())
-  id_consentimiento     BigInt      @unique
-  motivo                String
-  anulado_por_usuario   BigInt
-  fecha_anulacion       DateTime    @default(now()) @db.Timestamptz(6)
+  id_anulacion             BigInt                   @id @default(autoincrement())
+  id_consentimiento        BigInt                   @unique
+  motivo                   String
+  anulado_por_usuario      BigInt
+  fecha_anulacion          DateTime                 @default(now()) @db.Timestamptz(6)
   consentimiento_informado consentimiento_informado @relation(fields: [id_consentimiento], references: [id_consentimiento], map: "fk_anulacion_consentimiento")
 }
 
@@ -277,14 +290,14 @@ model historia_clinica {
 
 /// Mensajes clínicos entre profesionales (HU-31). contenido se persiste cifrado.
 model mensaje_clinico {
-  id_mensaje          BigInt        @id @default(autoincrement())
-  id_historia         BigInt
-  id_medico           BigInt
-  destinatario_role   String?       @db.VarChar(50)
-  contenido           String
-  fecha_envio         DateTime      @default(now()) @db.Timestamptz(6)
-  historia_clinica    historia_clinica @relation(fields: [id_historia], references: [id_historia], map: "fk_mensaje_clinico_historia")
-  medico              medico        @relation(fields: [id_medico], references: [id_medico], map: "fk_mensaje_clinico_medico")
+  id_mensaje        BigInt           @id @default(autoincrement())
+  id_historia       BigInt
+  id_medico         BigInt
+  destinatario_role String?          @db.VarChar(50)
+  contenido         String
+  fecha_envio       DateTime         @default(now()) @db.Timestamptz(6)
+  historia_clinica  historia_clinica @relation(fields: [id_historia], references: [id_historia], map: "fk_mensaje_clinico_historia")
+  medico            medico           @relation(fields: [id_medico], references: [id_medico], map: "fk_mensaje_clinico_medico")
 
   @@index([id_historia, fecha_envio(sort: Desc)], map: "idx_mensaje_clinico_historia_fecha")
 }
@@ -353,23 +366,23 @@ model notificacion {
 /// Outbox persistente para mensajes de cita. Un trabajo representa un único
 /// mensaje saliente y se reclama de forma atómica por los workers.
 model cola_notificacion {
-  id_cola                    BigInt                       @id @default(autoincrement())
-  id_notificacion            BigInt                       @unique
-  id_cita                    BigInt
-  clave_idempotencia         String                       @unique @db.VarChar(255)
-  fecha_cita_programada      DateTime                     @db.Timestamptz(6)
-  fecha_disponible           DateTime                     @db.Timestamptz(6)
-  estado                     estado_cola_notificacion     @default(PENDIENTE)
-  intentos                   Int                          @default(0)
-  max_intentos               Int                          @default(5)
-  bloqueado_por              String?                      @db.VarChar(120)
-  bloqueado_hasta            DateTime?                    @db.Timestamptz(6)
-  ultimo_error               String?
-  fecha_procesada            DateTime?                    @db.Timestamptz(6)
-  fecha_creacion             DateTime                     @default(now()) @db.Timestamptz(6)
-  fecha_actualizacion        DateTime                     @default(now()) @db.Timestamptz(6)
-  cita                       cita                         @relation(fields: [id_cita], references: [id_cita], onDelete: Cascade, map: "fk_cola_notificacion_cita")
-  notificacion               notificacion                 @relation(fields: [id_notificacion], references: [id_notificacion], onDelete: Cascade, map: "fk_cola_notificacion_notificacion")
+  id_cola               BigInt                   @id @default(autoincrement())
+  id_notificacion       BigInt                   @unique
+  id_cita               BigInt
+  clave_idempotencia    String                   @unique @db.VarChar(255)
+  fecha_cita_programada DateTime                 @db.Timestamptz(6)
+  fecha_disponible      DateTime                 @db.Timestamptz(6)
+  estado                estado_cola_notificacion @default(PENDIENTE)
+  intentos              Int                      @default(0)
+  max_intentos          Int                      @default(5)
+  bloqueado_por         String?                  @db.VarChar(120)
+  bloqueado_hasta       DateTime?                @db.Timestamptz(6)
+  ultimo_error          String?
+  fecha_procesada       DateTime?                @db.Timestamptz(6)
+  fecha_creacion        DateTime                 @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion   DateTime                 @default(now()) @db.Timestamptz(6)
+  cita                  cita                     @relation(fields: [id_cita], references: [id_cita], onDelete: Cascade, map: "fk_cola_notificacion_cita")
+  notificacion          notificacion             @relation(fields: [id_notificacion], references: [id_notificacion], onDelete: Cascade, map: "fk_cola_notificacion_notificacion")
 
   @@index([estado, fecha_disponible], map: "idx_cola_notificacion_lista")
   @@index([estado, bloqueado_hasta], map: "idx_cola_notificacion_bloqueo")
@@ -400,6 +413,10 @@ model paciente {
   historia_clinica         historia_clinica?
   notificacion             notificacion[]
   fidelizacion             fidelizacion_paciente?
+  preferencia_marketing    preferencia_marketing?
+  campanias_destino        campania_destinatario[]
+  usos_promocion           promocion_uso[]
+  eventos_fidelizacion     evento_fidelizacion[]
   usuario                  usuario?                   @relation(fields: [id_usuario], references: [id_usuario], map: "fk_paciente_usuario")
 
   @@unique([documento_identidad, complemento], map: "uq_paciente_documento")
@@ -457,40 +474,42 @@ model sala {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model servicio_medico {
-  id_servicio         BigInt            @id @default(autoincrement())
-  codigo              String            @unique @db.VarChar(30)
-  nombre              String            @db.VarChar(180)
+  id_servicio         BigInt              @id @default(autoincrement())
+  codigo              String              @unique @db.VarChar(30)
+  nombre              String              @db.VarChar(180)
   descripcion         String?
   tipo                tipo_servicio
   duracion_minutos    Int
-  precio_base         Decimal           @db.Decimal(12, 2)
-  activo              Boolean           @default(true)
-  fecha_creacion      DateTime          @default(now()) @db.Timestamptz(6)
-  fecha_actualizacion DateTime          @default(now()) @db.Timestamptz(6)
+  precio_base         Decimal             @db.Decimal(12, 2)
+  activo              Boolean             @default(true)
+  fecha_creacion      DateTime            @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion DateTime            @default(now()) @db.Timestamptz(6)
   cita                cita[]
   detalle_factura     detalle_factura[]
+  campanias           campania_servicio[]
+  usos_promocion      promocion_uso[]
 }
 
 model usuario {
-  id_usuario          BigInt              @id @default(autoincrement())
-  id_rol              BigInt
-  nombres             String              @db.VarChar(100)
-  apellidos           String              @db.VarChar(100)
-  email               String              @unique @db.VarChar(150)
-  password_hash       String              @db.VarChar(255)
-  telefono            String?             @db.VarChar(30)
-  estado              estado_usuario      @default(ACTIVO)
-  fecha_creacion      DateTime            @default(now()) @db.Timestamptz(6)
-  fecha_actualizacion DateTime            @default(now()) @db.Timestamptz(6)
-  campania            campania[]
-  cita                cita[]
-  documento_clinico   documento_clinico[]
-  factura             factura[]
-  medico              medico?
-  notificacion        notificacion[]
-  paciente            paciente?
+  id_usuario           BigInt                 @id @default(autoincrement())
+  id_rol               BigInt
+  nombres              String                 @db.VarChar(100)
+  apellidos            String                 @db.VarChar(100)
+  email                String                 @unique @db.VarChar(150)
+  password_hash        String                 @db.VarChar(255)
+  telefono             String?                @db.VarChar(30)
+  estado               estado_usuario         @default(ACTIVO)
+  fecha_creacion       DateTime               @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion  DateTime               @default(now()) @db.Timestamptz(6)
+  campania             campania[]
+  cita                 cita[]
+  documento_clinico    documento_clinico[]
+  factura              factura[]
+  medico               medico?
+  notificacion         notificacion[]
+  paciente             paciente?
   usuario_organizacion usuario_organizacion[]
-  rol                 rol                 @relation(fields: [id_rol], references: [id_rol], map: "fk_usuario_rol")
+  rol                  rol                    @relation(fields: [id_rol], references: [id_rol], map: "fk_usuario_rol")
 
   @@index([estado], map: "idx_usuario_estado")
   @@index([id_rol], map: "idx_usuario_rol")
@@ -632,6 +651,73 @@ model fidelizacion_paciente {
   @@index([nivel], map: "idx_fidelizacion_nivel")
 }
 
+/// HU-36: consentimiento y exclusión voluntaria de comunicaciones comerciales.
+model preferencia_marketing {
+  id_preferencia      BigInt    @id @default(autoincrement())
+  id_paciente         BigInt    @unique
+  suscrito            Boolean   @default(true)
+  whatsapp_autorizado Boolean   @default(false)
+  fecha_exclusion     DateTime? @db.Timestamptz(6)
+  fecha_actualizacion DateTime  @default(now()) @db.Timestamptz(6)
+  paciente            paciente  @relation(fields: [id_paciente], references: [id_paciente], onDelete: Cascade)
+}
+
+model campania_servicio {
+  id_campania BigInt
+  id_servicio BigInt
+  campania    campania        @relation(fields: [id_campania], references: [id_campania], onDelete: Cascade)
+  servicio    servicio_medico @relation(fields: [id_servicio], references: [id_servicio], onDelete: Cascade)
+
+  @@id([id_campania, id_servicio])
+}
+
+model campania_destinatario {
+  id_destinatario      BigInt    @id @default(autoincrement())
+  id_campania          BigInt
+  id_paciente          BigInt
+  estado               String    @default("ALCANZADO") @db.VarChar(30)
+  proveedor_referencia String?   @db.VarChar(255)
+  fecha_alcance        DateTime  @default(now()) @db.Timestamptz(6)
+  fecha_entrega        DateTime? @db.Timestamptz(6)
+  fecha_conversion     DateTime? @db.Timestamptz(6)
+  campania             campania  @relation(fields: [id_campania], references: [id_campania], onDelete: Cascade)
+  paciente             paciente  @relation(fields: [id_paciente], references: [id_paciente], onDelete: Cascade)
+
+  @@unique([id_campania, id_paciente])
+  @@index([id_campania, estado])
+}
+
+model promocion_uso {
+  id_uso             BigInt          @id @default(autoincrement())
+  id_campania        BigInt
+  id_paciente        BigInt
+  id_servicio        BigInt
+  clave_idempotencia String          @unique @db.VarChar(120)
+  descuento_aplicado Decimal         @db.Decimal(12, 2)
+  puntos_otorgados   Int             @default(0)
+  fecha_uso          DateTime        @default(now()) @db.Timestamptz(6)
+  campania           campania        @relation(fields: [id_campania], references: [id_campania])
+  paciente           paciente        @relation(fields: [id_paciente], references: [id_paciente])
+  servicio           servicio_medico @relation(fields: [id_servicio], references: [id_servicio])
+
+  @@index([id_campania, fecha_uso])
+}
+
+model evento_fidelizacion {
+  id_evento          BigInt   @id @default(autoincrement())
+  id_paciente        BigInt
+  clave_idempotencia String   @unique @db.VarChar(120)
+  tipo               String   @db.VarChar(50)
+  puntos             Int
+  nivel_anterior     String?  @db.VarChar(20)
+  nivel_nuevo        String?  @db.VarChar(20)
+  referencia         String?  @db.VarChar(180)
+  fecha_evento       DateTime @default(now()) @db.Timestamptz(6)
+  paciente           paciente @relation(fields: [id_paciente], references: [id_paciente], onDelete: Cascade)
+
+  @@index([id_paciente, fecha_evento])
+}
+
 enum estado_fidelizacion {
   ACTIVO
   INACTIVO
@@ -645,18 +731,18 @@ enum nivel_fidelizacion {
 }
 
 model organizacion {
-  id_organizacion        BigInt                    @id @default(autoincrement())
-  codigo                 String                    @unique @db.VarChar(50)
-  nombre                 String                    @db.VarChar(150)
-  tipo                   String                    @default("CLINICA") @db.VarChar(30)
-  subdominio             String                    @unique @db.VarChar(60)
-  schema_name            String                    @unique @db.VarChar(60)
-  estado                 String                    @default("ACTIVA") @db.VarChar(30)
-  plan_suscripcion       String                    @default("PROFESIONAL") @db.VarChar(50)
-  fecha_suscripcion_fin  DateTime?                 @db.Timestamptz(6)
-  fecha_creacion         DateTime                  @default(now()) @db.Timestamptz(6)
-  fecha_actualizacion    DateTime                  @default(now()) @db.Timestamptz(6)
-  usuario_organizacion   usuario_organizacion[]
+  id_organizacion         BigInt                    @id @default(autoincrement())
+  codigo                  String                    @unique @db.VarChar(50)
+  nombre                  String                    @db.VarChar(150)
+  tipo                    String                    @default("CLINICA") @db.VarChar(30)
+  subdominio              String                    @unique @db.VarChar(60)
+  schema_name             String                    @unique @db.VarChar(60)
+  estado                  String                    @default("ACTIVA") @db.VarChar(30)
+  plan_suscripcion        String                    @default("PROFESIONAL") @db.VarChar(50)
+  fecha_suscripcion_fin   DateTime?                 @db.Timestamptz(6)
+  fecha_creacion          DateTime                  @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion     DateTime                  @default(now()) @db.Timestamptz(6)
+  usuario_organizacion    usuario_organizacion[]
   pago_suscripcion_tenant pago_suscripcion_tenant[]
 
   @@index([codigo], map: "idx_organizacion_codigo")
@@ -695,4 +781,3 @@ model pago_suscripcion_tenant {
   @@index([id_organizacion], map: "idx_pago_suscripcion_org")
   @@index([referencia_pago], map: "idx_pago_suscripcion_ref")
 }
-

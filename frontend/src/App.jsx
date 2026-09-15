@@ -26,6 +26,7 @@ import { NotificationHistoryPage } from './pages/NotificationHistoryPage';
 import { SecurityPage } from './pages/SecurityPage';
 import { CampaignsPage } from './pages/CampaignsPage';
 import { LoyaltyPage } from './pages/LoyaltyPage';
+import { AnnouncementsPage } from './pages/AnnouncementsPage';
 import { TenantProvider } from './context/TenantContext';
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
     <Route element={<ProtectedRoute />}><Route element={<AppLayout />}>
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route element={<AuthorizedRoute permission="patient.portal.read" />}><Route path="/mi-portal" element={<PatientPortalPage />} /></Route>
+      <Route element={<AuthorizedRoute permission="patient.portal.read" />}><Route path="/anuncios" element={<AnnouncementsPage />} /></Route>
       <Route element={<AuthorizedRoute permission="patients.read" />}><Route path="/pacientes" element={<PatientsPage />} /></Route>
       <Route element={<AuthorizedRoute permission="history.read" />}><Route path="/historial-clinico/:patientId" element={<MedicalHistoryPage />} /></Route>
       <Route element={<AuthorizedRoute permission="documents.read" />}><Route path="/pacientes/:patientId/documentos" element={<DocumentsPage />} /></Route>

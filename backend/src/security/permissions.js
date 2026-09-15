@@ -38,7 +38,8 @@ function permissionForRequest(request) {
   const read = ['GET', 'HEAD'].includes(request.method);
   if (/^\/api\/security(?:\/|$)/.test(path)) return 'security.manage';
   if (/^\/api\/users(?:\/|$)/.test(path)) return 'users.manage';
-  if (/^\/api\/patient\/[^/]+\/(history|documents|appointments|notifications)$/.test(path)) return 'patient.portal.read';
+  if (/^\/api\/patient\/[^/]+\/(history|documents|appointments|notifications|announcements|marketing-preferences)$/.test(path)) return 'patient.portal.read';
+  if (/^\/api\/patient\/[^/]+\/announcements\/[^/]+\/use$/.test(path)) return 'patient.portal.read';
   if (/^\/api\/patient\/[^/]+\/documents\/[^/]+\/file$/.test(path)) return 'patient.portal.read';
   if (/^\/api\/patients\/[^/]+\/medical-history$/.test(path)) return 'history.read';
   if (/^\/api\/patients\/[^/]+\/documents$/.test(path) || /^\/api\/documents\//.test(path)) return read ? 'documents.read' : 'documents.write';

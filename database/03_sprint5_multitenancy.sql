@@ -103,6 +103,11 @@ BEGIN
     EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.notificacion (LIKE public.notificacion INCLUDING ALL)';
     EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.campania (LIKE public.campania INCLUDING ALL)';
     EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.fidelizacion_paciente (LIKE public.fidelizacion_paciente INCLUDING ALL)';
+    EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.preferencia_marketing (LIKE public.preferencia_marketing INCLUDING ALL)';
+    EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.campania_servicio (LIKE public.campania_servicio INCLUDING ALL)';
+    EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.campania_destinatario (LIKE public.campania_destinatario INCLUDING ALL)';
+    EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.promocion_uso (LIKE public.promocion_uso INCLUDING ALL)';
+    EXECUTE 'CREATE TABLE IF NOT EXISTS ' || quote_ident(v_schema) || '.evento_fidelizacion (LIKE public.evento_fidelizacion INCLUDING ALL)';
 
     -- Vistas hacia tablas globales de identidad
     EXECUTE 'CREATE OR REPLACE VIEW ' || quote_ident(v_schema) || '.usuario AS SELECT * FROM public.usuario';
