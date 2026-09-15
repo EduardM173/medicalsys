@@ -171,7 +171,7 @@ async function usePromotion(patientIdInput, campaignIdInput, input = {}) {
       const nextLevel = loyaltyLevel(nextPoints);
       const created = await tx.promocion_uso.create({ data: { id_campania: campaignId, id_paciente: patientId, id_servicio: serviceId, clave_idempotencia: key, descuento_aplicado: discount, puntos_otorgados: points } });
       await tx.fidelizacion_paciente.upsert({ where: { id_paciente: patientId }, create: { id_paciente: patientId, puntos_acumulados: nextPoints, nivel: nextLevel, estado: 'ACTIVO' }, update: { puntos_acumulados: nextPoints, nivel: nextLevel, fecha_actualizacion: new Date() } });
-      await tx.evento_fidelizacion.create({ data: { id_paciente: patientId, clave_idempotencia: `LOY-${key}`, tipo: 'PROMOCION_USADA', puntos, nivel_anterior: LEVEL_LABEL[oldLevel], nivel_nuevo: LEVEL_LABEL[nextLevel], referencia: `campania:${campaignId}` } });
+      await tx.evento_fidelizacion.create({ data: { id_paciente: patientId, clave_idempotencia: `LOY-${key}`, tipo: 'PROMOCION_USADA', puntos: points, nivel_anterior: LEVEL_LABEL[oldLevel], nivel_nuevo: LEVEL_LABEL[nextLevel], referencia: `campania:${campaignId}` } });
       await tx.campania_destinatario.upsert({ where: { id_campania_id_paciente: { id_campania: campaignId, id_paciente: patientId } }, create: { id_campania: campaignId, id_paciente: patientId, estado: 'CONVERTIDA', fecha_conversion: new Date() }, update: { estado: 'CONVERTIDA', fecha_conversion: new Date() } });
       return { created, nextPoints, nextLevel, changedLevel: oldLevel !== nextLevel };
     });
