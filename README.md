@@ -23,8 +23,8 @@ Desde una terminal de PowerShell:
 ```powershell
 git clone https://github.com/EduardM173/medicalsys.git
 cd medicalsys
-git switch sprint-2
-git pull origin sprint-2
+git switch main
+git pull origin main
 ```
 
 Instale las dependencias en ambos proyectos:
@@ -86,7 +86,7 @@ El archivo `frontend/.env` puede conservar este valor:
 VITE_API_URL=http://localhost:3000/api
 ```
 
-Use exactamente `localhost` en el navegador, no `127.0.0.1`, porque el backend permite el origen `http://localhost:5173`.
+Para desarrollo puede usar `localhost` o `127.0.0.1`; no mezcle ambos orígenes dentro de la misma sesión.
 
 ## Prisma y datos de prueba
 
@@ -109,6 +109,20 @@ prisma db push
 ```
 
 Si se creó la base con `01_schema_mvp.sql`, tampoco es necesario ejecutar `npm run prisma:pull`; el esquema Prisma ya está incluido en el repositorio.
+
+### Actualizar una instalación existente
+
+Después de traer cambios nuevos, detenga el backend y ejecute desde `backend`:
+
+```powershell
+npx prisma migrate deploy
+npm run prisma:generate
+npm run security:setup
+npm run security:reconcile
+npm run prisma:seed
+```
+
+La migración `20260915_hu33_tenant_consentimientos` crea las tablas de plantillas, firmas y anulaciones de consentimientos en los esquemas de clínicas ya existentes. Es necesaria para que `/api/consents` no falle con error 500. `security:reconcile` aplica el mínimo privilegio de los cinco roles estándar, sin borrar roles personalizados ni permisos temporales.
 
 ## Ejecutar el proyecto
 
@@ -143,6 +157,7 @@ Después de ejecutar `npm run prisma:seed`, utilice estas credenciales de desarr
 | Médico principal | `medico@medicalsys.test` | `MedicalSys2026!` | Agenda, historiales, documentos y consentimientos. |
 | Segundo médico | `medico.b@medicalsys.test` | `MedicalSys2026!` | Verificar el aislamiento de agenda entre médicos. |
 | Paciente | `paciente@medicalsys.test` | `MedicalSys2026!` | Comprobar autenticación con rol paciente. |
+| OSI | `osi@medicalsys.test` | `MedicalSys2026!` | Administrar usuarios, roles, permisos y auditoría. |
 | Usuario inactivo | `usuario.inactivo@medicalsys.test` | `MedicalSys2026!` | Verificar que una cuenta inactiva no puede iniciar sesión. |
 
 Estas credenciales son solo para desarrollo local. No deben usarse en un sistema real.
@@ -406,6 +421,8 @@ Entre como OSI y abra **Roles y Seguridad** (`/admin/seguridad`):
 En **Gestión de Usuarios** hay búsqueda por nombre/correo y filtros por rol y estado. El rol de una cuenta nueva debe seleccionarse explícitamente. Se valida la confirmación de contraseña en la API. No se puede modificar el propio rol/estado; tampoco reasignar el rol de usuarios que ya tienen un perfil médico o de paciente vinculado. Un gestor sin permiso de seguridad no puede asignar ni modificar accesos superiores a los propios.
 
 La API consulta el rol, estado y permisos vigentes en cada petición; un JWT antiguo no conserva privilegios revocados. La interfaz actualiza la sesión al recuperar el foco, cada 30 segundos y al recibir un rechazo de acceso. Los módulos, rutas y acciones se ocultan según los permisos efectivos.
+
+Los detalles internos de infraestructura —esquemas PostgreSQL, subdominios y aislamiento físico— no se muestran a usuarios funcionales. El estado y la gestión del plan SaaS se muestran solo a Administrador y SuperAdmin; no son parte del portal de Paciente, Médico, Recepción u OSI.
 
 Para salas/quirófanos, Médico conserva consulta pero no ve Nueva Reserva, Reservar, Cancelar ni el modal. Administrador y Recepcionista disponen de esas acciones mientras tengan `rooms.write`. OSI y Paciente no acceden a salas.
 
