@@ -1,4 +1,5 @@
 const campaignService = require('../services/campaign.service');
+const announcementService = require('../services/announcement.service');
 
 async function listCampaigns(req, res, next) {
   try {
@@ -53,10 +54,29 @@ async function deleteCampaign(req, res, next) {
   }
 }
 
+async function sendCampaign(req, res, next) {
+  try {
+    const result = await announcementService.sendCampaign(req.params.id);
+    res.json({ message: 'Envío promocional procesado.', ...result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getCampaignMetrics(req, res, next) {
+  try {
+    res.json(await announcementService.metrics(req.params.id));
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   listCampaigns,
   getCampaignById,
   createCampaign,
   updateCampaign,
-  deleteCampaign
+  deleteCampaign,
+  sendCampaign,
+  getCampaignMetrics
 };

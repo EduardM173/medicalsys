@@ -9,6 +9,8 @@ router.use(requireAuth, requireRole('ADMINISTRADOR'));
 
 // HU-27: Crear y gestionar campañas y promociones de salud
 router.get('/', campaignController.listCampaigns);
+router.get('/:id/metrics', campaignController.getCampaignMetrics);
+router.post('/:id/send', campaignController.sendCampaign);
 router.get('/:id', campaignController.getCampaignById);
 router.post('/', campaignController.createCampaign);
 router.patch('/:id', campaignController.updateCampaign);

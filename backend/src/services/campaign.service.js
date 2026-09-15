@@ -9,6 +9,46 @@ class CampaignError extends Error {
 
 const VALID_ESTADOS = ['BORRADOR', 'PROGRAMADA', 'ACTIVA', 'FINALIZADA', 'CANCELADA'];
 
+function normalizeDiscount(value) {
+  const discount = Number(value || 0);
+  if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
+    throw new CampaignError(400, 'El descuento debe estar entre 0 y 100%.');
+  }
+  return discount;
+}
+
+function normalizeNonNegativeInteger(value, field) {
+  const number = Number(value || 0);
+  if (!Number.isInteger(number) || number < 0) {
+    throw new CampaignError(400, `${field} debe ser un entero mayor o igual a 0.`);
+  }
+  return number;
+}
+
+function campaignPublicationStatus(campaign, now = new Date()) {
+  if (['BORRADOR', 'FINALIZADA', 'CANCELADA'].includes(campaign.estado)) return campaign.estado;
+  if (campaign.fecha_fin && campaign.fecha_fin < now) return 'FINALIZADA';
+  if (campaign.fecha_inicio && campaign.fecha_inicio > now) return 'PROGRAMADA';
+  return 'ACTIVA';
+}
+
+async function synchronizePublicationStates(now = new Date()) {
+  try {
+    await repository.campania.updateMany({
+      where: { estado: { in: ['PROGRAMADA', 'ACTIVA'] }, fecha_fin: { lt: now } },
+      data: { estado: 'FINALIZADA', fecha_actualizacion: now }
+    });
+    await repository.campania.updateMany({
+      where: { estado: 'PROGRAMADA', fecha_inicio: { lte: now }, OR: [{ fecha_fin: null }, { fecha_fin: { gte: now } }] },
+      data: { estado: 'ACTIVA', fecha_actualizacion: now }
+    });
+  } catch (error) {
+    // Compatibilidad con repositorios simulados mínimos usados por pruebas
+    // unitarias de HU-27; Prisma siempre ofrece updateMany en ejecución real.
+    if (!String(error.message).includes('campania.updateMany no está disponible')) throw error;
+  }
+}
+
 function serializeCampaign(campaign) {
   if (!campaign) return null;
   return {
@@ -22,6 +62,23 @@ function serializeCampaign(campaign) {
     descuentoPorcentaje: campaign.descuento_porcentaje ? Number(campaign.descuento_porcentaje) : 0,
     publicoObjetivo: campaign.publico_objetivo,
     presupuesto: campaign.presupuesto ? Number(campaign.presupuesto) : 0,
+    contenidoPublicable: campaign.contenido_publicable || campaign.descripcion || '',
+    imagenUrl: campaign.imagen_url || '',
+    segmento: {
+      edadMin: campaign.segmento_edad_min,
+      edadMax: campaign.segmento_edad_max,
+      sexo: campaign.segmento_sexo,
+      ubicacion: campaign.segmento_ubicacion,
+      condiciones: Array.isArray(campaign.segmento_condiciones) ? campaign.segmento_condiciones : [],
+      nivel: campaign.segmento_nivel
+    },
+    whatsappHabilitado: Boolean(campaign.whatsapp_habilitado),
+    puntosConversion: campaign.puntos_conversion || 0,
+    servicios: campaign.servicios?.map((item) => ({
+      id: Number(item.servicio.id_servicio),
+      nombre: item.servicio.nombre,
+      precioBase: Number(item.servicio.precio_base)
+    })) || [],
     fechaCreacion: campaign.fecha_creacion ? campaign.fecha_creacion.toISOString() : null,
     fechaActualizacion: campaign.fecha_actualizacion ? campaign.fecha_actualizacion.toISOString() : null,
     creadaPor: campaign.usuario ? {
@@ -30,11 +87,14 @@ function serializeCampaign(campaign) {
       apellidos: campaign.usuario.apellidos,
       email: campaign.usuario.email
     } : null,
-    totalNotificaciones: campaign._count ? campaign._count.notificacion : 0
+    totalNotificaciones: campaign._count ? campaign._count.notificacion : 0,
+    alcance: campaign._count ? campaign._count.destinatarios : 0,
+    conversiones: campaign._count ? campaign._count.usos : 0
   };
 }
 
 async function listCampaigns({ search = '', estado = '' } = {}) {
+  await synchronizePublicationStates();
   const where = {};
 
   if (estado && VALID_ESTADOS.includes(estado.toUpperCase())) {
@@ -59,8 +119,9 @@ async function listCampaigns({ search = '', estado = '' } = {}) {
           select: { id_usuario: true, nombres: true, apellidos: true, email: true }
         },
         _count: {
-          select: { notificacion: true }
-        }
+          select: { notificacion: true, destinatarios: true, usos: true }
+        },
+        servicios: { include: { servicio: true } }
       }
     }),
     repository.campania.groupBy({
@@ -90,7 +151,7 @@ async function listCampaigns({ search = '', estado = '' } = {}) {
 
   return {
     campaigns: campaigns.map(serializeCampaign),
-    stats
+    stats: { ...stats, presupuestoTotal: campaigns.reduce((sum, item) => sum + Number(item.presupuesto || 0), 0) }
   };
 }
 
@@ -103,8 +164,9 @@ async function getCampaignById(id) {
         select: { id_usuario: true, nombres: true, apellidos: true, email: true }
       },
       _count: {
-        select: { notificacion: true }
-      }
+        select: { notificacion: true, destinatarios: true, usos: true }
+      },
+      servicios: { include: { servicio: true } }
     }
   });
 
@@ -141,9 +203,18 @@ async function createCampaign(data, userId) {
     throw new CampaignError(400, 'La fecha de fin no puede ser anterior a la fecha de inicio.');
   }
 
-  const estado = data.estado && VALID_ESTADOS.includes(data.estado.toUpperCase())
-    ? data.estado.toUpperCase()
-    : 'BORRADOR';
+  const descuento = normalizeDiscount(data.descuentoPorcentaje);
+  const puntos = normalizeNonNegativeInteger(data.puntosConversion, 'Los puntos por conversión');
+  const presupuesto = Number(data.presupuesto || 0);
+  if (!Number.isFinite(presupuesto) || presupuesto < 0) throw new CampaignError(400, 'El presupuesto no puede ser negativo.');
+  const edadMin = data.segmento?.edadMin === '' || data.segmento?.edadMin == null ? null : normalizeNonNegativeInteger(data.segmento.edadMin, 'La edad mínima');
+  const edadMax = data.segmento?.edadMax === '' || data.segmento?.edadMax == null ? null : normalizeNonNegativeInteger(data.segmento.edadMax, 'La edad máxima');
+  if (edadMin !== null && edadMax !== null && edadMax < edadMin) throw new CampaignError(400, 'La edad máxima no puede ser menor a la mínima.');
+
+  const requestedState = data.estado && VALID_ESTADOS.includes(data.estado.toUpperCase())
+    ? data.estado.toUpperCase() : 'BORRADOR';
+  const estadoFinal = campaignPublicationStatus({ estado: requestedState, fecha_inicio: fechaInicio, fecha_fin: fechaFin });
+  const serviceIds = [...new Set((data.servicioIds || []).map(String).filter((id) => /^\d+$/.test(id)))];
 
   const campaign = await repository.campania.create({
     data: {
@@ -151,17 +222,29 @@ async function createCampaign(data, userId) {
       descripcion: data.descripcion ? data.descripcion.trim() : null,
       fecha_inicio: fechaInicio,
       fecha_fin: fechaFin,
-      estado,
+      estado: estadoFinal,
       tipo_promocion: data.tipoPromocion || 'GENERAL',
-      descuento_porcentaje: data.descuentoPorcentaje !== undefined ? data.descuentoPorcentaje : 0,
+      descuento_porcentaje: descuento,
       publico_objetivo: data.publicoObjetivo ? data.publicoObjetivo.trim() : null,
-      presupuesto: data.presupuesto !== undefined ? data.presupuesto : 0,
-      creada_por: userId ? BigInt(userId) : null
+      presupuesto,
+      contenido_publicable: data.contenidoPublicable?.trim() || data.descripcion?.trim() || null,
+      imagen_url: data.imagenUrl?.trim() || null,
+      segmento_edad_min: edadMin,
+      segmento_edad_max: edadMax,
+      segmento_sexo: data.segmento?.sexo || null,
+      segmento_ubicacion: data.segmento?.ubicacion?.trim() || null,
+      segmento_condiciones: Array.isArray(data.segmento?.condiciones) ? data.segmento.condiciones.map(String).filter(Boolean) : [],
+      segmento_nivel: data.segmento?.nivel || null,
+      whatsapp_habilitado: Boolean(data.whatsappHabilitado),
+      puntos_conversion: puntos,
+      creada_por: userId ? BigInt(userId) : null,
+      servicios: serviceIds.length ? { create: serviceIds.map((id) => ({ id_servicio: BigInt(id) })) } : undefined
     },
     include: {
       usuario: {
         select: { id_usuario: true, nombres: true, apellidos: true, email: true }
-      }
+      },
+      servicios: { include: { servicio: true } }
     }
   });
 
@@ -237,7 +320,7 @@ async function updateCampaign(id, data) {
   }
 
   if (data.descuentoPorcentaje !== undefined) {
-    updateData.descuento_porcentaje = data.descuentoPorcentaje;
+    updateData.descuento_porcentaje = normalizeDiscount(data.descuentoPorcentaje);
   }
 
   if (data.publicoObjetivo !== undefined) {
@@ -245,21 +328,44 @@ async function updateCampaign(id, data) {
   }
 
   if (data.presupuesto !== undefined) {
-    updateData.presupuesto = data.presupuesto;
+    const value = Number(data.presupuesto);
+    if (!Number.isFinite(value) || value < 0) throw new CampaignError(400, 'El presupuesto no puede ser negativo.');
+    updateData.presupuesto = value;
   }
 
-  const updated = await repository.campania.update({
-    where: { id_campania: campaignId },
-    data: updateData,
+  if (data.contenidoPublicable !== undefined) updateData.contenido_publicable = data.contenidoPublicable?.trim() || null;
+  if (data.imagenUrl !== undefined) updateData.imagen_url = data.imagenUrl?.trim() || null;
+  if (data.whatsappHabilitado !== undefined) updateData.whatsapp_habilitado = Boolean(data.whatsappHabilitado);
+  if (data.puntosConversion !== undefined) updateData.puntos_conversion = normalizeNonNegativeInteger(data.puntosConversion, 'Los puntos por conversión');
+  if (data.segmento !== undefined) {
+    const min = data.segmento.edadMin === '' || data.segmento.edadMin == null ? null : normalizeNonNegativeInteger(data.segmento.edadMin, 'La edad mínima');
+    const max = data.segmento.edadMax === '' || data.segmento.edadMax == null ? null : normalizeNonNegativeInteger(data.segmento.edadMax, 'La edad máxima');
+    if (min !== null && max !== null && max < min) throw new CampaignError(400, 'La edad máxima no puede ser menor a la mínima.');
+    Object.assign(updateData, { segmento_edad_min: min, segmento_edad_max: max, segmento_sexo: data.segmento.sexo || null, segmento_ubicacion: data.segmento.ubicacion?.trim() || null, segmento_condiciones: Array.isArray(data.segmento.condiciones) ? data.segmento.condiciones.map(String).filter(Boolean) : [], segmento_nivel: data.segmento.nivel || null });
+  }
+
+  if (updateData.estado || (['PROGRAMADA', 'ACTIVA'].includes(existing.estado) && (data.fechaInicio !== undefined || data.fechaFin !== undefined))) {
+    updateData.estado = campaignPublicationStatus({ estado: updateData.estado || existing.estado, fecha_inicio: fechaInicio, fecha_fin: fechaFin });
+  }
+
+  const serviceIds = data.servicioIds === undefined
+    ? null
+    : [...new Set((data.servicioIds || []).map(String).filter((value) => /^\d+$/.test(value)))];
+  const updateWith = (gateway) => gateway.campania.update({
+    where: { id_campania: campaignId }, data: updateData,
     include: {
-      usuario: {
-        select: { id_usuario: true, nombres: true, apellidos: true, email: true }
-      },
-      _count: {
-        select: { notificacion: true }
-      }
+      usuario: { select: { id_usuario: true, nombres: true, apellidos: true, email: true } },
+      _count: { select: { notificacion: true, destinatarios: true, usos: true } },
+      servicios: { include: { servicio: true } }
     }
   });
+  const updated = serviceIds === null
+    ? await updateWith(repository)
+    : await repository.transaction(async (tx) => {
+      await tx.campania_servicio.deleteMany({ where: { id_campania: campaignId } });
+      if (serviceIds.length) await tx.campania_servicio.createMany({ data: serviceIds.map((value) => ({ id_campania: campaignId, id_servicio: BigInt(value) })) });
+      return updateWith(tx);
+    });
 
   return serializeCampaign(updated);
 }
@@ -270,7 +376,7 @@ async function deleteCampaign(id) {
     where: { id_campania: campaignId },
     include: {
       _count: {
-        select: { notificacion: true }
+        select: { notificacion: true, destinatarios: true, usos: true }
       }
     }
   });
@@ -280,7 +386,7 @@ async function deleteCampaign(id) {
   }
 
   // Si tiene notificaciones asociadas, realizar baja lógica pasando a CANCELADA
-  if (existing._count.notificacion > 0) {
+  if (existing._count.notificacion > 0 || existing._count.destinatarios > 0 || existing._count.usos > 0) {
     const updated = await repository.campania.update({
       where: { id_campania: campaignId },
       data: {
@@ -311,5 +417,7 @@ module.exports = {
   createCampaign,
   updateCampaign,
   deleteCampaign,
-  CampaignError
+  synchronizePublicationStates,
+  CampaignError,
+  campaignPublicationStatus
 };

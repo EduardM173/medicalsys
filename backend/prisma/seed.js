@@ -794,6 +794,8 @@ async function seedCampaignsAndLoyalty({ adminId, patients }) {
   const today = new Date();
   const nextMonth = new Date();
   nextMonth.setDate(today.getDate() + 30);
+  const nextWeek = new Date();
+  nextWeek.setDate(today.getDate() + 7);
   const prevMonth = new Date();
   prevMonth.setDate(today.getDate() - 30);
 
@@ -808,18 +810,27 @@ async function seedCampaignsAndLoyalty({ adminId, patients }) {
       descuento_porcentaje: 20.00,
       publico_objetivo: 'Pacientes mayores de 40 años o con antecedentes de hipertensión arterial',
       presupuesto: 2500.00,
+      contenido_publicable: 'Cuida tu corazón con una evaluación preventiva y un beneficio exclusivo para miembros Oro.',
+      segmento_nivel: 'ORO',
+      whatsapp_habilitado: true,
+      puntos_conversion: 25,
       creada_por: adminId
     },
     {
       nombre: 'Chequeo Pediátrico Integral Vuelta a Clases',
       descripcion: 'Evaluación de agudeza visual, audiometría, curva de crecimiento y esquema de vacunación completo para el inicio del año escolar.',
-      fecha_inicio: today,
+      fecha_inicio: nextWeek,
       fecha_fin: nextMonth,
       estado: 'PROGRAMADA',
       tipo_promocion: 'PAQUETE_PREVENTIVO',
       descuento_porcentaje: 15.00,
       publico_objetivo: 'Pacientes en edad escolar (de 4 a 14 años)',
       presupuesto: 1800.00,
+      contenido_publicable: 'Prepara la vuelta a clases con un chequeo pediátrico integral.',
+      segmento_edad_min: 4,
+      segmento_edad_max: 14,
+      whatsapp_habilitado: false,
+      puntos_conversion: 10,
       creada_por: adminId
     },
     {
@@ -832,6 +843,9 @@ async function seedCampaignsAndLoyalty({ adminId, patients }) {
       descuento_porcentaje: 50.00,
       publico_objetivo: 'Comunidad general y grupos familiares',
       presupuesto: 3000.00,
+      contenido_publicable: 'Beneficio odontológico preventivo para toda la familia.',
+      whatsapp_habilitado: false,
+      puntos_conversion: 15,
       creada_por: adminId
     }
   ];
@@ -852,19 +866,34 @@ async function seedCampaignsAndLoyalty({ adminId, patients }) {
     campaigns.push(existing);
   }
 
+  const linkedService = await prisma.servicio_medico.findFirst({ where: { codigo: 'CONS-ESP' } });
+  if (linkedService) {
+    await prisma.campania_servicio.upsert({
+      where: { id_campania_id_servicio: { id_campania: campaigns[0].id_campania, id_servicio: linkedService.id_servicio } },
+      create: { id_campania: campaigns[0].id_campania, id_servicio: linkedService.id_servicio },
+      update: {}
+    });
+  }
+
+  await prisma.preferencia_marketing.upsert({
+    where: { id_paciente: patients[0].id_paciente },
+    create: { id_paciente: patients[0].id_paciente, suscrito: true, whatsapp_autorizado: true },
+    update: { suscrito: true, whatsapp_autorizado: true, fecha_exclusion: null }
+  });
+
   const loyaltyData = [
     {
       id_paciente: patients[0].id_paciente,
       estado: 'ACTIVO',
       nivel: 'PREMIUM',
-      puntos_acumulados: 350,
+      puntos_acumulados: 550,
       notas: 'Paciente frecuente del programa cardiovascular. Cumplimiento ejemplar.'
     },
     {
       id_paciente: patients[1].id_paciente,
       estado: 'ACTIVO',
       nivel: 'FRECUENTE',
-      puntos_acumulados: 120,
+      puntos_acumulados: 250,
       notas: 'Inscrita en módulo de consulta general y controles preventivos.'
     },
     {
@@ -887,6 +916,54 @@ async function seedCampaignsAndLoyalty({ adminId, patients }) {
   }
 
   return { campaigns, loyaltyMembers };
+}
+
+async function seedHu36Tenants({ adminId, patientUserId }) {
+  const organizations = await prisma.organizacion.findMany({ where: { estado: 'ACTIVA' }, select: { codigo: true, schema_name: true } });
+  const start = new Date();
+  start.setDate(start.getDate() - 7);
+  const end = new Date();
+  end.setDate(end.getDate() + 30);
+  let seeded = 0;
+
+  for (const organization of organizations) {
+    const tenant = prisma.getTenantPrisma(organization.schema_name);
+    try {
+      const [patient, service] = await Promise.all([
+        tenant.paciente.findFirst({ where: { id_usuario: patientUserId, activo: true } }),
+        tenant.servicio_medico.findFirst({ where: { codigo: 'CONS-ESP', activo: true } })
+      ]);
+      if (!patient || !service) continue;
+      const data = {
+        descripcion: 'Campaña integral de detección temprana de factores de riesgo coronario con arancel preferencial.',
+        fecha_inicio: start, fecha_fin: end, estado: 'ACTIVA', tipo_promocion: 'DESCUENTO_CONSULTA',
+        descuento_porcentaje: 20, publico_objetivo: 'Miembros Oro', presupuesto: 2500,
+        contenido_publicable: 'Cuida tu corazón con una evaluación preventiva y un beneficio exclusivo para miembros Oro.',
+        segmento_edad_min: null, segmento_edad_max: null, segmento_sexo: null, segmento_ubicacion: null,
+        segmento_condiciones: [], segmento_nivel: 'ORO', whatsapp_habilitado: true, puntos_conversion: 25,
+        creada_por: adminId
+      };
+      let campaign = await tenant.campania.findFirst({ where: { nombre: 'Jornada Preventiva de Salud Cardiovascular & Hipertensión' } });
+      campaign = campaign
+        ? await tenant.campania.update({ where: { id_campania: campaign.id_campania }, data })
+        : await tenant.campania.create({ data: { ...data, nombre: 'Jornada Preventiva de Salud Cardiovascular & Hipertensión' } });
+      await tenant.campania_servicio.upsert({ where: { id_campania_id_servicio: { id_campania: campaign.id_campania, id_servicio: service.id_servicio } }, create: { id_campania: campaign.id_campania, id_servicio: service.id_servicio }, update: {} });
+      await tenant.fidelizacion_paciente.upsert({ where: { id_paciente: patient.id_paciente }, create: { id_paciente: patient.id_paciente, estado: 'ACTIVO', nivel: 'PREMIUM', puntos_acumulados: 550 }, update: { estado: 'ACTIVO', nivel: 'PREMIUM', puntos_acumulados: 550 } });
+      await tenant.preferencia_marketing.upsert({ where: { id_paciente: patient.id_paciente }, create: { id_paciente: patient.id_paciente, suscrito: true, whatsapp_autorizado: true }, update: { suscrito: true, whatsapp_autorizado: true, fecha_exclusion: null } });
+      const pediatric = await tenant.campania.findFirst({ where: { nombre: 'Chequeo Pediátrico Integral Vuelta a Clases' } });
+      if (pediatric) {
+        const pediatricStart = new Date(); pediatricStart.setDate(pediatricStart.getDate() + 7);
+        const pediatricEnd = new Date(); pediatricEnd.setDate(pediatricEnd.getDate() + 37);
+        await tenant.campania.update({ where: { id_campania: pediatric.id_campania }, data: { fecha_inicio: pediatricStart, fecha_fin: pediatricEnd, estado: 'PROGRAMADA', segmento_edad_min: 4, segmento_edad_max: 14, segmento_nivel: null, contenido_publicable: 'Prepara la vuelta a clases con un chequeo pediátrico integral.', whatsapp_habilitado: false, puntos_conversion: 10 } });
+      }
+      const dental = await tenant.campania.findFirst({ where: { nombre: 'Campaña Odontológica Preventiva 2026' } });
+      if (dental) await tenant.campania.update({ where: { id_campania: dental.id_campania }, data: { estado: 'BORRADOR', contenido_publicable: 'Beneficio odontológico preventivo para toda la familia.', whatsapp_habilitado: false, puntos_conversion: 15 } });
+      seeded += 1;
+    } finally {
+      await tenant.$disconnect();
+    }
+  }
+  return seeded;
 }
 
 async function main() {
@@ -1005,6 +1082,7 @@ async function main() {
       documentData.secondPatient
     ]
   });
+  const hu36Tenants = await seedHu36Tenants({ adminId: admin.id_usuario, patientUserId: patientUser.id_usuario });
 
   console.log(
     `Seed listo: administrador ${admin.email}, médicos ${doctor.email} y ${secondDoctor.email}, `
@@ -1020,6 +1098,7 @@ async function main() {
       + ` notificaciones HU-26 ${notificationHistory.length}.`
       + ` campañas HU-27 ${campaigns.length}.`
       + ` fidelización HU-28 ${loyaltyMembers.length}.`
+      + ` tenants HU-36 ${hu36Tenants}.`
   );
 }
 

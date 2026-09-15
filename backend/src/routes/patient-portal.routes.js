@@ -9,4 +9,7 @@ router.get('/:patientId/documents',controller.listDocuments);
 router.get('/:patientId/documents/:documentId/file',controller.openDocument);
 router.get('/:patientId/appointments',controller.listAppointments);
 router.get('/:patientId/notifications',controller.listNotifications);
+router.get('/:patientId/announcements',controller.listAnnouncements);
+router.patch('/:patientId/marketing-preferences',controller.updateMarketingPreferences);
+router.post('/:patientId/announcements/:campaignId/use',controller.usePromotion);
 module.exports=router;

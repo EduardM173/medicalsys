@@ -3,6 +3,7 @@ const medicalHistoryService = require('./medical-history.service');
 const documentService = require('./document.service');
 const appointmentService = require('./appointment.service');
 const notificationService = require('./notification.service');
+const announcementService = require('./announcement.service');
 const { recordClinicalRead, recordUnauthorizedAccess } = require('./audit.service');
 
 class PatientPortalError extends Error {
@@ -90,4 +91,16 @@ async function listNotifications(user, patientId) {
   await recordClinicalRead(user, 'PATIENT_NOTIFICATIONS_READ', ownPatientId, { resource: 'notifications', patientId: String(ownPatientId) });
   return result;
 }
-module.exports = { PatientPortalError, assertOwnPatient, getHistory, listDocuments, openDocument, listAppointments, listNotifications };
+async function listAnnouncements(user, patientId) {
+  const ownPatientId = await assertOwnPatient(user, patientId);
+  return announcementService.listForPatient(ownPatientId);
+}
+async function updateMarketingPreferences(user, patientId, input) {
+  const ownPatientId = await assertOwnPatient(user, patientId);
+  return announcementService.updatePreferences(ownPatientId, input);
+}
+async function usePromotion(user, patientId, campaignId, input) {
+  const ownPatientId = await assertOwnPatient(user, patientId);
+  return announcementService.usePromotion(ownPatientId, campaignId, input);
+}
+module.exports = { PatientPortalError, assertOwnPatient, getHistory, listDocuments, openDocument, listAppointments, listNotifications, listAnnouncements, updateMarketingPreferences, usePromotion };

@@ -210,6 +210,13 @@ export async function downloadPatientPortalDocument(patientId, documentId) {
 }
 export function getPatientPortalAppointments(patientId) { return request(`/patient/${patientId}/appointments`); }
 export function getPatientPortalNotifications(patientId) { return request(`/patient/${patientId}/notifications`); }
+export function getPatientAnnouncements(patientId) { return request(`/patient/${patientId}/announcements`); }
+export function updatePatientMarketingPreferences(patientId, preferences) {
+  return request(`/patient/${patientId}/marketing-preferences`, { method: 'PATCH', body: JSON.stringify(preferences) });
+}
+export function usePatientPromotion(patientId, campaignId, data) {
+  return request(`/patient/${patientId}/announcements/${campaignId}/use`, { method: 'POST', body: JSON.stringify(data) });
+}
 
 export function getMyAgenda(date) {
   return request(`/agenda/me?date=${encodeURIComponent(date)}`);
@@ -537,6 +544,14 @@ export function deleteCampaign(id) {
   return request(`/campaigns/${id}`, {
     method: 'DELETE'
   });
+}
+
+export function sendCampaignWhatsApp(id) {
+  return request(`/campaigns/${id}/send`, { method: 'POST' });
+}
+
+export function getCampaignMetrics(id) {
+  return request(`/campaigns/${id}/metrics`);
 }
 
 // ==========================================
