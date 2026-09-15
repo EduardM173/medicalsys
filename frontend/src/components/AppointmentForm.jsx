@@ -1,3 +1,5 @@
+import { useListPagination, ListPagination } from './ListPagination';
+import { useSecureDraft } from '../hooks/useSecureDraft';
 import React, { useEffect, useState } from 'react';
 import { ApiError, getDoctors, getPatients, getServices } from '../services/api';
 import { Button } from './Button';
@@ -8,13 +10,14 @@ function todayIsoDate() {
 }
 
 export function AppointmentForm({ onCancel, onSave }) {
+  const paginationKey = useListPagination();
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [services, setServices] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [loadError, setLoadError] = useState('');
 
-  const [form, setForm] = useState({
+  const [form, setForm, clearDraft] = useSecureDraft(`appointment:new`, {
     pacienteId: '',
     medicoId: '',
     servicioId: '',
@@ -38,9 +41,10 @@ export function AppointmentForm({ onCancel, onSave }) {
           getServices()
         ]);
         if (!active) return;
-        setPatients(patientsResponse.patients);
-        setDoctors(doctorsResponse.doctors);
-        setServices(servicesResponse.services);
+        const keepSelected = (previous, rows, selectedId) => [...rows, ...previous.filter(item => String(item.id) === String(selectedId) && !rows.some(row => String(row.id) === String(item.id)))];
+        setPatients(previous => keepSelected(previous, patientsResponse.patients, form.pacienteId));
+        setDoctors(previous => keepSelected(previous, doctorsResponse.doctors, form.medicoId));
+        setServices(previous => keepSelected(previous, servicesResponse.services, form.servicioId));
         setLoadError('');
       } catch (requestError) {
         if (active) {
@@ -55,7 +59,7 @@ export function AppointmentForm({ onCancel, onSave }) {
 
     loadOptions();
     return () => { active = false; };
-  }, []);
+  }, [paginationKey]);
 
   const selectedService = services.find((service) => String(service.id) === form.servicioId);
 
@@ -82,6 +86,7 @@ export function AppointmentForm({ onCancel, onSave }) {
         horaInicio: form.horaInicio,
         indicacionesPrevias: form.indicacionesPrevias || undefined
       });
+      clearDraft();
     } catch (requestError) {
       setError(requestError instanceof ApiError
         ? requestError.message
@@ -94,6 +99,7 @@ export function AppointmentForm({ onCancel, onSave }) {
   return (
     <div className="modal-overlay" role="presentation">
       <div aria-labelledby="appointment-modal-title" aria-modal="true" className="modal-card" role="dialog">
+        <ListPagination />
         <div className="modal-heading">
           <div>
             <h2 id="appointment-modal-title">Reservar Cita Médica</h2>

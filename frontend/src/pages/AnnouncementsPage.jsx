@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getPatientAnnouncements, updatePatientMarketingPreferences, usePatientPromotion } from '../services/api';
@@ -13,6 +14,7 @@ function operationKey(campaignId, serviceId) {
 }
 
 export function AnnouncementsPage() {
+  const paginationKey = useListPagination();
   const { user } = useAuth();
   const patientId = user?.patientId;
   const [items, setItems] = useState([]);
@@ -35,7 +37,7 @@ export function AnnouncementsPage() {
     } finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, [patientId]);
+  useEffect(() => { load(); }, [patientId, paginationKey]);
 
   async function savePreferences(next) {
     setBusy('preferences');
@@ -69,7 +71,7 @@ export function AnnouncementsPage() {
     {notice.text && <p className={`notice ${notice.type === 'error' ? 'error-notice' : 'success-notice'}`} role="status">{notice.text}</p>}
     {loading ? <div className="announcement-empty">Cargando campañas...</div> : !items.length ? <div className="announcement-empty"><strong>No hay campañas disponibles para ti ahora.</strong><span>Cuando exista una promoción vigente y compatible con tu perfil aparecerá aquí.</span></div> :
       <section className="announcement-grid" aria-label="Campañas disponibles">{items.map((campaign) => <article className="announcement-card" key={campaign.id}>
-        {campaign.imageUrl ? <img src={campaign.imageUrl} alt="" loading="lazy" /> : <div className="announcement-placeholder" aria-hidden="true">✦</div>}
+        {campaign.imageUrl ? <img src={campaign.imageUrl} alt="" loading="lazy" decoding="async" width="640" height="240" referrerPolicy="no-referrer" /> : <div className="announcement-placeholder" aria-hidden="true">✦</div>}
         <div className="announcement-body">
           <div className="announcement-tags">{campaign.discountPercent > 0 && <span>{campaign.discountPercent}% descuento</span>}{campaign.points > 0 && <span>+{campaign.points} puntos</span>}</div>
           <h2>{campaign.title}</h2><p>{campaign.content}</p>

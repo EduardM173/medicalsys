@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { downloadPatientPortalDocument, getPatientPortalAppointments, getPatientPortalDocuments, getPatientPortalHistory, getPatientPortalNotifications } from '../services/api';
@@ -5,10 +6,11 @@ import '../styles/patient-portal.css';
 function formatDate(value, withTime=false){if(!value)return '—';return new Intl.DateTimeFormat('es-BO',{dateStyle:'medium',...(withTime?{timeStyle:'short'}:{}),timeZone:'America/La_Paz'}).format(new Date(value));}
 function dash(v){return v||'No registrado';}
 export function PatientPortalPage(){
+  const paginationKey = useListPagination();
  const {user}=useAuth(); const patientId=user?.patientId;
  const [data,setData]=useState({history:null,documents:[],appointments:[],notifications:[]}); const [loading,setLoading]=useState(true); const [error,setError]=useState(''); const [downloading,setDownloading]=useState(null);
  async function load(){if(!patientId){setError('La cuenta PACIENTE no está vinculada a un registro de paciente.');setLoading(false);return;}setLoading(true);try{const [history,documents,appointments,notifications]=await Promise.all([getPatientPortalHistory(patientId),getPatientPortalDocuments(patientId),getPatientPortalAppointments(patientId),getPatientPortalNotifications(patientId)]);setData({history,documents:documents.documents||[],appointments:appointments.appointments||[],notifications:notifications.notifications||[]});setError('');}catch(e){setError(e.status===404?'No fue posible acceder a la información solicitada.':'No fue posible cargar su portal.');}finally{setLoading(false);}}
- useEffect(()=>{load();},[patientId]);
+ useEffect(()=>{load();}, [patientId, paginationKey]);
  async function download(doc){setDownloading(doc.id);try{const blob=await downloadPatientPortalDocument(patientId,doc.id);const url=URL.createObjectURL(blob);const a=window.document.createElement('a');a.href=url;a.download=doc.nombreArchivo||`documento-${doc.id}`;window.document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(e){setError(e.status===404?'Documento no encontrado.':'No fue posible descargar el documento.');}finally{setDownloading(null);}}
  if(loading)return <main className="patient-portal-page"><p>Cargando su información...</p></main>;
  const h=data.history;

@@ -5,6 +5,7 @@ import { Input } from '../components/Input';
 import { useAuth } from '../contexts/AuthContext';
 import { ApiError, forgotPasswordRequest, getStoredToken, setStoredToken } from '../services/api';
 import '../styles/auth.css';
+import { ListPagination } from '../components/ListPagination';
 
 const REMEMBERED_EMAIL_KEY = 'remembered_email';
 
@@ -17,6 +18,9 @@ function getRememberedEmail() {
 }
 
 export function LoginPage() {
+  useEffect(() => {
+    requestAnimationFrame(() => { document.documentElement.dataset.shellReadyMs = String(Math.round(performance.now())); });
+  }, []);
   const { user, loading, login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState(getRememberedEmail);
@@ -240,6 +244,7 @@ export function LoginPage() {
           </form>
         </div>
       )}
+      <ListPagination />
     </main>
   );
 }

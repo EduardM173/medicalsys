@@ -56,7 +56,7 @@ const BLIND_INDEX_FIELDS = {
 };
 
 const WRITE_KEYS = ['create', 'createMany', 'update', 'updateMany', 'upsert'];
-const READ_KEYS = ['findFirst', 'findMany', 'findUnique'];
+const READ_KEYS = ['findFirst', 'findMany', 'findPage', 'findUnique'];
 
 function modelEncryptedFields(modelName) {
   return ENCRYPTED_FIELDS[modelName] || [];

@@ -399,7 +399,7 @@ async function listAppointments(filters = {}) {
     where.estado = filters.estado;
   }
 
-  const appointments = await repository.cita.findMany({
+  const appointments = await repository.cita.findPage({
     where,
     orderBy: { fecha_hora_inicio: 'asc' },
     include: appointmentInclude

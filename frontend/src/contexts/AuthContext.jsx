@@ -36,7 +36,7 @@ export function AuthProvider({ children }) {
     setUser(response.user);
     return { ...response.user, token: response.token };
   }
-  async function logout() { await logoutRequest(); setUser(null); }
+  async function logout() { try { await logoutRequest(); } finally { setUser(null); } }
   return <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>{children}</AuthContext.Provider>;
 }
 export function useAuth() {

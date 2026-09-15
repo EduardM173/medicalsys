@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -43,6 +44,7 @@ function diagnosisLabel(attention) {
 }
 
 export function MedicalHistoryPage() {
+  const paginationKey = useListPagination();
   const { patientId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -75,7 +77,7 @@ export function MedicalHistoryPage() {
 
   useEffect(() => {
     loadHistory();
-  }, [patientId]);
+  }, [patientId, paginationKey]);
 
   function handleAttentionSaved(savedAttention) {
     setShowAttentionModal(false);

@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getCurrentTenant, getTenantCatalog, getStoredToken } from '../services/api';
+import { useListPagination } from '../components/ListPagination';
 
 const TenantContext = createContext(null);
 
 export function TenantProvider({ children }) {
+  const paginationKey = useListPagination();
   const [currentTenant, setCurrentTenant] = useState(null);
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +32,7 @@ export function TenantProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [paginationKey]);
 
   useEffect(() => {
     loadTenantData();

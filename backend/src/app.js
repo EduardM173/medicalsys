@@ -1,6 +1,7 @@
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const express = require('express');
+const compression = require('compression');
 const appointmentRoutes = require('./routes/appointment.routes');
 const agendaRoutes = require('./routes/agenda.routes');
 const attentionRoutes = require('./routes/attention.routes');
@@ -39,7 +40,7 @@ function isOriginAllowed(origin) {
   if (origin === configured || origin === 'http://localhost:5173') return true;
   // Permitir subdominios de localhost para SaaS multi-tenant (ej. cumed.localhost:5173)
   if (/^https?:\/\/[a-z0-9-]+\.localhost(?::\d+)?$/.test(origin)) return true;
-  if (/^https?:\/\/localhost(?::\d+)?$/.test(origin)) return true;
+  if (/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(origin)) return true;
   return false;
 }
 
@@ -51,11 +52,19 @@ app.use(cors({
       callback(new Error(`Bloqueado por CORS: origen no permitido (${origin})`));
     }
   },
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['X-Pagination']
 }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(requestLogger);
+app.use(compression({ threshold: 1024, filter: (request, response) =>
+  !request.headers.authorization && !request.headers.cookie && !request.headers['x-tenant-code']
+    ? compression.filter(request, response)
+    : /^application\/json/.test(String(response.getHeader('Content-Type') || ''))
+      && !request.path.startsWith('/api/auth') }));
+app.use(require('./middleware/availability.middleware'));
+app.use(require('./middleware/pagination.middleware'));
 
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);

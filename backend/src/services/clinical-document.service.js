@@ -150,7 +150,7 @@ class ClinicalDocumentService {
     return serializeDocument(createdDoc);
   }
 
-  async getPatientDocuments(patientId, filters = {}) {
+async getPatientDocuments(patientId, filters = {}) {
     const pId = BigInt(patientId);
     const history = await repository.historia_clinica.findUnique({
       where: { id_paciente: pId }
@@ -168,7 +168,7 @@ class ClinicalDocumentService {
       where.tipo = filters.tipo.toUpperCase();
     }
 
-    const docs = await repository.documento_clinico.findMany({
+    const docs = await repository.documento_clinico.findPage({
       where,
       orderBy: { fecha_registro: 'desc' },
       include: {

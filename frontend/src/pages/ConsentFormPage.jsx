@@ -1,3 +1,5 @@
+import { useSecureDraft } from '../hooks/useSecureDraft';
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -14,9 +16,10 @@ function formatAppointment(appointment) {
 }
 
 export function ConsentFormPage() {
+  const paginationKey = useListPagination();
   const navigate = useNavigate();
   const [options, setOptions] = useState(null);
-  const [form, setForm] = useState({
+  const [form, setForm, clearDraft] = useSecureDraft(`consent:new`, {
     templateId: '',
     patientId: '',
     appointmentId: ''
@@ -44,14 +47,14 @@ export function ConsentFormPage() {
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [paginationKey]);
 
   const availableAppointments = useMemo(() => {
     if (!options || !form.patientId) return [];
     return options.appointments.filter(
       (appointment) => appointment.patientId === Number(form.patientId)
     );
-  }, [form.patientId, options]);
+  }, [form.patientId, options, paginationKey]);
 
   function updateField(event) {
     const { name, value } = event.target;
@@ -71,6 +74,7 @@ export function ConsentFormPage() {
         patientId: form.patientId,
         appointmentId: form.appointmentId || null
       });
+      clearDraft();
       navigate(`/consentimientos/${response.consent.id}`);
     } catch (requestError) {
       const knownMessages = [

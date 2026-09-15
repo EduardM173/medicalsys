@@ -1,3 +1,4 @@
+import { useListPagination } from '../components/ListPagination';
 import React, { useEffect, useState } from 'react';
 import { AppointmentForm } from '../components/AppointmentForm';
 import { Button } from '../components/Button';
@@ -57,6 +58,7 @@ function formatTime(isoDate) {
 }
 
 export function AppointmentsPage() {
+  const paginationKey = useListPagination();
   const [selectedDate, setSelectedDate] = useState(todayIsoDate());
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +87,7 @@ export function AppointmentsPage() {
 
   useEffect(() => {
     loadAppointments(selectedDate);
-  }, [selectedDate]);
+  }, [selectedDate, paginationKey]);
 
   async function saveAppointment(payload) {
     await createAppointment(payload);

@@ -69,15 +69,13 @@ function present(campaign) {
 async function listForPatient(patientIdInput) {
   const patientId = id(patientIdInput, 'Paciente');
   await campaignService.synchronizePublicationStates();
-  const [patient, campaigns] = await Promise.all([
-    loadPatient(patientId),
-    repository.campania.findMany({
-      where: { estado: 'ACTIVA', fecha_inicio: { lte: new Date() }, OR: [{ fecha_fin: null }, { fecha_fin: { gte: new Date() } }] },
-      orderBy: { fecha_inicio: 'desc' },
-      include: { servicios: { include: { servicio: true } } }
-    })
-  ]);
-  const matching = campaigns.filter((campaign) => eligible(patient, campaign));
+  const patient = await loadPatient(patientId);
+  // Resolve segmentation from lightweight candidates, then fetch only the full
+  // requested page. Segmentation must happen before pagination.
+  const where = { estado: 'ACTIVA', fecha_inicio: { lte: new Date() }, OR: [{ fecha_fin: null }, { fecha_fin: { gte: new Date() } }] };
+  const candidates = await repository.campania.findMany({ where, select: { id_campania: true, segmento_edad_min: true, segmento_edad_max: true, segmento_sexo: true, segmento_ubicacion: true, segmento_nivel: true, segmento_condiciones: true } });
+  const eligibleIds = candidates.filter(campaign => eligible(patient, campaign)).map(campaign => campaign.id_campania);
+  const matching = await repository.campania.findPage({ where: { ...where, id_campania: { in: eligibleIds } }, orderBy: { fecha_inicio: 'desc' }, include: { servicios: { include: { servicio: true } } } });
   await Promise.all(matching.map((campaign) => repository.campania_destinatario.upsert({
     where: { id_campania_id_paciente: { id_campania: campaign.id_campania, id_paciente: patientId } },
     create: { id_campania: campaign.id_campania, id_paciente: patientId, estado: 'ALCANZADO' },
@@ -188,15 +186,15 @@ async function metrics(campaignIdInput) {
   const campaignId = id(campaignIdInput, 'Campaña');
   const campaign = await repository.campania.findUnique({ where: { id_campania: campaignId } });
   if (!campaign) throw new AnnouncementError(404, 'Campaña no encontrada.');
-  const [recipients, uses] = await Promise.all([
-    repository.campania_destinatario.findMany({ where: { id_campania: campaignId } }),
-    repository.promocion_uso.findMany({ where: { id_campania: campaignId } })
+  const [reach, sent, delivered, conversions, amounts] = await Promise.all([
+    repository.campania_destinatario.count({ where: { id_campania: campaignId } }),
+    repository.campania_destinatario.count({ where: { id_campania: campaignId, estado: { in: ['ENVIADA', 'ENTREGADA', 'CONVERTIDA'] } } }),
+    repository.campania_destinatario.count({ where: { id_campania: campaignId, estado: { in: ['ENTREGADA', 'CONVERTIDA'] } } }),
+    repository.promocion_uso.count({ where: { id_campania: campaignId } }),
+    repository.promocion_uso.aggregate({ where: { id_campania: campaignId }, _sum: { descuento_aplicado: true } })
   ]);
-  const sent = recipients.filter((row) => ['ENVIADA', 'ENTREGADA', 'CONVERTIDA'].includes(row.estado)).length;
-  const delivered = recipients.filter((row) => ['ENTREGADA', 'CONVERTIDA'].includes(row.estado)).length;
-  const conversions = uses.length;
-  const spent = uses.reduce((sum, row) => sum + Number(row.descuento_aplicado), 0);
-  return { budget: Number(campaign.presupuesto || 0), spent: Number(spent.toFixed(2)), remaining: Math.max(0, Number(campaign.presupuesto || 0) - spent), reach: recipients.length, sent, delivered, conversions, conversionRate: recipients.length ? Number((conversions * 100 / recipients.length).toFixed(1)) : 0 };
+  const spent = Number(amounts._sum.descuento_aplicado || 0);
+  return { budget: Number(campaign.presupuesto || 0), spent: Number(spent.toFixed(2)), remaining: Math.max(0, Number(campaign.presupuesto || 0) - spent), reach, sent, delivered, conversions, conversionRate: reach ? Number((conversions * 100 / reach).toFixed(1)) : 0 };
 }
 
 module.exports = { AnnouncementError, canReceiveWhatsApp, eligible, listForPatient, loyaltyLevel, metrics, sendCampaign, updatePreferences, usePromotion };

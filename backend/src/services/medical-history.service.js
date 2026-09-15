@@ -101,8 +101,19 @@ async function getMedicalHistoryByPatientId(patientIdInput) {
           antecedentes: true,
           alergias: true,
           condiciones_cronicas: true,
-          observaciones_generales: true,
-          atencion_medica: {
+          observaciones_generales: true
+        }
+      }
+    }
+  });
+
+  if (!patient) {
+    throw new MedicalHistoryError(404, 'Paciente no encontrado.');
+  }
+
+  const history = patient.historia_clinica;
+  const attentions = history ? await repository.atencion_medica.findPage({
+            where: { id_historia: history.id_historia },
             orderBy: { fecha_atencion: 'desc' },
             select: {
               id_atencion: true,
@@ -133,21 +144,11 @@ async function getMedicalHistoryByPatientId(patientIdInput) {
                 }
               }
             }
-          }
-        }
-      }
-    }
-  });
-
-  if (!patient) {
-    throw new MedicalHistoryError(404, 'Paciente no encontrado.');
-  }
-
-  const history = patient.historia_clinica;
+          }) : [];
   return {
     patient: toPatient(patient),
     history: history ? toHistory(history) : null,
-    attentions: history ? history.atencion_medica.map(toAttention) : []
+    attentions: attentions.map(toAttention)
   };
 }
 

@@ -13,7 +13,7 @@ function toMedicalService(service) {
 }
 
 async function listServices() {
-  const services = await repository.servicio_medico.findMany({
+  const services = await repository.servicio_medico.findPage({
     where: { activo: true },
     orderBy: { nombre: 'asc' }
   });

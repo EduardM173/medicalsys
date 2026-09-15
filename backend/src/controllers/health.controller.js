@@ -9,4 +9,10 @@ async function getHealth(_request, response, next) {
   }
 }
 
-module.exports = { getHealth };
+function getLive(_request, response) { response.json(healthService.liveness()); }
+async function getReady(_request, response) {
+  const result = await healthService.readiness();
+  response.status(result.status === 'ok' ? 200 : 503).json(result);
+}
+function getMetrics(_request, response) { response.json(healthService.metrics()); }
+module.exports = { getHealth, getLive, getReady, getMetrics };

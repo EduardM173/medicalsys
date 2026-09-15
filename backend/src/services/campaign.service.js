@@ -111,7 +111,7 @@ async function listCampaigns({ search = '', estado = '' } = {}) {
   }
 
   const [campaigns, counts] = await Promise.all([
-    repository.campania.findMany({
+    repository.campania.findPage({
       where,
       orderBy: [{ fecha_creacion: 'desc' }],
       include: {

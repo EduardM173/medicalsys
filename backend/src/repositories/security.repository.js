@@ -1,5 +1,16 @@
 const database = require('../config/prisma');
 const { createRepository } = require('./repository.factory');
+const { paginationContext } = require('../context/pagination.context');
+
+async function rawPage(name, select, count) {
+  const scope = paginationContext.getStore();
+  if (!scope) return select(100, 0);
+  const page = scope.modelPages?.[name] || scope.page;
+  const [rows, counts] = await Promise.all([select(scope.pageSize, (page - 1) * scope.pageSize), count()]);
+  const total = Number(counts[0]?.total || 0);
+  scope.results[name] = { page, pageSize: scope.pageSize, total, pages: Math.max(1, Math.ceil(total / scope.pageSize)) };
+  return rows;
+}
 
 function createSecurityRepository(client = database) {
   const models = createRepository(['usuario', 'rol'], client);
@@ -25,12 +36,14 @@ function createSecurityRepository(client = database) {
     recordAudit: (actorId, action, target, details) => client.$executeRaw`
       INSERT INTO public.security_audit (actor_id, action, target, details)
       VALUES (${BigInt(actorId)}, ${action}, ${String(target)}, ${JSON.stringify(details)}::jsonb)`,
-    listTemporaryGrants: () => client.$queryRaw`
+    listTemporaryGrants: () => rawPage('security_user_grant', (take, skip) => client.$queryRaw`
       SELECT g.id::text, g.user_id::text, g.permission_code, g.expires_at,
         g.granted_by::text, g.created_at, u.nombres, u.apellidos, u.email
       FROM public.security_user_grant g JOIN public.usuario u ON u.id_usuario = g.user_id
       WHERE g.revoked_at IS NULL AND g.expires_at > NOW()
-      ORDER BY g.expires_at ASC`,
+      ORDER BY g.expires_at ASC, g.id ASC LIMIT ${take} OFFSET ${skip}`,
+      () => client.$queryRaw`SELECT COUNT(*)::text AS total FROM public.security_user_grant
+        WHERE revoked_at IS NULL AND expires_at > NOW()`),
     revokeMatchingGrants: (userId, permission, actorId) => client.$executeRaw`
       UPDATE public.security_user_grant SET revoked_at = NOW(), revoked_by = ${BigInt(actorId)}
       WHERE user_id = ${BigInt(userId)} AND permission_code = ${permission} AND revoked_at IS NULL`,
@@ -43,9 +56,10 @@ function createSecurityRepository(client = database) {
       SET revoked_at = NOW(), revoked_by = ${BigInt(actorId)}
       WHERE id = ${BigInt(grantId)} AND revoked_at IS NULL AND expires_at > NOW()
       RETURNING user_id::text, permission_code`,
-    listAudit: () => client.$queryRaw`
+    listAudit: () => rawPage('security_audit', (take, skip) => client.$queryRaw`
       SELECT id::text, actor_id::text, action, target, details, created_at
-      FROM public.security_audit ORDER BY id DESC LIMIT 100`
+      FROM public.security_audit ORDER BY id DESC LIMIT ${take} OFFSET ${skip}`,
+      () => client.$queryRaw`SELECT COUNT(*)::text AS total FROM public.security_audit`)
   });
 }
 
