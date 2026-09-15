@@ -1,5 +1,5 @@
 const os = require('os');
-const prisma = require('../../config/prisma');
+const repository = require('../../repositories/notification.repository');
 const whatsappService = require('./whatsapp.service');
 const { buildConfirmationMessage, buildReminderMessage } = require('./appointment-message');
 const { normalizeWhatsappPhone } = require('./phone');
@@ -242,9 +242,9 @@ async function cancelAppointmentNotificationJobs(tx, citaId, types = OUTBOUND_TY
 
 async function scheduleNotificationForAppointment(cita, tipo, emitidoPorUserId, { runNow = false } = {}) {
   const key = idempotencyKey(cita, tipo);
-  let job = await prisma.cola_notificacion.findUnique({ where: { clave_idempotencia: key }, include: jobInclude });
+  let job = await repository.cola_notificacion.findUnique({ where: { clave_idempotencia: key }, include: jobInclude });
   if (!job) {
-    const jobs = await prisma.$transaction(async (tx) => scheduleAppointmentNotifications(tx, cita, {
+    const jobs = await repository.transaction(async (tx) => scheduleAppointmentNotifications(tx, cita, {
       emitidoPorUserId,
       types: [tipo],
       cancelStaleJobs: false
@@ -261,7 +261,7 @@ async function scheduleNotificationForAppointment(cita, tipo, emitidoPorUserId, 
     const { notificationData } = notificationDataFor(cita, tipo, emitidoPorUserId, now);
     const { fecha_creacion: _ignored, ...notificationUpdateData } = notificationData;
 
-    await prisma.$transaction(async (tx) => {
+    await repository.transaction(async (tx) => {
       await tx.cola_notificacion.update({
         where: { id_cola: job.id_cola },
         data: {
@@ -282,7 +282,7 @@ async function scheduleNotificationForAppointment(cita, tipo, emitidoPorUserId, 
         data: notificationUpdateData
       });
     });
-    job = await prisma.cola_notificacion.findUnique({ where: { id_cola: job.id_cola }, include: jobInclude });
+    job = await repository.cola_notificacion.findUnique({ where: { id_cola: job.id_cola }, include: jobInclude });
   }
   if (!job) throw new NotificationQueueError(500, 'No fue posible programar la notificación.');
 
@@ -290,12 +290,12 @@ async function scheduleNotificationForAppointment(cita, tipo, emitidoPorUserId, 
     const now = new Date();
     // No se toca un trabajo ya reclamado por otro worker. Esta condición es
     // importante para que un clic manual no reabra una entrega en curso.
-    const expedited = await prisma.cola_notificacion.updateMany({
+    const expedited = await repository.cola_notificacion.updateMany({
       where: { id_cola: job.id_cola, estado: 'PENDIENTE' },
       data: { fecha_disponible: now, fecha_actualizacion: now },
     });
     if (expedited.count === 1) {
-      job = await prisma.cola_notificacion.findUnique({ where: { id_cola: job.id_cola }, include: jobInclude });
+      job = await repository.cola_notificacion.findUnique({ where: { id_cola: job.id_cola }, include: jobInclude });
     }
   }
   return toQueuedNotification(job);
@@ -304,7 +304,7 @@ async function scheduleNotificationForAppointment(cita, tipo, emitidoPorUserId, 
 async function claimNextNotificationJob(workerId = workerIdentity(), now = new Date()) {
   // Recupera trabajos abandonados por un proceso caído. La actualización
   // condicional posterior es el bloqueo distribuido entre instancias.
-  await prisma.cola_notificacion.updateMany({
+  await repository.cola_notificacion.updateMany({
     where: { estado: 'PROCESANDO', bloqueado_hasta: { lt: now } },
     data: {
       estado: 'PENDIENTE',
@@ -314,7 +314,7 @@ async function claimNextNotificationJob(workerId = workerIdentity(), now = new D
     }
   });
 
-  const candidates = await prisma.cola_notificacion.findMany({
+  const candidates = await repository.cola_notificacion.findMany({
     where: { estado: 'PENDIENTE', fecha_disponible: { lte: now } },
     orderBy: [{ fecha_disponible: 'asc' }, { id_cola: 'asc' }],
     take: 10,
@@ -323,7 +323,7 @@ async function claimNextNotificationJob(workerId = workerIdentity(), now = new D
 
   const lockUntil = new Date(now.getTime() + configuredLockMs());
   for (const candidate of candidates) {
-    const locked = await prisma.cola_notificacion.updateMany({
+    const locked = await repository.cola_notificacion.updateMany({
       where: {
         id_cola: candidate.id_cola,
         estado: 'PENDIENTE',
@@ -339,7 +339,7 @@ async function claimNextNotificationJob(workerId = workerIdentity(), now = new D
     });
     if (locked.count !== 1) continue;
 
-    return prisma.cola_notificacion.findUnique({
+    return repository.cola_notificacion.findUnique({
       where: { id_cola: candidate.id_cola },
       include: jobInclude
     });
@@ -358,7 +358,7 @@ async function withLeaseRenewal(job, workerId, action) {
   const lockMs = configuredLockMs();
   const timer = setInterval(() => {
     const now = new Date();
-    void prisma.cola_notificacion.updateMany({
+    void repository.cola_notificacion.updateMany({
       where: { id_cola: job.id_cola, estado: 'PROCESANDO', bloqueado_por: workerId },
       data: { bloqueado_hasta: new Date(now.getTime() + lockMs), fecha_actualizacion: now }
     });
@@ -373,7 +373,7 @@ async function withLeaseRenewal(job, workerId, action) {
 
 async function cancelClaimedJob(job, workerId, reason) {
   const now = new Date();
-  await prisma.cola_notificacion.updateMany({
+  await repository.cola_notificacion.updateMany({
     where: { id_cola: job.id_cola, estado: 'PROCESANDO', bloqueado_por: workerId },
     data: {
       estado: 'CANCELADA',
@@ -388,7 +388,7 @@ async function cancelClaimedJob(job, workerId, reason) {
 
 async function completeSuccessfulJob(job, workerId, providerReference) {
   const now = new Date();
-  return prisma.$transaction(async (tx) => {
+  return repository.transaction(async (tx) => {
     const completed = await tx.cola_notificacion.updateMany({
       where: { id_cola: job.id_cola, estado: 'PROCESANDO', bloqueado_por: workerId },
       data: {
@@ -417,7 +417,7 @@ async function completeFailedJob(job, workerId, errorMessage) {
   const now = new Date();
   const exhausted = job.intentos >= job.max_intentos;
   const nextAttempt = exhausted ? null : new Date(now.getTime() + retryDelayMs(job.intentos));
-  return prisma.$transaction(async (tx) => {
+  return repository.transaction(async (tx) => {
     const completed = await tx.cola_notificacion.updateMany({
       where: { id_cola: job.id_cola, estado: 'PROCESANDO', bloqueado_por: workerId },
       data: exhausted ? {
@@ -491,7 +491,7 @@ async function processNextNotificationJob(workerId = workerIdentity()) {
 }
 
 async function listFailedNotificationJobs() {
-  const jobs = await prisma.cola_notificacion.findMany({
+  const jobs = await repository.cola_notificacion.findMany({
     where: { estado: 'FALLIDA' },
     orderBy: [{ fecha_actualizacion: 'desc' }, { id_cola: 'desc' }],
     take: 100,
@@ -510,7 +510,7 @@ async function listFailedNotificationJobs() {
 async function retryFailedNotificationJob(jobIdInput) {
   const jobId = parseJobId(jobIdInput);
   const now = new Date();
-  return prisma.$transaction(async (tx) => {
+  return repository.transaction(async (tx) => {
     const existing = await tx.cola_notificacion.findUnique({ where: { id_cola: jobId }, include: jobInclude });
     if (!existing || existing.estado !== 'FALLIDA') {
       throw new NotificationQueueError(409, 'La notificación no está en estado FALLIDA o ya fue reintentada.');
@@ -562,7 +562,7 @@ async function retryFailedNotificationJob(jobIdInput) {
 
 /** Registra un fallo asíncrono de entrega informado por Green API. */
 async function retryAfterDeliveryFailure(notificationId, errorMessage, occurredAt = new Date()) {
-  return prisma.$transaction(async (tx) => {
+  return repository.transaction(async (tx) => {
     const job = await tx.cola_notificacion.findUnique({ where: { id_notificacion: notificationId } });
     if (!job || job.estado !== 'ENVIADA') return { updated: false, exhausted: false };
 

@@ -7,13 +7,16 @@ async function uploadDocument(req, res, next) {
     const file = req.file;
     const userId = req.user?.idUsuario;
 
+    const tenantCode = req.tenant?.codigo;
+
     const document = await clinicalDocumentService.uploadDocument({
       patientId,
       attentionId,
       userId,
       file,
       tipo,
-      titulo
+      titulo,
+      tenantCode
     });
 
     return res.status(201).json({
@@ -40,7 +43,8 @@ async function getPatientDocuments(req, res, next) {
 async function downloadDocument(req, res, next) {
   try {
     const { documentId } = req.params;
-    const { stream, mimeType, filename, hashSha256 } = await clinicalDocumentService.getDocumentDownloadStream(documentId);
+    const tenantCode = req.tenant?.codigo;
+    const { stream, mimeType, filename, hashSha256 } = await clinicalDocumentService.getDocumentDownloadStream(documentId, tenantCode);
 
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(filename)}"`);

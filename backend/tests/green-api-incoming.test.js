@@ -1,7 +1,7 @@
 const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 
-const patient = { id_paciente: 8n };
+const patient = { id_paciente: 8n, telefono: '65119078' };
 const outbound = { id_notificacion: 50n, id_cita: 11n, tipo: 'RECORDATORIO_CITA' };
 const created = [];
 const appointmentUpdates = [];

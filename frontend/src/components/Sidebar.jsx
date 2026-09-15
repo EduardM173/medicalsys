@@ -6,7 +6,12 @@ export function Sidebar() {
   const { user, logout } = useAuth();
   const [error, setError] = useState('');
   async function handleLogout() {
-    try { await logout(); } catch (_error) { setError('No fue posible cerrar sesión.'); }
+    try {
+      await logout();
+      window.location.href = '/login';
+    } catch (_error) {
+      setError('No fue posible cerrar sesión.');
+    }
   }
   return <aside className="app-sidebar">
     <NavLink className="sidebar-brand" to="/dashboard" aria-label="Ir al inicio de MedicalSys">

@@ -102,7 +102,7 @@ test('permite cualquier permiso por rol y protege dependencias y acceso propio',
   assert.equal((await security.matrix()).roles.length, roles.length);
   assert.ok(security.validatePermissions(['patients.read', 'history.read']).includes('history.read'));
   userGrants.set('5', ['rooms.write']);
-  assert.deepEqual((await security.permissionsForUser('5', 'PACIENTE')).sort(), ['rooms.read', 'rooms.write']);
+  assert.deepEqual((await security.permissionsForUser('5', 'INVITADO')).sort(), ['rooms.read', 'rooms.write']);
   userGrants.clear();
   const custom = await security.createRole({ name: 'Auditor de prueba', code: 'AUDITOR_PRUEBA' }, actor);
   assert.equal(custom.code, 'AUDITOR_PRUEBA');

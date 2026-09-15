@@ -1,4 +1,3 @@
-const prisma = require('../config/prisma');
 const repository = require('../repositories/appointment.repository');
 const {
   scheduleAppointmentNotifications,
@@ -241,7 +240,7 @@ async function createAppointment(input, createdByUserId) {
   // PA-02 / PA-06: se almacena fecha/hora de inicio y fin, motivo y el estado inicial PROGRAMADA.
   // PA-01 / PA-03: cita y outbox se confirman juntos; un reinicio entre
   // ambos nunca deja una cita sin sus notificaciones persistentes.
-  const appointment = await prisma.$transaction(async (tx) => {
+  const appointment = await repository.transaction(async (tx) => {
     const created = await tx.cita.create({
       data: {
         id_paciente: patientId,
@@ -346,7 +345,7 @@ async function updateAppointment(idInput, input = {}) {
 
   data.fecha_actualizacion = new Date();
 
-  const appointment = await prisma.$transaction(async (tx) => {
+  const appointment = await repository.transaction(async (tx) => {
     const updated = await tx.cita.update({
       where: { id_cita: id },
       data,

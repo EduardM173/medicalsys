@@ -22,7 +22,9 @@ const patientRoutes = require('./routes/patient.routes');
 const roomRoutes = require('./routes/room.routes');
 const scheduleRoutes = require('./routes/schedule.routes');
 const serviceRoutes = require('./routes/service.routes');
+const tenantRoutes = require('./routes/tenant.routes');
 const userRoutes = require('./routes/user.routes');
+const tenantMiddleware = require('./middleware/tenant.middleware');
 const errorHandler = require('./middleware/error.middleware');
 const requestLogger = require('./middleware/log.middleware');
 const { enforceHttps } = require('./middleware/security.middleware');
@@ -31,8 +33,24 @@ const app = express();
 app.enable('trust proxy');
 app.use(enforceHttps());
 
+function isOriginAllowed(origin) {
+  if (!origin) return true;
+  const configured = process.env.FRONTEND_URL || 'http://localhost:5173';
+  if (origin === configured || origin === 'http://localhost:5173') return true;
+  // Permitir subdominios de localhost para SaaS multi-tenant (ej. cumed.localhost:5173)
+  if (/^https?:\/\/[a-z0-9-]+\.localhost(?::\d+)?$/.test(origin)) return true;
+  if (/^https?:\/\/localhost(?::\d+)?$/.test(origin)) return true;
+  return false;
+}
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (isOriginAllowed(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Bloqueado por CORS: origen no permitido (${origin})`));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
@@ -42,6 +60,8 @@ app.use(requestLogger);
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/security', require('./routes/security.routes'));
+app.use(tenantMiddleware);
+app.use('/api/tenants', tenantRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/atenciones', attentionRoutes);

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { useAuth } from '../contexts/AuthContext';
-import { ApiError, forgotPasswordRequest } from '../services/api';
+import { ApiError, forgotPasswordRequest, getStoredToken, setStoredToken } from '../services/api';
 import '../styles/auth.css';
 
 const REMEMBERED_EMAIL_KEY = 'remembered_email';
@@ -31,7 +31,19 @@ export function LoginPage() {
   const [forgotSuccess, setForgotSuccess] = useState('');
   const [forgotError, setForgotError] = useState('');
 
-  if (!loading && user) {
+  const host = window.location.hostname.toLowerCase();
+  const isRootPortal = host === 'localhost' || host === '127.0.0.1';
+
+  // Si estamos en el portal raíz, limpiamos tokens viejos para que el login central siempre esté listo para cualquier clínica
+  useEffect(() => {
+    if (isRootPortal) {
+      setStoredToken(null);
+    }
+  }, [isRootPortal]);
+
+  // Solo auto-redirigir si está autenticado en un subdominio específico (ej: cumed.localhost:5173/login).
+  // En el portal raíz (localhost:5173/login) NUNCA auto-redirigir: el usuario vino a loguearse o cambiar de cuenta.
+  if (!loading && user && !isRootPortal) {
     return <Navigate replace to="/dashboard" />;
   }
 
@@ -41,7 +53,7 @@ export function LoginPage() {
     setSubmitting(true);
 
     try {
-      await login(email, password);
+      const loggedUser = await login(email, password);
       try {
         if (remember) {
           localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
@@ -51,6 +63,27 @@ export function LoginPage() {
       } catch (_storageError) {
         // Almacenamiento no disponible: no bloquea el inicio de sesión.
       }
+
+      // Smart Tenant Routing: si ingresa desde la raíz (localhost sin subdominio)
+      if (isRootPortal) {
+        let targetSubdomain = null;
+        if (loggedUser?.isSuperAdmin) {
+          targetSubdomain = localStorage.getItem('medicalsys_active_tenant') || loggedUser.organizaciones?.[0]?.subdominio || 'cumed';
+        } else if (loggedUser?.organizaciones && loggedUser.organizaciones.length > 0) {
+          targetSubdomain = loggedUser.organizaciones[0].subdominio || loggedUser.organizaciones[0].codigo;
+        }
+
+        if (targetSubdomain) {
+          localStorage.setItem('medicalsys_active_tenant', targetSubdomain);
+          const port = window.location.port ? `:${window.location.port}` : '';
+          const token = loggedUser.token || getStoredToken();
+          setStoredToken(null);
+          const targetUrl = `${window.location.protocol}//${targetSubdomain}.localhost${port}/dashboard?token=${encodeURIComponent(token)}`;
+          window.location.href = targetUrl;
+          return;
+        }
+      }
+
       navigate('/dashboard', { replace: true });
     } catch (requestError) {
       if (requestError instanceof ApiError) {

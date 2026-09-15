@@ -13,12 +13,27 @@ function cookieSettings() {
 
 async function login(request, response, next) {
   try {
-    const result = await authService.login(request.body.email, request.body.password);
-    response.cookie(cookieName, result.token, {
-      ...cookieSettings(),
-      maxAge: 8 * 60 * 60 * 1000
-    });
-    response.status(200).json({ user: result.user });
+    const isExplicit = Boolean(
+      request.headers['x-tenant-code'] ||
+      request.headers['x-tenant-id'] ||
+      request.query?.tenant ||
+      request.hasExplicitTenant
+    );
+
+    const activeTenantCode = isExplicit
+      ? (request.headers['x-tenant-code'] || request.tenant?.codigo || request.query?.tenant)
+      : null;
+
+    const result = await authService.login(request.body.email, request.body.password, activeTenantCode);
+    if (isExplicit) {
+      response.cookie(cookieName, result.token, {
+        ...cookieSettings(),
+        maxAge: 8 * 60 * 60 * 1000
+      });
+    } else {
+      response.clearCookie(cookieName, cookieSettings());
+    }
+    response.status(200).json({ user: result.user, token: result.token });
   } catch (error) {
     next(error);
   }
@@ -32,6 +47,16 @@ function logout(_request, response) {
 async function me(request, response, next) {
   try {
     const user = await authService.getCurrentUser(request.user.id);
+    const authHeader = request.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+      if (token) {
+        response.cookie(cookieName, token, {
+          ...cookieSettings(),
+          maxAge: 8 * 60 * 60 * 1000
+        });
+      }
+    }
     response.status(200).json({ user });
   } catch (error) {
     next(error);

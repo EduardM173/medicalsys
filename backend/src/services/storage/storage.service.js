@@ -15,14 +15,14 @@ class StorageService {
     return this.localProvider;
   }
 
-  async saveFile({ buffer, filename, mimeType }) {
+  async saveFile({ buffer, filename, mimeType, tenantCode = null }) {
     const provider = this.getActiveProvider();
-    return provider.saveFile({ buffer, filename, mimeType });
+    return provider.saveFile({ buffer, filename, mimeType, tenantCode });
   }
 
-  async getFileStream(storageKey, storageProvider = null) {
+  async getFileStream(storageKey, storageProvider = null, tenantCode = null) {
     const provider = this.getActiveProvider(storageProvider);
-    return provider.getFileStream(storageKey);
+    return provider.getFileStream(storageKey, tenantCode);
   }
 
   async deleteFile(storageKey, storageProvider = null) {

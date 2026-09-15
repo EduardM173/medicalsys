@@ -1,4 +1,3 @@
-const prisma = require('../config/prisma');
 const repository = require('../repositories/notification.repository');
 const {
   fullName,
@@ -195,7 +194,7 @@ async function findPatientsByWhatsappSender(sender) {
     ? senderDigits.slice(3)
     : null;
 
-  const candidates = await prisma.paciente.findMany({
+  const candidates = await repository.paciente.findMany({
     where: { activo: true, telefono: { not: null } },
     select: { id_paciente: true, telefono: true }
   });
@@ -382,7 +381,7 @@ async function processGreenApiOutgoingStatusNotification(payload) {
     return { processed: false, reason: 'invalid_status' };
   }
 
-  const notification = await prisma.notificacion.findFirst({
+  const notification = await repository.notificacion.findFirst({
     where: { proveedor_referencia: providerReference, direccion: 'SALIENTE' },
     select: { id_notificacion: true, estado: true }
   });
@@ -398,7 +397,7 @@ async function processGreenApiOutgoingStatusNotification(payload) {
       'Green API informó que el mensaje no pudo ser entregado.',
       occurredAt
     );
-    await prisma.notificacion.update({
+    await repository.notificacion.update({
       where: { id_notificacion: notification.id_notificacion },
       data: {
         estado: retry.exhausted ? 'FALLIDA' : 'PENDIENTE',
@@ -419,7 +418,7 @@ async function processGreenApiOutgoingStatusNotification(payload) {
     : status === 'delivered'
       ? { estado: 'ENTREGADA', fecha_entrega: occurredAt }
       : { estado: 'ENVIADA', fecha_envio: occurredAt };
-  await prisma.notificacion.update({ where: { id_notificacion: notification.id_notificacion }, data });
+  await repository.notificacion.update({ where: { id_notificacion: notification.id_notificacion }, data });
   return { processed: true, status };
 }
 
@@ -517,7 +516,7 @@ async function sendAppointmentConfirmation(citaIdInput, emitidoPorUserId) {
     throw new NotificationError(400, 'No se puede confirmar por WhatsApp: la cita ya fue completada.');
   }
 
-  const existing = await prisma.notificacion.findFirst({
+  const existing = await repository.notificacion.findFirst({
     where: {
       id_cita: cita.id_cita,
       tipo: 'CONFIRMACION_CITA',
